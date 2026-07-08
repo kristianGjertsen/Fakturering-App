@@ -11,20 +11,33 @@ export default function LoginPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (loading) {
+      return;
+    }
+
     setLoading(true);
     setMessage("");
 
-    const response = isRegistering
-      ? await supabase.auth.signUp({ email, password })
-      : await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const response = isRegistering
+        ? await supabase.auth.signUp({ email, password })
+        : await supabase.auth.signInWithPassword({ email, password });
 
-    if (response.error) {
-      setMessage(response.error.message);
-    } else if (isRegistering) {
-      setMessage("Bruker opprettet. Sjekk e-post hvis bekreftelse er aktivert.");
+      if (response.error) {
+        const isRateLimited =
+          response.error.status === 429 || response.error.message.toLowerCase().includes("rate limit");
+
+        setMessage(
+          isRateLimited
+            ? "For mange forsok pa kort tid. Vent litt og prov igjen."
+            : response.error.message
+        );
+      } else if (isRegistering) {
+        setMessage("Bruker opprettet. Sjekk e-post hvis bekreftelse er aktivert.");
+      }
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (
