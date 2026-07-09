@@ -5,7 +5,6 @@ import type { AppView } from "../components/AppLayout";
 import { AppLayout } from "../components/AppLayout";
 import { CompaniesView } from "../components/CompaniesView";
 import { DashboardView } from "../components/DashboardView";
-import { InvoiceBuilder } from "../components/InvoiceBuilder";
 import { InvoicesView } from "../components/InvoicesView";
 import { RecurringView } from "../components/RecurringView";
 import {
@@ -100,7 +99,7 @@ export default function HomePage({ session }: HomePageProps) {
               products={data.products}
               invoices={data.invoices}
               schedules={data.schedules}
-              onCreateInvoice={() => setActiveView("invoice")}
+              onCreateInvoice={() => setActiveView("invoices")}
             />
           )}
 
@@ -113,16 +112,16 @@ export default function HomePage({ session }: HomePageProps) {
             />
           )}
 
-          {activeView === "invoice" && (
-            <InvoiceBuilder
+          {activeView === "invoices" && (
+            <InvoicesView
               companies={data.companies}
               products={data.products}
+              invoices={data.invoices}
               onCreateInvoice={handleCreateInvoice}
               onOpenCompanies={() => setActiveView("companies")}
+              onDeleteInvoice={handleDeleteInvoice}
             />
           )}
-
-          {activeView === "invoices" && <InvoicesView invoices={data.invoices} onDeleteInvoice={handleDeleteInvoice} />}
 
           {activeView === "recurring" && <RecurringView schedules={data.schedules} />}
         </>

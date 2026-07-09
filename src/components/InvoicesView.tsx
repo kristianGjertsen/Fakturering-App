@@ -1,13 +1,19 @@
 import { useEffect, useState } from "react";
-import type { InvoiceWithDetails } from "../types";
+import type { Company, InvoiceWithDetails, Product } from "../types";
+import type { InvoiceInput } from "../lib/data";
 import { formatCurrency, formatDate } from "../lib/format";
 import { EmptyState } from "./EmptyState";
-import { buttonSecondaryClass } from "./FormField";
+import { buttonPrimaryClass, buttonSecondaryClass } from "./FormField";
 import { SectionHeader } from "./SectionHeader";
 import { PdfPreview } from "./PdfPreview";
+import { InvoiceBuilder } from "./InvoiceBuilder";
 
 type InvoicesViewProps = {
+  companies: Company[];
+  products: Product[];
   invoices: InvoiceWithDetails[];
+  onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<void>;
+  onOpenCompanies: () => void;
   onDeleteInvoice: (invoiceId: string) => Promise<void>;
 };
 
@@ -19,9 +25,17 @@ const statusLabels: Record<string, string> = {
   cancelled: "Kansellert",
 };
 
-export function InvoicesView({ invoices, onDeleteInvoice }: InvoicesViewProps) {
+export function InvoicesView({
+  companies,
+  products,
+  invoices,
+  onCreateInvoice,
+  onOpenCompanies,
+  onDeleteInvoice,
+}: InvoicesViewProps) {
   const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
   const [deletingInvoiceId, setDeletingInvoiceId] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   useEffect(() => {
     if (!selectedInvoiceId && invoices[0]) {
@@ -55,18 +69,54 @@ export function InvoicesView({ invoices, onDeleteInvoice }: InvoicesViewProps) {
     }
   }
 
+  const header = (
+    <SectionHeader
+      title="Fakturaer"
+      description="Lag nye fakturaer og velg en faktura for detaljer og PDF-forhandsvisning."
+      action={
+        <button className={buttonPrimaryClass} type="button" onClick={() => setShowCreateForm((value) => !value)}>
+          {showCreateForm ? "Skjul skjema" : "Ny faktura"}
+        </button>
+      }
+    />
+  );
+
   if (invoices.length === 0) {
     return (
       <div className="space-y-6">
-        <SectionHeader title="Fakturaer" description="Alle fakturaer som er lagret i Supabase vises her." />
-        <EmptyState title="Ingen fakturaer" description="Lag en faktura først. Når den er lagret kan du se PDF og detaljer her." />
+        {header}
+        {showCreateForm ? (
+          <InvoiceBuilder
+            companies={companies}
+            products={products}
+            onCreateInvoice={async (input) => {
+              await onCreateInvoice(input);
+              setShowCreateForm(false);
+            }}
+            onOpenCompanies={onOpenCompanies}
+          />
+        ) : (
+          <EmptyState title="Ingen fakturaer" description="Lag en faktura her, sa vises den i listen med en gang." />
+        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <SectionHeader title="Fakturaer" description="Velg en faktura for detaljer og PDF-forhåndsvisning." />
+      {header}
+
+      {showCreateForm && (
+        <InvoiceBuilder
+          companies={companies}
+          products={products}
+          onCreateInvoice={async (input) => {
+            await onCreateInvoice(input);
+            setShowCreateForm(false);
+          }}
+          onOpenCompanies={onOpenCompanies}
+        />
+      )}
 
       <section className="grid gap-5 lg:grid-cols-[420px_1fr]">
         <div className="rounded-lg border border-blue-100 bg-white p-4 shadow-sm">
@@ -107,6 +157,7 @@ export function InvoicesView({ invoices, onDeleteInvoice }: InvoicesViewProps) {
                 <div>
                   <h3 className="text-lg font-semibold text-slate-950">{selectedInvoice.invoice_number}</h3>
                   <p className="text-sm text-slate-600">{selectedInvoice.company?.name ?? "Ukjent selskap"}</p>
+                  <p className="text-sm text-slate-600">{selectedInvoice.company?.email ?? "!Mangler e-post!"}</p>
                 </div>
                 <div className="flex flex-col items-start gap-3 sm:items-end">
                   <p className="text-2xl font-semibold text-slate-950">{formatCurrency(selectedInvoice.total)}</p>

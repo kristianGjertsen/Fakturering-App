@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 
-export type AppView = "dashboard" | "companies" | "invoice" | "invoices" | "recurring";
+export type AppView = "dashboard" | "companies" | "invoices" | "recurring";
 
 type AppLayoutProps = {
   session: Session;
@@ -14,7 +14,6 @@ type AppLayoutProps = {
 const tabs: Array<{ id: AppView; label: string }> = [
   { id: "dashboard", label: "Oversikt" },
   { id: "companies", label: "Selskaper" },
-  { id: "invoice", label: "Ny faktura" },
   { id: "invoices", label: "Fakturaer" },
   { id: "recurring", label: "Gjentakelser" },
 ];
