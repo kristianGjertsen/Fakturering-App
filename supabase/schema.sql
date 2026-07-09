@@ -14,10 +14,11 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email)
-  values (new.id, new.email)
+  insert into public.profiles (id, email, full_name)
+  values (new.id, new.email, new.raw_user_meta_data ->> 'full_name')
   on conflict (id) do update
-    set email = excluded.email;
+    set email = excluded.email,
+        full_name = coalesce(excluded.full_name, public.profiles.full_name);
 
   return new;
 end;
@@ -188,6 +189,12 @@ create policy "profiles_update_own"
   on public.profiles
   for update
   using (auth.uid() = id);
+
+drop policy if exists "profiles_insert_own" on public.profiles;
+create policy "profiles_insert_own"
+  on public.profiles
+  for insert
+  with check (auth.uid() = id);
 
 drop policy if exists "companies_owner_access" on public.companies;
 create policy "companies_owner_access"

@@ -46,6 +46,55 @@ export type InvoiceInput = {
   repeat: RepeatDraft;
 };
 
+export async function ensureProfile(userId: string, email: string | null | undefined, fullName?: string | null) {
+  const normalizedName = fullName?.trim() || null;
+  const normalizedEmail = email ?? null;
+
+  const { data: existingProfile, error: fetchError } = await supabase
+    .from("profiles")
+    .select("id, email, full_name")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (fetchError) {
+    throw fetchError;
+  }
+
+  if (!existingProfile) {
+    const { error: insertError } = await supabase.from("profiles").insert({
+      id: userId,
+      email: normalizedEmail,
+      full_name: normalizedName,
+    });
+
+    if (insertError) {
+      throw insertError;
+    }
+
+    return;
+  }
+
+  const shouldUpdate =
+    existingProfile.email !== normalizedEmail ||
+    (normalizedName !== null && existingProfile.full_name !== normalizedName);
+
+  if (!shouldUpdate) {
+    return;
+  }
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({
+      email: normalizedEmail,
+      full_name: normalizedName ?? existingProfile.full_name,
+    })
+    .eq("id", userId);
+
+  if (updateError) {
+    throw updateError;
+  }
+}
+
 export async function fetchAppData(): Promise<AppData> {
   const [companies, products, invoices, schedules] = await Promise.all([
     fetchCompanies(),

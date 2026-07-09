@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
+import { ensureProfile } from "./lib/data";
 import LoginPage from "./pages/LoginPage";
 import HomePage from "./pages/HomePage";
 
@@ -9,13 +10,34 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
+    async function syncSession(nextSession: Session | null) {
+      if (nextSession) {
+        const fullName =
+          typeof nextSession.user.user_metadata.full_name === "string"
+            ? nextSession.user.user_metadata.full_name
+            : null;
+
+        try {
+          await ensureProfile(nextSession.user.id, nextSession.user.email, fullName);
+        } catch (error) {
+          console.warn("Could not sync profile", error);
+        }
+      }
+
+      setSession(nextSession);
+    }
+
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        await syncSession(data.session);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
+      void syncSession(newSession);
     });
 
     return () => {
