@@ -1,53 +1,126 @@
+import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../supabaseClient";
+import type { AppView } from "../components/AppLayout";
+import { AppLayout } from "../components/AppLayout";
+import { CompaniesView } from "../components/CompaniesView";
+import { DashboardView } from "../components/DashboardView";
+import { InvoiceBuilder } from "../components/InvoiceBuilder";
+import { InvoicesView } from "../components/InvoicesView";
+import { RecurringView } from "../components/RecurringView";
+import {
+  createCompany,
+  createInvoice,
+  createProduct,
+  fetchAppData,
+  type AppData,
+  type CompanyInput,
+  type InvoiceInput,
+  type ProductInput,
+} from "../lib/data";
 
 type HomePageProps = {
   session: Session;
 };
 
+const emptyData: AppData = {
+  companies: [],
+  products: [],
+  invoices: [],
+  schedules: [],
+};
+
 export default function HomePage({ session }: HomePageProps) {
+  const [activeView, setActiveView] = useState<AppView>("dashboard");
+  const [data, setData] = useState<AppData>(emptyData);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function loadData() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const nextData = await fetchAppData();
+      setData(nextData);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Kunne ikke hente data fra Supabase.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadData();
+  }, []);
+
   async function handleSignOut() {
     await supabase.auth.signOut();
   }
 
+  async function handleCreateCompany(input: CompanyInput) {
+    await createCompany(session.user.id, input);
+    await loadData();
+  }
+
+  async function handleCreateProduct(input: ProductInput) {
+    await createProduct(input);
+    await loadData();
+  }
+
+  async function handleCreateInvoice(input: Omit<InvoiceInput, "ownerUserId">) {
+    await createInvoice({ ...input, ownerUserId: session.user.id });
+    await loadData();
+    setActiveView("invoices");
+  }
+
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-8">
-      <div className="mx-auto max-w-5xl">
-        <header className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold text-slate-900">Startside</h1>
-            <p className="mt-1 text-sm text-slate-500">Innlogget som {session.user.email}</p>
-          </div>
+    <AppLayout session={session} activeView={activeView} onViewChange={setActiveView} onSignOut={handleSignOut}>
+      {error && (
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+          {error}
+        </div>
+      )}
 
-          <button
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700"
-            type="button"
-            onClick={handleSignOut}
-          >
-            Logg ut
-          </button>
-        </header>
+      {loading ? (
+        <div className="grid min-h-[360px] place-items-center rounded-lg border border-blue-100 bg-white text-sm text-slate-600 shadow-sm">
+          Laster data...
+        </div>
+      ) : (
+        <>
+          {activeView === "dashboard" && (
+            <DashboardView
+              companies={data.companies}
+              products={data.products}
+              invoices={data.invoices}
+              schedules={data.schedules}
+              onCreateInvoice={() => setActiveView("invoice")}
+            />
+          )}
 
-        <section className="mt-8 grid gap-4 md:grid-cols-3">
-          <article className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <h2 className="font-medium text-slate-900">Kunder</h2>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">0</p>
-            <p className="mt-1 text-sm text-slate-500">Registrerte kunder</p>
-          </article>
+          {activeView === "companies" && (
+            <CompaniesView
+              companies={data.companies}
+              products={data.products}
+              onCreateCompany={handleCreateCompany}
+              onCreateProduct={handleCreateProduct}
+            />
+          )}
 
-          <article className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <h2 className="font-medium text-slate-900">Fakturaer</h2>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">0</p>
-            <p className="mt-1 text-sm text-slate-500">Sendt denne maneden</p>
-          </article>
+          {activeView === "invoice" && (
+            <InvoiceBuilder
+              companies={data.companies}
+              products={data.products}
+              onCreateInvoice={handleCreateInvoice}
+              onOpenCompanies={() => setActiveView("companies")}
+            />
+          )}
 
-          <article className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <h2 className="font-medium text-slate-900">Ubetalt</h2>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">0 kr</p>
-            <p className="mt-1 text-sm text-slate-500">Apne fakturaer</p>
-          </article>
-        </section>
-      </div>
-    </main>
+          {activeView === "invoices" && <InvoicesView invoices={data.invoices} />}
+
+          {activeView === "recurring" && <RecurringView schedules={data.schedules} />}
+        </>
+      )}
+    </AppLayout>
   );
 }

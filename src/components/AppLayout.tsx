@@ -1,0 +1,74 @@
+import type { ReactNode } from "react";
+import type { Session } from "@supabase/supabase-js";
+
+export type AppView = "dashboard" | "companies" | "invoice" | "invoices" | "recurring";
+
+type AppLayoutProps = {
+  session: Session;
+  activeView: AppView;
+  onViewChange: (view: AppView) => void;
+  onSignOut: () => void;
+  children: ReactNode;
+};
+
+const tabs: Array<{ id: AppView; label: string }> = [
+  { id: "dashboard", label: "Oversikt" },
+  { id: "companies", label: "Selskaper" },
+  { id: "invoice", label: "Ny faktura" },
+  { id: "invoices", label: "Fakturaer" },
+  { id: "recurring", label: "Gjentakelser" },
+];
+
+export function AppLayout({ session, activeView, onViewChange, onSignOut, children }: AppLayoutProps) {
+  return (
+    <div className="min-h-screen bg-blue-50/50 text-slate-950">
+      <header className="border-b border-blue-100 bg-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Fakturering</p>
+              <h1 className="text-2xl font-semibold text-slate-950">Invoice workspace</h1>
+            </div>
+
+            <div className="flex flex-col gap-2 text-sm text-slate-600 sm:items-end">
+              <span>{session.user.email}</span>
+              <button
+                className="w-fit rounded-md border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+                type="button"
+                onClick={onSignOut}
+              >
+                Logg ut
+              </button>
+            </div>
+          </div>
+
+          <nav className="flex gap-2 overflow-x-auto pb-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                className={`shrink-0 rounded-md px-3 py-2 text-sm font-medium transition ${
+                  activeView === tab.id
+                    ? "bg-blue-700 text-white shadow-sm"
+                    : "bg-blue-50 text-blue-900 hover:bg-blue-100"
+                }`}
+                type="button"
+                onClick={() => onViewChange(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </header>
+
+      <main className="mx-auto min-h-[calc(100vh-205px)] max-w-7xl px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+
+      <footer className="border-t border-blue-100 bg-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+          <span>Fakturering App</span>
+          <span>PDF genereres lokalt i nettleseren. Utsending kobles på senere.</span>
+        </div>
+      </footer>
+    </div>
+  );
+}

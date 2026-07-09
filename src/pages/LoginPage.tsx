@@ -25,7 +25,8 @@ export default function LoginPage() {
 
       if (response.error) {
         const isRateLimited =
-          response.error.status === 429 || response.error.message.toLowerCase().includes("rate limit");
+          response.error.status === 429 ||
+          response.error.message.toLowerCase().includes("rate limit");
 
         setMessage(
           isRateLimited
@@ -34,8 +35,11 @@ export default function LoginPage() {
         );
       } else if (isRegistering) {
         setMessage("Bruker opprettet. Sjekk e-post hvis bekreftelse er aktivert.");
+      } else {
+        window.location.href = "/";
       }
-    } finally {
+    }
+    finally {
       setLoading(false);
     }
   }
