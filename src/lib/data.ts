@@ -343,6 +343,16 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
   return data;
 }
 
+export async function deleteCurrentUser() {
+  const { error } = await supabase.functions.invoke("delete-user", {
+    body: {},
+  });
+
+  if (error) {
+    throw error;
+  }
+}
+
 export function createInvoiceNumber() {
   const date = new Date();
   const year = date.getFullYear();
