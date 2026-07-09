@@ -49,15 +49,33 @@ export function addMonthsInputValue(months: number) {
 }
 
 export function frequencyLabel(frequency: string, intervalCount = 1) {
-  const suffix = intervalCount > 1 ? ` hver ${intervalCount}.` : "";
-
   if (frequency === "daily") {
-    return intervalCount > 1 ? `Daglig${suffix} dag` : "Daglig";
+    if (intervalCount === 1) {
+      return "Hver dag";
+    }
+
+    return `Hver ${intervalCount}. dag`;
   }
 
   if (frequency === "weekly") {
-    return intervalCount > 1 ? `Ukentlig${suffix} uke` : "Ukentlig";
+    if (intervalCount === 1) {
+      return "Hver uke";
+    }
+
+    if (intervalCount === 2) {
+      return "Annenhver uke";
+    }
+
+    return `Hver ${intervalCount}. uke`;
   }
 
-  return intervalCount > 1 ? `Månedlig${suffix} måned` : "Månedlig";
+  if (intervalCount === 1) {
+    return "Hver måned";
+  }
+
+  if (intervalCount === 2) {
+    return "Annenhver måned";
+  }
+
+  return `Hver ${intervalCount}. måned`;
 }

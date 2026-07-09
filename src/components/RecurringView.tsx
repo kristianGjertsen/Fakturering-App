@@ -38,7 +38,7 @@ export function RecurringView({ schedules }: RecurringViewProps) {
 
                 <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-3">
                   <div>
-                    <dt className="text-slate-500">Frekvens</dt>
+                    <dt className="text-slate-500">Gjentas</dt>
                     <dd className="mt-1 font-medium text-slate-950">{frequencyLabel(schedule.frequency, schedule.interval_count)}</dd>
                   </div>
                   <div>

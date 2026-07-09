@@ -56,6 +56,46 @@ function addMonthsFromDate(dateValue: string, months: number) {
   return date.toISOString().slice(0, 10);
 }
 
+function repeatIntervalLabel(frequency: RepeatDraft["frequency"], intervalCount: number) {
+  if (frequency === "daily") {
+    return intervalCount === 1 ? "Hver dag" : `Hver ${intervalCount}. dag`;
+  }
+
+  if (frequency === "weekly") {
+    if (intervalCount === 1) {
+      return "Hver uke";
+    }
+
+    if (intervalCount === 2) {
+      return "Annenhver uke";
+    }
+
+    return `Hver ${intervalCount}. uke`;
+  }
+
+  if (intervalCount === 1) {
+    return "Hver måned";
+  }
+
+  if (intervalCount === 2) {
+    return "Annenhver måned";
+  }
+
+  return `Hver ${intervalCount}. måned`;
+}
+
+function repeatIntervalHelper(frequency: RepeatDraft["frequency"]) {
+  if (frequency === "daily") {
+    return "1 = hver dag, 2 = hver andre dag";
+  }
+
+  if (frequency === "weekly") {
+    return "1 = hver uke, 2 = annenhver uke";
+  }
+
+  return "1 = hver måned, 2 = annenhver måned";
+}
+
 export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCompanies }: InvoiceBuilderProps) {
   const [companyId, setCompanyId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState(createInvoiceNumber);
@@ -365,6 +405,9 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
 
             {repeat.enabled && (
               <div className="mt-4 space-y-4">
+                <div className="rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-slate-800">
+                  {repeatIntervalLabel(repeat.frequency, repeat.intervalCount)}
+                </div>
                 <FormField label="Frekvens">
                   <select
                     className={inputClass}
@@ -376,7 +419,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                     <option value="monthly">Månedlig</option>
                   </select>
                 </FormField>
-                <FormField label="Intervall">
+                <FormField label="Gjentas hver" helper={repeatIntervalHelper(repeat.frequency)}>
                   <input
                     className={inputClass}
                     min={1}

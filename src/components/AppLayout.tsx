@@ -27,7 +27,7 @@ export function AppLayout({ session, activeView, onViewChange, onSignOut, childr
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Fakturering</p>
-              <h1 className="text-2xl font-semibold text-slate-950">Invoice workspace</h1>
+              <h1 className="text-2xl font-semibold text-slate-950">Fakturering-Test</h1>
             </div>
 
             <div className="flex flex-col gap-2 text-sm text-slate-600 sm:items-end">
