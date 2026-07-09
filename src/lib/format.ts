@@ -42,6 +42,12 @@ export function addDaysInputValue(days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+export function addMonthsInputValue(months: number) {
+  const date = new Date();
+  date.setMonth(date.getMonth() + months);
+  return date.toISOString().slice(0, 10);
+}
+
 export function frequencyLabel(frequency: string, intervalCount = 1) {
   const suffix = intervalCount > 1 ? ` hver ${intervalCount}.` : "";
 

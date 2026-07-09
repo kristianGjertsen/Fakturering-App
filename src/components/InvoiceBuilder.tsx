@@ -2,7 +2,7 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import type { Company, InvoiceDraftLine, Product, RepeatDraft } from "../types";
 import type { InvoiceInput } from "../lib/data";
-import { addDaysInputValue, formatCurrency, todayInputValue } from "../lib/format";
+import { addMonthsInputValue, formatCurrency, todayInputValue } from "../lib/format";
 import { createInvoiceNumber } from "../lib/data";
 import { calculateLine, calculateTotals, toNumber } from "../lib/invoiceMath";
 import { EmptyState } from "./EmptyState";
@@ -44,11 +44,23 @@ function createDefaultRepeat(): RepeatDraft {
   };
 }
 
+function addDaysFromDate(dateValue: string, days: number) {
+  const date = new Date(dateValue);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function addMonthsFromDate(dateValue: string, months: number) {
+  const date = new Date(dateValue);
+  date.setMonth(date.getMonth() + months);
+  return date.toISOString().slice(0, 10);
+}
+
 export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCompanies }: InvoiceBuilderProps) {
   const [companyId, setCompanyId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState(createInvoiceNumber);
   const [issueDate, setIssueDate] = useState(todayInputValue);
-  const [dueDate, setDueDate] = useState(() => addDaysInputValue(14));
+  const [dueDate, setDueDate] = useState(() => addMonthsInputValue(1));
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<InvoiceDraftLine[]>([createEmptyLine()]);
   const [repeat, setRepeat] = useState<RepeatDraft>(createDefaultRepeat);
@@ -106,6 +118,20 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
     );
   }
 
+  function applyDueDatePreset(preset: "week" | "twoWeeks" | "month") {
+    if (preset === "week") {
+      setDueDate(addDaysFromDate(issueDate, 7));
+      return;
+    }
+
+    if (preset === "twoWeeks") {
+      setDueDate(addDaysFromDate(issueDate, 14));
+      return;
+    }
+
+    setDueDate(addMonthsFromDate(issueDate, 1));
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
@@ -138,7 +164,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
       setMessage("Faktura lagret.");
       setInvoiceNumber(createInvoiceNumber());
       setIssueDate(todayInputValue());
-      setDueDate(addDaysInputValue(14));
+      setDueDate(addMonthsInputValue(1));
       setNotes("");
       setLines([createEmptyLine()]);
       setRepeat(createDefaultRepeat());
@@ -196,7 +222,20 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                 <input className={inputClass} type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} required />
               </FormField>
               <FormField label="Forfallsdato">
-                <input className={inputClass} type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+                <div className="space-y-2">
+                  <input className={inputClass} type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+                  <div className="flex flex-wrap gap-2">
+                    <button className={buttonSecondaryClass} type="button" onClick={() => applyDueDatePreset("week")}>
+                      Om 1 uke
+                    </button>
+                    <button className={buttonSecondaryClass} type="button" onClick={() => applyDueDatePreset("twoWeeks")}>
+                      Om 14 dager
+                    </button>
+                    <button className={buttonSecondaryClass} type="button" onClick={() => applyDueDatePreset("month")}>
+                      Om 1 måned
+                    </button>
+                  </div>
+                </div>
               </FormField>
             </div>
           </div>
