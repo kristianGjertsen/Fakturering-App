@@ -1,8 +1,10 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
+import SupabaseDebugPanel from "../components/SupabaseDebugPanel";
 
 export default function LoginPage() {
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
@@ -20,12 +22,21 @@ export default function LoginPage() {
 
     try {
       const response = isRegistering
-        ? await supabase.auth.signUp({ email, password })
+        ? await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                full_name: fullName.trim(),
+              },
+            },
+          })
         : await supabase.auth.signInWithPassword({ email, password });
 
       if (response.error) {
         const isRateLimited =
-          response.error.status === 429 || response.error.message.toLowerCase().includes("rate limit");
+          response.error.status === 429 ||
+          response.error.message.toLowerCase().includes("rate limit");
 
         setMessage(
           isRateLimited
@@ -34,8 +45,11 @@ export default function LoginPage() {
         );
       } else if (isRegistering) {
         setMessage("Bruker opprettet. Sjekk e-post hvis bekreftelse er aktivert.");
+      } else {
+        window.location.href = "/";
       }
-    } finally {
+    }
+    finally {
       setLoading(false);
     }
   }
@@ -51,6 +65,19 @@ export default function LoginPage() {
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          {isRegistering && (
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">Navn</span>
+              <input
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-slate-900"
+                type="text"
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
+                required={isRegistering}
+              />
+            </label>
+          )}
+
           <label className="block">
             <span className="text-sm font-medium text-slate-700">E-post</span>
             <input
@@ -88,10 +115,15 @@ export default function LoginPage() {
         <button
           className="mt-4 w-full text-sm text-slate-600 underline"
           type="button"
-          onClick={() => setIsRegistering((value) => !value)}
+          onClick={() => {
+            setIsRegistering((value) => !value);
+            setMessage("");
+          }}
         >
           {isRegistering ? "Har du bruker? Logg inn" : "Ingen bruker? Opprett en"}
         </button>
+
+        <SupabaseDebugPanel />
       </section>
     </main>
   );
