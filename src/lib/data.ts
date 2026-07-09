@@ -301,6 +301,43 @@ export async function deleteInvoice(invoiceId: string) {
   }
 }
 
+type SendInvoiceEmailInput = {
+  invoiceId: string;
+  invoiceNumber: string;
+  recipientEmail: string;
+  companyName: string | null | undefined;
+  html: string;
+  attachmentFilename: string;
+  attachmentContent: string;
+};
+
+export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
+  const { data, error } = await supabase.functions.invoke("send-invoice", {
+    body: {
+      to: input.recipientEmail,
+      subject: `Faktura ${input.invoiceNumber}`,
+      html: input.html,
+      attachmentFilename: input.attachmentFilename,
+      attachmentContent: input.attachmentContent,
+    },
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  const { error: updateError } = await supabase
+    .from("invoices")
+    .update({ status: "sent" })
+    .eq("id", input.invoiceId);
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  return data;
+}
+
 export function createInvoiceNumber() {
   const date = new Date();
   const year = date.getFullYear();

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import type { Company, InvoiceWithDetails, Product } from "../types";
 import type { InvoiceInput } from "../lib/data";
+import { sendInvoiceEmail } from "../lib/data";
 import { formatCurrency, formatDate } from "../lib/format";
+import { createInvoicePdfBase64 } from "../lib/pdf";
 import { EmptyState } from "./EmptyState";
 import { buttonPrimaryClass, buttonSecondaryClass } from "./FormField";
 import { SectionHeader } from "./SectionHeader";
@@ -14,6 +16,7 @@ type InvoicesViewProps = {
   invoices: InvoiceWithDetails[];
   onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<void>;
   onOpenCompanies: () => void;
+  onRefreshInvoices: () => Promise<void>;
   onDeleteInvoice: (invoiceId: string) => Promise<void>;
 };
 
@@ -31,11 +34,14 @@ export function InvoicesView({
   invoices,
   onCreateInvoice,
   onOpenCompanies,
+  onRefreshInvoices,
   onDeleteInvoice,
 }: InvoicesViewProps) {
   const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
   const [deletingInvoiceId, setDeletingInvoiceId] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [sendingInvoiceId, setSendingInvoiceId] = useState("");
+  const [sendMessage, setSendMessage] = useState("");
 
   useEffect(() => {
     if (!selectedInvoiceId && invoices[0]) {
@@ -66,6 +72,41 @@ export function InvoicesView({
       await onDeleteInvoice(selectedInvoice.id);
     } finally {
       setDeletingInvoiceId("");
+    }
+  }
+
+  async function handleSendSelectedInvoice() {
+    if (!selectedInvoice) {
+      return;
+    }
+
+    if (!selectedInvoice.company?.email) {
+      setSendMessage("Valgt selskap mangler e-postadresse.");
+      return;
+    }
+
+    setSendingInvoiceId(selectedInvoice.id);
+    setSendMessage("");
+
+    try {
+      const attachmentContent = await createInvoicePdfBase64(selectedInvoice);
+
+      await sendInvoiceEmail({
+        invoiceId: selectedInvoice.id,
+        invoiceNumber: selectedInvoice.invoice_number,
+        recipientEmail: selectedInvoice.company.email,
+        companyName: selectedInvoice.company.name,
+        html: `<p>Hei${selectedInvoice.company.name ? ` ${selectedInvoice.company.name}` : ""}, vedlagt ligger faktura ${selectedInvoice.invoice_number}.</p>`,
+        attachmentFilename: `faktura-${selectedInvoice.invoice_number}.pdf`,
+        attachmentContent,
+      });
+
+      await onRefreshInvoices();
+      setSendMessage(`Faktura sendt til ${selectedInvoice.company.email}.`);
+    } catch (error) {
+      setSendMessage(error instanceof Error ? error.message : "Kunne ikke sende faktura.");
+    } finally {
+      setSendingInvoiceId("");
     }
   }
 
@@ -118,6 +159,8 @@ export function InvoicesView({
         />
       )}
 
+      {sendMessage && <p className="rounded-md border border-blue-100 bg-white px-4 py-3 text-sm text-blue-900 shadow-sm">{sendMessage}</p>}
+
       <section className="grid gap-5 lg:grid-cols-[420px_1fr]">
         <div className="rounded-lg border border-blue-100 bg-white p-4 shadow-sm">
           <div className="space-y-2">
@@ -161,14 +204,24 @@ export function InvoicesView({
                 </div>
                 <div className="flex flex-col items-start gap-3 sm:items-end">
                   <p className="text-2xl font-semibold text-slate-950">{formatCurrency(selectedInvoice.total)}</p>
-                  <button
-                    className={buttonSecondaryClass}
-                    type="button"
-                    onClick={() => void handleDeleteSelectedInvoice()}
-                    disabled={deletingInvoiceId === selectedInvoice.id}
-                  >
-                    {deletingInvoiceId === selectedInvoice.id ? "Sletter..." : "Slett faktura"}
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      className={buttonPrimaryClass}
+                      type="button"
+                      onClick={() => void handleSendSelectedInvoice()}
+                      disabled={sendingInvoiceId === selectedInvoice.id}
+                    >
+                      {sendingInvoiceId === selectedInvoice.id ? "Sender..." : "Send faktura"}
+                    </button>
+                    <button
+                      className={buttonSecondaryClass}
+                      type="button"
+                      onClick={() => void handleDeleteSelectedInvoice()}
+                      disabled={deletingInvoiceId === selectedInvoice.id}
+                    >
+                      {deletingInvoiceId === selectedInvoice.id ? "Sletter..." : "Slett faktura"}
+                    </button>
+                  </div>
                 </div>
               </div>
 

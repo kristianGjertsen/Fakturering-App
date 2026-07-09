@@ -29,6 +29,18 @@ export function openInvoicePdf(invoice: InvoiceWithDetails) {
   return url;
 }
 
+export async function createInvoicePdfBase64(invoice: InvoiceWithDetails) {
+  const blob = createInvoicePdfBlob(invoice);
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary);
+}
+
 function buildInvoicePage(
   invoice: InvoiceWithDetails,
   items: PdfLine[],

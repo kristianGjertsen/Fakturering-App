@@ -119,6 +119,7 @@ export default function HomePage({ session }: HomePageProps) {
               invoices={data.invoices}
               onCreateInvoice={handleCreateInvoice}
               onOpenCompanies={() => setActiveView("companies")}
+              onRefreshInvoices={loadData}
               onDeleteInvoice={handleDeleteInvoice}
             />
           )}
