@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import type { InvoiceWithDetails } from "../types";
 import { formatCurrency, formatDate } from "../lib/format";
 import { EmptyState } from "./EmptyState";
+import { buttonSecondaryClass } from "./FormField";
 import { SectionHeader } from "./SectionHeader";
 import { PdfPreview } from "./PdfPreview";
 
 type InvoicesViewProps = {
   invoices: InvoiceWithDetails[];
+  onDeleteInvoice: (invoiceId: string) => Promise<void>;
 };
 
 const statusLabels: Record<string, string> = {
@@ -17,16 +19,41 @@ const statusLabels: Record<string, string> = {
   cancelled: "Kansellert",
 };
 
-export function InvoicesView({ invoices }: InvoicesViewProps) {
+export function InvoicesView({ invoices, onDeleteInvoice }: InvoicesViewProps) {
   const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
+  const [deletingInvoiceId, setDeletingInvoiceId] = useState("");
 
   useEffect(() => {
     if (!selectedInvoiceId && invoices[0]) {
       setSelectedInvoiceId(invoices[0].id);
     }
+
+    if (selectedInvoiceId && !invoices.some((invoice) => invoice.id === selectedInvoiceId)) {
+      setSelectedInvoiceId(invoices[0]?.id ?? "");
+    }
   }, [invoices, selectedInvoiceId]);
 
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId) ?? invoices[0] ?? null;
+
+  async function handleDeleteSelectedInvoice() {
+    if (!selectedInvoice) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Slette faktura ${selectedInvoice.invoice_number}?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingInvoiceId(selectedInvoice.id);
+
+    try {
+      await onDeleteInvoice(selectedInvoice.id);
+    } finally {
+      setDeletingInvoiceId("");
+    }
+  }
 
   if (invoices.length === 0) {
     return (
@@ -81,7 +108,17 @@ export function InvoicesView({ invoices }: InvoicesViewProps) {
                   <h3 className="text-lg font-semibold text-slate-950">{selectedInvoice.invoice_number}</h3>
                   <p className="text-sm text-slate-600">{selectedInvoice.company?.name ?? "Ukjent selskap"}</p>
                 </div>
-                <p className="text-2xl font-semibold text-slate-950">{formatCurrency(selectedInvoice.total)}</p>
+                <div className="flex flex-col items-start gap-3 sm:items-end">
+                  <p className="text-2xl font-semibold text-slate-950">{formatCurrency(selectedInvoice.total)}</p>
+                  <button
+                    className={buttonSecondaryClass}
+                    type="button"
+                    onClick={() => void handleDeleteSelectedInvoice()}
+                    disabled={deletingInvoiceId === selectedInvoice.id}
+                  >
+                    {deletingInvoiceId === selectedInvoice.id ? "Sletter..." : "Slett faktura"}
+                  </button>
+                </div>
               </div>
 
               <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-3">

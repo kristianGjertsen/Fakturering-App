@@ -293,6 +293,14 @@ export async function createInvoice(input: InvoiceInput) {
   return invoiceId;
 }
 
+export async function deleteInvoice(invoiceId: string) {
+  const { error } = await supabase.from("invoices").delete().eq("id", invoiceId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export function createInvoiceNumber() {
   const date = new Date();
   const year = date.getFullYear();

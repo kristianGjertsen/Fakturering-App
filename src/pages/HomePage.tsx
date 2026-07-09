@@ -10,6 +10,7 @@ import { InvoicesView } from "../components/InvoicesView";
 import { RecurringView } from "../components/RecurringView";
 import {
   createCompany,
+  deleteInvoice,
   createInvoice,
   createProduct,
   fetchAppData,
@@ -74,6 +75,11 @@ export default function HomePage({ session }: HomePageProps) {
     setActiveView("invoices");
   }
 
+  async function handleDeleteInvoice(invoiceId: string) {
+    await deleteInvoice(invoiceId);
+    await loadData();
+  }
+
   return (
     <AppLayout session={session} activeView={activeView} onViewChange={setActiveView} onSignOut={handleSignOut}>
       {error && (
@@ -116,7 +122,7 @@ export default function HomePage({ session }: HomePageProps) {
             />
           )}
 
-          {activeView === "invoices" && <InvoicesView invoices={data.invoices} />}
+          {activeView === "invoices" && <InvoicesView invoices={data.invoices} onDeleteInvoice={handleDeleteInvoice} />}
 
           {activeView === "recurring" && <RecurringView schedules={data.schedules} />}
         </>
