@@ -117,6 +117,7 @@ export default function HomePage({ session }: HomePageProps) {
               companies={data.companies}
               products={data.products}
               invoices={data.invoices}
+              currentUserEmail={session.user.email}
               onCreateInvoice={handleCreateInvoice}
               onOpenCompanies={() => setActiveView("companies")}
               onRefreshInvoices={loadData}

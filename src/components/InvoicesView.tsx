@@ -14,6 +14,7 @@ type InvoicesViewProps = {
   companies: Company[];
   products: Product[];
   invoices: InvoiceWithDetails[];
+  currentUserEmail: string | null | undefined;
   onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<void>;
   onOpenCompanies: () => void;
   onRefreshInvoices: () => Promise<void>;
@@ -32,6 +33,7 @@ export function InvoicesView({
   companies,
   products,
   invoices,
+  currentUserEmail,
   onCreateInvoice,
   onOpenCompanies,
   onRefreshInvoices,
@@ -90,19 +92,36 @@ export function InvoicesView({
 
     try {
       const attachmentContent = await createInvoicePdfBase64(selectedInvoice);
+      const invoiceSubject = `Faktura ${selectedInvoice.invoice_number}`;
+      const invoiceHtml = `<p>Hei${selectedInvoice.company.name ? ` ${selectedInvoice.company.name}` : ""}, vedlagt ligger faktura ${selectedInvoice.invoice_number}.</p>`;
 
       await sendInvoiceEmail({
-        invoiceId: selectedInvoice.id,
-        invoiceNumber: selectedInvoice.invoice_number,
         recipientEmail: selectedInvoice.company.email,
-        companyName: selectedInvoice.company.name,
-        html: `<p>Hei${selectedInvoice.company.name ? ` ${selectedInvoice.company.name}` : ""}, vedlagt ligger faktura ${selectedInvoice.invoice_number}.</p>`,
+        subject: invoiceSubject,
+        html: invoiceHtml,
         attachmentFilename: `faktura-${selectedInvoice.invoice_number}.pdf`,
         attachmentContent,
+        markAsSent: {
+          invoiceId: selectedInvoice.id,
+        },
       });
 
+      if (currentUserEmail) {
+        await sendInvoiceEmail({
+          recipientEmail: currentUserEmail,
+          subject: `Copy: ${invoiceSubject}`,
+          html: `<p>Copy av sendt faktura til ${selectedInvoice.company.email}.</p>${invoiceHtml}`,
+          attachmentFilename: `faktura-${selectedInvoice.invoice_number}.pdf`,
+          attachmentContent,
+        });
+      }
+
       await onRefreshInvoices();
-      setSendMessage(`Faktura sendt til ${selectedInvoice.company.email}.`);
+      setSendMessage(
+        currentUserEmail
+          ? `Faktura sendt til ${selectedInvoice.company.email}, og kopi sendt til ${currentUserEmail}.`
+          : `Faktura sendt til ${selectedInvoice.company.email}.`
+      );
     } catch (error) {
       setSendMessage(error instanceof Error ? error.message : "Kunne ikke sende faktura.");
     } finally {
