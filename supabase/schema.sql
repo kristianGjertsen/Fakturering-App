@@ -100,7 +100,7 @@ create table if not exists public.invoices (
   invoice_number text not null,
   issue_date date not null default current_date,
   due_date date,
-  status text not null default 'draft' check (status in ('draft', 'ready', 'sent', 'paid', 'cancelled')),
+  status text not null default 'draft' check (status in ('draft', 'ready', 'sent', 'reminded', 'paid', 'cancelled')),
   notes text,
   subtotal numeric(12, 2) not null default 0 check (subtotal >= 0),
   vat_total numeric(12, 2) not null default 0 check (vat_total >= 0),
