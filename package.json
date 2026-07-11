@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "latest",
+    "@vercel/node": "^5.8.23",
     "react": "latest",
     "react-dom": "latest"
   },
