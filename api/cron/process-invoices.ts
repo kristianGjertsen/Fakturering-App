@@ -1,3 +1,7 @@
+declare const process: {
+  env: Record<string, string | undefined>;
+};
+
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;
   const supabaseUrl = process.env.SUPABASE_URL;
