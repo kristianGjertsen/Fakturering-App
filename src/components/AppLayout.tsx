@@ -1,13 +1,12 @@
 import type { ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 
-export type AppView = "dashboard" | "companies" | "invoices" | "recurring";
+export type AppView = "dashboard" | "companies" | "invoices" | "recurring" | "profile";
 
 type AppLayoutProps = {
   session: Session;
   activeView: AppView;
   onViewChange: (view: AppView) => void;
-  onSignOut: () => void;
   children: ReactNode;
 };
 
@@ -18,7 +17,7 @@ const tabs: Array<{ id: AppView; label: string }> = [
   { id: "recurring", label: "Gjentakelser" },
 ];
 
-export function AppLayout({ session, activeView, onViewChange, onSignOut, children }: AppLayoutProps) {
+export function AppLayout({ session, activeView, onViewChange, children }: AppLayoutProps) {
   return (
     <div className="min-h-screen bg-blue-50/50 text-slate-950">
       <header className="border-b border-blue-100 bg-white">
@@ -30,13 +29,16 @@ export function AppLayout({ session, activeView, onViewChange, onSignOut, childr
             </div>
 
             <div className="flex flex-col gap-2 text-sm text-slate-600 sm:items-end">
-              <span>{session.user.email}</span>
               <button
-                className="w-fit rounded-md border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+                className={`w-fit rounded-md px-3 py-2 text-sm font-medium shadow-sm transition ${
+                  activeView === "profile"
+                    ? "bg-blue-700 text-white"
+                    : "border border-blue-200 bg-white text-blue-800 hover:border-blue-300 hover:bg-blue-50"
+                }`}
                 type="button"
-                onClick={onSignOut}
+                onClick={() => onViewChange("profile")}
               >
-                Logg ut
+                Profil
               </button>
             </div>
           </div>

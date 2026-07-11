@@ -2,6 +2,7 @@ import { supabase } from "../supabaseClient";
 import type {
   Company,
   InvoiceDraftLine,
+  InvoiceStatus,
   InvoiceScheduleWithDetails,
   InvoiceWithDetails,
   Product,
@@ -302,20 +303,22 @@ export async function deleteInvoice(invoiceId: string) {
 }
 
 type SendInvoiceEmailInput = {
-  invoiceId: string;
-  invoiceNumber: string;
   recipientEmail: string;
-  companyName: string | null | undefined;
+  subject: string;
   html: string;
   attachmentFilename: string;
   attachmentContent: string;
+  markStatus?: {
+    invoiceId: string;
+    status: Extract<InvoiceStatus, "sent" | "reminded">;
+  };
 };
 
 export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
   const { data, error } = await supabase.functions.invoke("send-invoice", {
     body: {
       to: input.recipientEmail,
-      subject: `Faktura ${input.invoiceNumber}`,
+      subject: input.subject,
       html: input.html,
       attachmentFilename: input.attachmentFilename,
       attachmentContent: input.attachmentContent,
@@ -326,16 +329,28 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
     throw error;
   }
 
-  const { error: updateError } = await supabase
-    .from("invoices")
-    .update({ status: "sent" })
-    .eq("id", input.invoiceId);
+  if (input.markStatus) {
+    const { error: updateError } = await supabase
+      .from("invoices")
+      .update({ status: input.markStatus.status })
+      .eq("id", input.markStatus.invoiceId);
 
-  if (updateError) {
-    throw updateError;
+    if (updateError) {
+      throw updateError;
+    }
   }
 
   return data;
+}
+
+export async function deleteCurrentUser() {
+  const { error } = await supabase.functions.invoke("delete-user", {
+    body: {},
+  });
+
+  if (error) {
+    throw error;
+  }
 }
 
 export function createInvoiceNumber() {

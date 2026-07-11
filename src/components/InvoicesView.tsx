@@ -14,6 +14,7 @@ type InvoicesViewProps = {
   companies: Company[];
   products: Product[];
   invoices: InvoiceWithDetails[];
+  currentUserEmail: string | null | undefined;
   onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<void>;
   onOpenCompanies: () => void;
   onRefreshInvoices: () => Promise<void>;
@@ -24,6 +25,7 @@ const statusLabels: Record<string, string> = {
   draft: "Utkast",
   ready: "Klar",
   sent: "Sendt",
+  reminded: "Purret",
   paid: "Betalt",
   cancelled: "Kansellert",
 };
@@ -32,6 +34,7 @@ export function InvoicesView({
   companies,
   products,
   invoices,
+  currentUserEmail,
   onCreateInvoice,
   onOpenCompanies,
   onRefreshInvoices,
@@ -75,8 +78,18 @@ export function InvoicesView({
     }
   }
 
-  async function handleSendSelectedInvoice() {
+  async function handleSendSelectedInvoice(action: "send" | "remind") {
     if (!selectedInvoice) {
+      return;
+    }
+
+    if (action === "send" && selectedInvoice.status !== "draft" && selectedInvoice.status !== "ready") {
+      setSendMessage("Fakturaen er allerede sendt.");
+      return;
+    }
+
+    if (action === "remind" && selectedInvoice.status !== "sent") {
+      setSendMessage("Fakturaen kan ikke purres flere ganger.");
       return;
     }
 
@@ -90,21 +103,39 @@ export function InvoicesView({
 
     try {
       const attachmentContent = await createInvoicePdfBase64(selectedInvoice);
+      const invoiceSubject = `Faktura ${selectedInvoice.invoice_number}`;
+      const invoiceHtml = `<p>Hei${selectedInvoice.company.name ? ` ${selectedInvoice.company.name}` : ""}, vedlagt ligger faktura ${selectedInvoice.invoice_number}.</p>`;
 
       await sendInvoiceEmail({
-        invoiceId: selectedInvoice.id,
-        invoiceNumber: selectedInvoice.invoice_number,
         recipientEmail: selectedInvoice.company.email,
-        companyName: selectedInvoice.company.name,
-        html: `<p>Hei${selectedInvoice.company.name ? ` ${selectedInvoice.company.name}` : ""}, vedlagt ligger faktura ${selectedInvoice.invoice_number}.</p>`,
+        subject: invoiceSubject,
+        html: invoiceHtml,
         attachmentFilename: `faktura-${selectedInvoice.invoice_number}.pdf`,
         attachmentContent,
+        markStatus: {
+          invoiceId: selectedInvoice.id,
+          status: action === "send" ? "sent" : "reminded",
+        },
       });
 
+      if (currentUserEmail) {
+        await sendInvoiceEmail({
+          recipientEmail: currentUserEmail,
+          subject: `Copy: ${invoiceSubject}`,
+          html: `<p>Copy av sendt faktura til ${selectedInvoice.company.email}.</p>${invoiceHtml}`,
+          attachmentFilename: `faktura-${selectedInvoice.invoice_number}.pdf`,
+          attachmentContent,
+        });
+      }
+
       await onRefreshInvoices();
-      setSendMessage(`Faktura sendt til ${selectedInvoice.company.email}.`);
+      setSendMessage(
+        currentUserEmail
+          ? `${action === "send" ? "Faktura sendt" : "Purring sendt"} til ${selectedInvoice.company.email}, og kopi sendt til ${currentUserEmail}.`
+          : `${action === "send" ? "Faktura sendt" : "Purring sendt"} til ${selectedInvoice.company.email}.`
+      );
     } catch (error) {
-      setSendMessage(error instanceof Error ? error.message : "Kunne ikke sende faktura.");
+      setSendMessage(error instanceof Error ? error.message : action === "send" ? "Kunne ikke sende faktura." : "Kunne ikke sende purring.");
     } finally {
       setSendingInvoiceId("");
     }
@@ -205,14 +236,26 @@ export function InvoicesView({
                 <div className="flex flex-col items-start gap-3 sm:items-end">
                   <p className="text-2xl font-semibold text-slate-950">{formatCurrency(selectedInvoice.total)}</p>
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      className={buttonPrimaryClass}
-                      type="button"
-                      onClick={() => void handleSendSelectedInvoice()}
-                      disabled={sendingInvoiceId === selectedInvoice.id}
-                    >
-                      {sendingInvoiceId === selectedInvoice.id ? "Sender..." : "Send faktura"}
-                    </button>
+                    {(selectedInvoice.status === "draft" || selectedInvoice.status === "ready") && (
+                      <button
+                        className={buttonPrimaryClass}
+                        type="button"
+                        onClick={() => void handleSendSelectedInvoice("send")}
+                        disabled={sendingInvoiceId === selectedInvoice.id}
+                      >
+                        {sendingInvoiceId === selectedInvoice.id ? "Sender..." : "Send faktura"}
+                      </button>
+                    )}
+                    {selectedInvoice.status === "sent" && (
+                      <button
+                        className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        type="button"
+                        onClick={() => void handleSendSelectedInvoice("remind")}
+                        disabled={sendingInvoiceId === selectedInvoice.id}
+                      >
+                        {sendingInvoiceId === selectedInvoice.id ? "Sender..." : "Purre"}
+                      </button>
+                    )}
                     <button
                       className={buttonSecondaryClass}
                       type="button"

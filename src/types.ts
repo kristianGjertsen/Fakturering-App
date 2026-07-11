@@ -24,7 +24,7 @@ export type Product = {
   updated_at: string;
 };
 
-export type InvoiceStatus = "draft" | "ready" | "sent" | "paid" | "cancelled";
+export type InvoiceStatus = "draft" | "ready" | "sent" | "reminded" | "paid" | "cancelled";
 
 export type InvoiceItem = {
   id: string;

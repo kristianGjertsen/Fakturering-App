@@ -6,6 +6,7 @@ import { AppLayout } from "../components/AppLayout";
 import { CompaniesView } from "../components/CompaniesView";
 import { DashboardView } from "../components/DashboardView";
 import { InvoicesView } from "../components/InvoicesView";
+import { ProfileView } from "../components/ProfileView";
 import { RecurringView } from "../components/RecurringView";
 import {
   createCompany,
@@ -80,7 +81,7 @@ export default function HomePage({ session }: HomePageProps) {
   }
 
   return (
-    <AppLayout session={session} activeView={activeView} onViewChange={setActiveView} onSignOut={handleSignOut}>
+    <AppLayout session={session} activeView={activeView} onViewChange={setActiveView}>
       {error && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
           {error}
@@ -117,6 +118,7 @@ export default function HomePage({ session }: HomePageProps) {
               companies={data.companies}
               products={data.products}
               invoices={data.invoices}
+              currentUserEmail={session.user.email}
               onCreateInvoice={handleCreateInvoice}
               onOpenCompanies={() => setActiveView("companies")}
               onRefreshInvoices={loadData}
@@ -125,6 +127,8 @@ export default function HomePage({ session }: HomePageProps) {
           )}
 
           {activeView === "recurring" && <RecurringView schedules={data.schedules} />}
+
+          {activeView === "profile" && <ProfileView session={session} onSignOut={handleSignOut} />}
         </>
       )}
     </AppLayout>
