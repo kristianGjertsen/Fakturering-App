@@ -23,12 +23,6 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-if (!resendApiKey) {
-  throw new Error("Missing RESEND_API_KEY environment variable.");
-}
-
-const resend = new Resend(resendApiKey);
-
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -52,6 +46,14 @@ serve(async (request) => {
   }
 
   try {
+    if (!resendApiKey) {
+      return jsonResponse(
+        { error: "Missing RESEND_API_KEY environment variable." },
+        500
+      );
+    }
+
+    const resend = new Resend(resendApiKey);
     const payload = (await request.json()) as SendInvoiceEmailPayload;
 
     if (!payload.to || !payload.subject || !payload.html) {

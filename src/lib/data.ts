@@ -2,6 +2,7 @@ import { supabase } from "../supabaseClient";
 import type {
   Company,
   InvoiceDraftLine,
+  InvoiceStatus,
   InvoiceScheduleWithDetails,
   InvoiceWithDetails,
   Product,
@@ -307,8 +308,9 @@ type SendInvoiceEmailInput = {
   html: string;
   attachmentFilename: string;
   attachmentContent: string;
-  markAsSent?: {
+  markStatus?: {
     invoiceId: string;
+    status: Extract<InvoiceStatus, "sent" | "reminded">;
   };
 };
 
@@ -327,11 +329,11 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
     throw error;
   }
 
-  if (input.markAsSent) {
+  if (input.markStatus) {
     const { error: updateError } = await supabase
       .from("invoices")
-      .update({ status: "sent" })
-      .eq("id", input.markAsSent.invoiceId);
+      .update({ status: input.markStatus.status })
+      .eq("id", input.markStatus.invoiceId);
 
     if (updateError) {
       throw updateError;
@@ -339,6 +341,16 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
   }
 
   return data;
+}
+
+export async function deleteCurrentUser() {
+  const { error } = await supabase.functions.invoke("delete-user", {
+    body: {},
+  });
+
+  if (error) {
+    throw error;
+  }
 }
 
 export function createInvoiceNumber() {
