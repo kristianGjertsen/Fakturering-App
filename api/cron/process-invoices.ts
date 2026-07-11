@@ -2,7 +2,11 @@ declare const process: {
   env: Record<string, string | undefined>;
 };
 
-export async function GET(request: Request) {
+export default {
+  fetch: handleRequest,
+};
+
+async function handleRequest(request: Request) {
   const cronSecret = process.env.CRON_SECRET;
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
