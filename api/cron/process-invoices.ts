@@ -1,4 +1,18 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+type VercelRequest = {
+  method?: string;
+  headers: {
+    authorization?: string;
+  };
+};
+
+type VercelResponse = {
+  status(code: number): VercelResponse;
+  json(body: unknown): VercelResponse;
+};
+
+declare const process: {
+  env: Record<string, string | undefined>;
+};
 
 export default async function handler(
   request: VercelRequest,
