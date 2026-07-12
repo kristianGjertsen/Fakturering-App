@@ -83,6 +83,8 @@ export type InvoiceSchedule = {
   last_run_at: string | null;
   is_active: boolean;
   auto_send: boolean;
+  payment_terms_days: number;
+  invoice_notes: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -124,4 +126,5 @@ export type RepeatDraft = {
   sendTime: string;
   startDate: string;
   autoSend: boolean;
+  paymentTermsDays: number;
 };

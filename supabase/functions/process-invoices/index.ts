@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createInvoicePdfBase64 } from "../_shared/invoice-pdf.ts";
 
 type Schedule = {
   id: string;
@@ -113,11 +114,15 @@ Deno.serve(async (request) => {
         throw new Error("Company has no recipient email address");
       }
 
+      const attachmentContent = createInvoicePdfBase64(invoice);
+
       const { data: sendResult, error: sendError } = await supabase.functions.invoke("send-invoice", {
         body: {
           to: invoice.company.email,
           subject: `Faktura ${invoice.invoice_number}`,
-          html: createInvoiceEmail(invoice),
+          html: `<p>Hei ${escapeHtml(invoice.company.name)}, vedlagt ligger faktura ${escapeHtml(invoice.invoice_number)}.</p>`,
+          attachmentFilename: `faktura-${invoice.invoice_number}.pdf`,
+          attachmentContent,
         },
       });
 
@@ -171,42 +176,6 @@ Deno.serve(async (request) => {
     failures,
   });
 });
-
-function createInvoiceEmail(invoice: ClaimedInvoice) {
-  const rows = invoice.invoice_items
-    .map(
-      (item) => `
-        <tr>
-          <td>${escapeHtml(item.description)}</td>
-          <td>${escapeHtml(String(item.quantity))} ${escapeHtml(item.unit)}</td>
-          <td>${formatCurrency(item.unit_price)}</td>
-          <td>${escapeHtml(String(item.vat_rate))} %</td>
-          <td>${formatCurrency(item.line_total)}</td>
-        </tr>`,
-    )
-    .join("");
-
-  return `
-    <p>Hei ${escapeHtml(invoice.company?.name ?? "")},</p>
-    <p>Her er faktura ${escapeHtml(invoice.invoice_number)}.</p>
-    <p>Fakturadato: ${escapeHtml(invoice.issue_date)}<br>
-    Forfallsdato: ${escapeHtml(invoice.due_date ?? "Ikke angitt")}</p>
-    <table cellpadding="6" cellspacing="0" border="1" style="border-collapse:collapse">
-      <thead><tr><th>Beskrivelse</th><th>Antall</th><th>Pris</th><th>MVA</th><th>Sum</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <p>Netto: ${formatCurrency(invoice.subtotal)}<br>
-    MVA: ${formatCurrency(invoice.vat_total)}<br>
-    <strong>Totalt: ${formatCurrency(invoice.total)}</strong></p>
-  `;
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("nb-NO", {
-    style: "currency",
-    currency: "NOK",
-  }).format(Number(value));
-}
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>'"]/g, (character) => {
