@@ -311,6 +311,14 @@ export async function deleteInvoice(invoiceId: string) {
   }
 }
 
+export async function updateInvoicePaid(invoiceId: string, paid: boolean) {
+  const { error } = await supabase.from("invoices").update({ paid }).eq("id", invoiceId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 type SendInvoiceEmailInput = {
   recipientEmail: string;
   subject: string;

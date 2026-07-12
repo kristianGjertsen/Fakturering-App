@@ -13,7 +13,7 @@ type DashboardViewProps = {
 
 export function DashboardView({ companies, products, invoices, schedules, onCreateInvoice }: DashboardViewProps) {
   const totalOutstanding = invoices
-    .filter((invoice) => invoice.status !== "paid" && invoice.status !== "cancelled")
+    .filter((invoice) => !invoice.paid && invoice.status !== "cancelled")
     .reduce((sum, invoice) => sum + invoice.total, 0);
   const nextSchedule = schedules.find((schedule) => schedule.next_run_at);
 
@@ -60,7 +60,7 @@ export function DashboardView({ companies, products, invoices, schedules, onCrea
                     <tr key={invoice.id}>
                       <td className="py-3 pr-4 font-medium text-slate-950">{invoice.invoice_number}</td>
                       <td className="py-3 pr-4 text-slate-600">{invoice.company?.name ?? "Ukjent"}</td>
-                      <td className="py-3 pr-4 text-slate-600">{invoice.status}</td>
+                      <td className="py-3 pr-4 text-slate-600">{invoice.paid ? "Betalt" : invoice.status}</td>
                       <td className="py-3 pr-4 text-right font-medium text-slate-950">{formatCurrency(invoice.total)}</td>
                     </tr>
                   ))}

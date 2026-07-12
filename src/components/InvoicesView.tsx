@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Company, InvoiceWithDetails, Product } from "../types";
 import type { InvoiceInput } from "../lib/data";
-import { sendInvoiceEmail } from "../lib/data";
+import { sendInvoiceEmail, updateInvoicePaid } from "../lib/data";
 import { formatCurrency, formatDate } from "../lib/format";
 import { createInvoicePdfBase64 } from "../lib/pdf";
 import { EmptyState } from "./EmptyState";
@@ -45,6 +45,7 @@ export function InvoicesView({
   const [deletingInvoiceId, setDeletingInvoiceId] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [sendingInvoiceId, setSendingInvoiceId] = useState("");
+  const [updatingPaidInvoiceId, setUpdatingPaidInvoiceId] = useState("");
   const [sendMessage, setSendMessage] = useState("");
 
   useEffect(() => {
@@ -142,6 +143,25 @@ export function InvoicesView({
     }
   }
 
+  async function handleTogglePaid() {
+    if (!selectedInvoice) {
+      return;
+    }
+
+    setUpdatingPaidInvoiceId(selectedInvoice.id);
+    setSendMessage("");
+
+    try {
+      await updateInvoicePaid(selectedInvoice.id, !selectedInvoice.paid);
+      await onRefreshInvoices();
+      setSendMessage(selectedInvoice.paid ? "Fakturaen er markert som ubetalt." : "Fakturaen er markert som betalt.");
+    } catch (error) {
+      setSendMessage(error instanceof Error ? error.message : "Kunne ikke oppdatere betalingsstatus.");
+    } finally {
+      setUpdatingPaidInvoiceId("");
+    }
+  }
+
   const header = (
     <SectionHeader
       title="Fakturaer"
@@ -213,7 +233,7 @@ export function InvoicesView({
                     <span className="mt-1 block text-sm text-slate-600">{invoice.company?.name ?? "Ukjent selskap"}</span>
                   </span>
                   <span className="rounded-md bg-white px-2 py-1 text-xs font-medium text-blue-800 ring-1 ring-blue-100">
-                    {statusLabels[invoice.status] ?? invoice.status}
+                    {invoice.paid ? "Betalt" : statusLabels[invoice.status] ?? invoice.status}
                   </span>
                 </span>
                 <span className="mt-3 flex items-center justify-between gap-3 text-sm">
@@ -237,6 +257,18 @@ export function InvoicesView({
                 <div className="flex flex-col items-start gap-3 sm:items-end">
                   <p className="text-2xl font-semibold text-slate-950">{formatCurrency(selectedInvoice.total)}</p>
                   <div className="flex flex-wrap gap-2">
+                    <button
+                      className={buttonSecondaryClass}
+                      type="button"
+                      onClick={() => void handleTogglePaid()}
+                      disabled={updatingPaidInvoiceId === selectedInvoice.id}
+                    >
+                      {updatingPaidInvoiceId === selectedInvoice.id
+                        ? "Oppdaterer..."
+                        : selectedInvoice.paid
+                          ? "Marker som ubetalt"
+                          : "Marker som betalt"}
+                    </button>
                     {(selectedInvoice.status === "draft" || selectedInvoice.status === "ready") && (
                       <button
                         className={buttonPrimaryClass}
