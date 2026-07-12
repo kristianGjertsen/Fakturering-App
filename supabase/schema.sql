@@ -97,10 +97,11 @@ create table if not exists public.invoices (
   owner_user_id uuid not null references public.profiles (id) on delete cascade,
   company_id uuid not null references public.companies (id) on delete restrict,
   schedule_id uuid references public.invoice_schedules (id) on delete set null,
+  scheduled_for timestamptz,
   invoice_number text not null,
   issue_date date not null default current_date,
   due_date date,
-  status text not null default 'draft' check (status in ('draft', 'ready', 'sent', 'reminded', 'paid', 'cancelled')),
+  status text not null default 'draft' check (status in ('draft', 'sending', 'ready', 'sent', 'reminded', 'paid', 'cancelled')),
   notes text,
   subtotal numeric(12, 2) not null default 0 check (subtotal >= 0),
   vat_total numeric(12, 2) not null default 0 check (vat_total >= 0),
@@ -342,5 +343,8 @@ create index if not exists invoice_schedule_items_schedule_id_idx on public.invo
 create index if not exists invoices_owner_user_id_idx on public.invoices (owner_user_id);
 create index if not exists invoices_company_id_idx on public.invoices (company_id);
 create index if not exists invoices_created_at_idx on public.invoices (created_at desc);
+create unique index if not exists invoices_schedule_occurrence_idx
+  on public.invoices (schedule_id, scheduled_for)
+  where schedule_id is not null and scheduled_for is not null;
 create index if not exists invoice_items_invoice_id_idx on public.invoice_items (invoice_id);
 create index if not exists invoice_schedule_lines_schedule_id_idx on public.invoice_schedule_lines (schedule_id);

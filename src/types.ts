@@ -24,7 +24,7 @@ export type Product = {
   updated_at: string;
 };
 
-export type InvoiceStatus = "draft" | "ready" | "sent" | "reminded" | "paid" | "cancelled";
+export type InvoiceStatus = "draft" | "sending" | "ready" | "sent" | "reminded" | "paid" | "cancelled";
 
 export type InvoiceItem = {
   id: string;
@@ -47,6 +47,7 @@ export type Invoice = {
   owner_user_id: string;
   company_id: string;
   schedule_id: string | null;
+  scheduled_for: string | null;
   invoice_number: string;
   issue_date: string;
   due_date: string | null;
