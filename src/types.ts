@@ -25,6 +25,7 @@ export type Product = {
 };
 
 export type InvoiceStatus = "draft" | "sending" | "ready" | "sent" | "reminded" | "paid" | "cancelled";
+export type PdfTemplate = "classic" | "modern" | "minimal";
 
 export type InvoiceItem = {
   id: string;
@@ -53,6 +54,7 @@ export type Invoice = {
   due_date: string | null;
   status: InvoiceStatus;
   paid: boolean;
+  pdf_template: PdfTemplate;
   notes: string | null;
   subtotal: number;
   vat_total: number;
@@ -86,6 +88,7 @@ export type InvoiceSchedule = {
   auto_send: boolean;
   payment_terms_days: number;
   invoice_notes: string | null;
+  pdf_template: PdfTemplate;
   created_at: string;
   updated_at: string;
 };

@@ -1,38 +1,64 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { InvoiceWithDetails } from "../../../types";
 import { createInvoicePdfBlob, openInvoicePdf } from "../../../lib/pdf";
 import { Button } from "../../../components/Button";
 
 type PdfPreviewProps = {
   invoice: InvoiceWithDetails;
+  compact?: boolean;
 };
 
-export function PdfPreview({ invoice }: PdfPreviewProps) {
+export function PdfPreview({ invoice, compact = false }: PdfPreviewProps) {
   const [pdfUrl, setPdfUrl] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const currentUrlRef = useRef("");
 
   useEffect(() => {
-    let url = "";
     let cancelled = false;
 
-    setPdfUrl("");
     setError("");
+    setLoading(true);
 
-    void createInvoicePdfBlob(invoice)
-      .then((blob) => {
-        if (cancelled) return;
-        url = URL.createObjectURL(blob);
-        setPdfUrl(url);
-      })
-      .catch((pdfError) => {
-        if (!cancelled) setError(pdfError instanceof Error ? pdfError.message : "Kunne ikke lage PDF.");
-      });
+    const timeout = window.setTimeout(() => {
+      void createInvoicePdfBlob(invoice)
+        .then((blob) => {
+          const nextUrl = URL.createObjectURL(blob);
+
+          if (cancelled) {
+            URL.revokeObjectURL(nextUrl);
+            return;
+          }
+
+          if (currentUrlRef.current) {
+            URL.revokeObjectURL(currentUrlRef.current);
+          }
+
+          currentUrlRef.current = nextUrl;
+          setPdfUrl(nextUrl);
+          setLoading(false);
+        })
+        .catch((pdfError) => {
+          if (!cancelled) {
+            setError(pdfError instanceof Error ? pdfError.message : "Kunne ikke lage PDF.");
+            setLoading(false);
+          }
+        });
+    }, compact ? 300 : 0);
 
     return () => {
       cancelled = true;
-      if (url) URL.revokeObjectURL(url);
+      window.clearTimeout(timeout);
     };
-  }, [invoice]);
+  }, [invoice, compact]);
+
+  useEffect(() => {
+    return () => {
+      if (currentUrlRef.current) {
+        URL.revokeObjectURL(currentUrlRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="space-y-3">
@@ -44,10 +70,10 @@ export function PdfPreview({ invoice }: PdfPreviewProps) {
       </div>
 
       {error && <p className="text-sm text-red-700">{error}</p>}
-      {!pdfUrl && !error && <p className="text-sm text-slate-500">Lager PDF-forhåndsvisning...</p>}
+      {loading && <p className="text-sm text-slate-500">Oppdaterer forhåndsvisning...</p>}
       {pdfUrl && (
         <iframe
-          className="h-[720px] w-full rounded-lg border border-blue-100 bg-white"
+          className={`${compact ? "h-[420px]" : "h-[720px]"} w-full rounded-lg border border-blue-100 bg-white`}
           src={pdfUrl}
           title={`PDF ${invoice.invoice_number}`}
         />

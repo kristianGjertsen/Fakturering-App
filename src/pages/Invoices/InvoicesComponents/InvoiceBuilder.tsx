@@ -1,6 +1,6 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import type { Company, InvoiceDraftLine, Product, RepeatDraft } from "../../../types";
+import type { Company, InvoiceDraftLine, InvoiceWithDetails, PdfTemplate, Product, RepeatDraft } from "../../../types";
 import type { InvoiceInput } from "../../../lib/data";
 import { addMonthsInputValue, formatCurrency, todayInputValue } from "../../../lib/format";
 import { createInvoiceNumber } from "../../../lib/data";
@@ -9,6 +9,8 @@ import { EmptyState } from "../../../components/EmptyState";
 import { FormField, inputClass } from "../../../components/FormField";
 import { Button } from "../../../components/Button";
 import { SectionHeader } from "../../../components/SectionHeader";
+import { PdfPreview } from "./PdfPreview";
+import { PdfTemplateSelector } from "./PdfTemplateSelector";
 
 type InvoiceBuilderProps = {
   companies: Company[];
@@ -105,6 +107,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
   const [issueDate, setIssueDate] = useState(todayInputValue);
   const [dueDate, setDueDate] = useState(() => addMonthsInputValue(1));
   const [notes, setNotes] = useState("");
+  const [pdfTemplate, setPdfTemplate] = useState<PdfTemplate>("classic");
   const [lines, setLines] = useState<InvoiceDraftLine[]>([createEmptyLine()]);
   const [repeat, setRepeat] = useState<RepeatDraft>(createDefaultRepeat);
   const [saving, setSaving] = useState(false);
@@ -118,6 +121,51 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
 
   const companyProducts = products.filter((product) => product.company_id === companyId);
   const totals = calculateTotals(lines);
+  const selectedCompany = companies.find((company) => company.id === companyId) ?? null;
+  const previewIssueDate = invoiceKind === "recurring" ? repeat.startDate : issueDate;
+  const previewDueDate = invoiceKind === "recurring"
+    ? addDaysFromDate(repeat.startDate, repeat.paymentTermsDays)
+    : dueDate;
+  const previewInvoice: InvoiceWithDetails = {
+    id: "preview",
+    owner_user_id: "preview",
+    company_id: companyId,
+    schedule_id: null,
+    scheduled_for: null,
+    invoice_number: invoiceKind === "recurring" ? "Neste faktura" : invoiceNumber || "Fakturanummer",
+    issue_date: previewIssueDate,
+    due_date: previewDueDate,
+    status: "ready",
+    paid: false,
+    pdf_template: pdfTemplate,
+    notes: notes || null,
+    subtotal: totals.subtotal,
+    vat_total: totals.vatTotal,
+    total: totals.total,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    company: selectedCompany,
+    invoice_items: lines
+      .filter((line) => line.description.trim())
+      .map((line, index) => {
+        const calculated = calculateLine(line);
+        return {
+          id: `preview-${line.localId}`,
+          invoice_id: "preview",
+          product_id: line.productId,
+          description: line.description,
+          quantity: line.quantity,
+          unit: line.unit,
+          unit_price: line.unitPrice,
+          vat_rate: line.vatRate,
+          line_subtotal: calculated.line_subtotal,
+          line_vat: calculated.line_vat,
+          line_total: calculated.line_total,
+          sort_order: index,
+          created_at: new Date().toISOString(),
+        };
+      }),
+  };
 
   function handleCompanyChange(nextCompanyId: string) {
     setCompanyId(nextCompanyId);
@@ -200,6 +248,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         issueDate,
         dueDate,
         notes,
+        pdfTemplate,
         lines: validLines,
         repeat: { ...repeat, enabled: invoiceKind === "recurring", autoSend: true },
       });
@@ -209,6 +258,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
       setIssueDate(todayInputValue());
       setDueDate(addMonthsInputValue(1));
       setNotes("");
+      setPdfTemplate("classic");
       setLines([createEmptyLine()]);
       setRepeat(createDefaultRepeat());
       setInvoiceKind("single");
@@ -391,6 +441,11 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         </div>
 
         <aside className="space-y-5">
+          <div className="space-y-4 rounded-lg border border-blue-100 bg-white p-4 shadow-sm">
+            <PdfTemplateSelector value={pdfTemplate} onChange={setPdfTemplate} />
+            <PdfPreview invoice={previewInvoice} compact />
+          </div>
+
           <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
             <h3 className="text-base font-semibold text-slate-950">Summer</h3>
             <dl className="mt-4 space-y-3 text-sm">

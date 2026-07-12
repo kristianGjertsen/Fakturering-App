@@ -174,32 +174,10 @@ export default function InvoicesPage({
     />
   );
 
-  if (invoices.length === 0) {
+  if (showCreateForm) {
     return (
       <div className="space-y-6">
         {header}
-        {showCreateForm ? (
-          <InvoiceBuilder
-            companies={companies}
-            products={products}
-            onCreateInvoice={async (input) => {
-              await onCreateInvoice(input);
-              setShowCreateForm(false);
-            }}
-            onOpenCompanies={onOpenCompanies}
-          />
-        ) : (
-          <EmptyState title="Ingen fakturaer" description="Lag en faktura her, sa vises den i listen med en gang." />
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {header}
-
-      {showCreateForm && (
         <InvoiceBuilder
           companies={companies}
           products={products}
@@ -209,7 +187,22 @@ export default function InvoicesPage({
           }}
           onOpenCompanies={onOpenCompanies}
         />
-      )}
+      </div>
+    );
+  }
+
+  if (invoices.length === 0) {
+    return (
+      <div className="space-y-6">
+        {header}
+        <EmptyState title="Ingen fakturaer" description="Lag en faktura her, sa vises den i listen med en gang." />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {header}
 
       {sendMessage && <p className="rounded-md border border-blue-100 bg-white px-4 py-3 text-sm text-blue-900 shadow-sm">{sendMessage}</p>}
 
