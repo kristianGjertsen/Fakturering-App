@@ -25,25 +25,60 @@ export default async function handler(
       });
     }
 
+    const cronSecret = process.env.CRON_SECRET;
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!cronSecret || !supabaseUrl || !serviceRoleKey) {
+      console.error("Missing required environment variables for invoice processing");
+
+      return response.status(500).json({
+        error: "Server configuration error",
+      });
+    }
+
     const authorization = request.headers.authorization;
 
-    if (authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    if (authorization !== `Bearer ${cronSecret}`) {
       return response.status(401).json({
         error: "Unauthorized",
       });
     }
 
-    // Fakturalogikken din her
+    const edgeResponse = await fetch(
+      `${supabaseUrl.replace(/\/$/, "")}/functions/v1/process-invoices`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${serviceRoleKey}`,
+          apikey: serviceRoleKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ triggeredBy: "vercel-cron" }),
+      }
+    );
 
-    return response.status(200).json({
-      ok: true,
-      message: "Cron completed",
-    });
+    const responseBody = await edgeResponse.text();
+    const result = parseResponseBody(responseBody);
+
+    return response.status(edgeResponse.status).json(result);
   } catch (error) {
     console.error("Cron failed:", error);
 
     return response.status(500).json({
       error: error instanceof Error ? error.message : "Unknown error",
     });
+  }
+}
+
+function parseResponseBody(body: string): unknown {
+  if (!body) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(body);
+  } catch {
+    return { message: body };
   }
 }
