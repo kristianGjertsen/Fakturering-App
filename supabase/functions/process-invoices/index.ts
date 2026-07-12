@@ -8,6 +8,20 @@ type Schedule = {
   owner_user_id: string;
 };
 
+type DebugSchedule = {
+  id: string;
+  owner_user_id: string;
+  title: string;
+  next_run_at: string | null;
+  is_active: boolean;
+  auto_send: boolean;
+};
+
+type DebugResult = {
+  status: string;
+  message: string;
+};
+
 type InvoiceItem = {
   description: string;
   quantity: number;
@@ -86,6 +100,7 @@ Deno.serve(async (request) => {
   let processed = 0;
   let sent = 0;
   const failures: Failure[] = [];
+  const debugResults = new Map<string, DebugResult>();
 
   for (const schedule of schedules) {
     let invoice: ClaimedInvoice | null = null;
@@ -178,10 +193,12 @@ Deno.serve(async (request) => {
         }
       }
     } finally {
-      if (cronDebugEmailsEnabled) {
-        await sendCronDebugEmail(supabase, schedule, invoice, debugStatus, debugMessage);
-      }
+      debugResults.set(schedule.id, { status: debugStatus, message: debugMessage });
     }
+  }
+
+  if (cronDebugEmailsEnabled) {
+    await sendCronDebugSummaries(supabase, now, debugResults);
   }
 
   return jsonResponse({
@@ -192,51 +209,97 @@ Deno.serve(async (request) => {
   });
 });
 
-async function sendCronDebugEmail(
+async function sendCronDebugSummaries(
   supabase: ReturnType<typeof createClient>,
-  schedule: Schedule,
-  invoice: ClaimedInvoice | null,
-  status: string,
-  message: string,
+  processedAt: string,
+  results: Map<string, DebugResult>,
 ) {
   try {
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("id", schedule.owner_user_id)
-      .maybeSingle();
+    const { data, error: schedulesError } = await supabase
+      .from("invoice_schedules")
+      .select("id,owner_user_id,title,next_run_at,is_active,auto_send")
+      .order("next_run_at", { ascending: true, nullsFirst: false });
 
-    if (profileError) {
-      throw profileError;
+    if (schedulesError) {
+      throw schedulesError;
     }
 
-    if (!profile?.email) {
-      console.warn(`Cron debug email skipped for schedule ${schedule.id}: owner has no email`);
-      return;
+    const schedulesByOwner = new Map<string, DebugSchedule[]>();
+
+    for (const schedule of (data ?? []) as DebugSchedule[]) {
+      const ownerSchedules = schedulesByOwner.get(schedule.owner_user_id) ?? [];
+      ownerSchedules.push(schedule);
+      schedulesByOwner.set(schedule.owner_user_id, ownerSchedules);
     }
 
-    const { error } = await supabase.functions.invoke("send-invoice", {
-      body: {
-        to: profile.email,
-        subject: `Cron debug: ${status} (${schedule.id.slice(0, 8)})`,
-        html: [
-          "<h2>Invoice cron report</h2>",
-          `<p><strong>Status:</strong> ${escapeHtml(status)}</p>`,
-          `<p><strong>Schedule:</strong> ${escapeHtml(schedule.id)}</p>`,
-          `<p><strong>Scheduled for:</strong> ${escapeHtml(schedule.next_run_at)}</p>`,
-          `<p><strong>Invoice:</strong> ${escapeHtml(invoice?.invoice_number ?? "not created")}</p>`,
-          `<p><strong>Result:</strong> ${escapeHtml(message)}</p>`,
-          `<p><strong>Processed at:</strong> ${escapeHtml(new Date().toISOString())}</p>`,
-        ].join(""),
-      },
-    });
+    for (const [ownerUserId, ownerSchedules] of schedulesByOwner) {
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", ownerUserId)
+        .maybeSingle();
 
-    if (error) {
-      throw error;
+      if (profileError) {
+        console.error(`Failed to fetch cron debug recipient ${ownerUserId}`, profileError);
+        continue;
+      }
+
+      if (!profile?.email) {
+        console.warn(`Cron debug summary skipped for owner ${ownerUserId}: owner has no email`);
+        continue;
+      }
+
+      const rows = ownerSchedules.map((schedule) => {
+        const result = results.get(schedule.id) ?? explainUnprocessedSchedule(schedule, processedAt);
+
+        return `<tr>
+          <td style="padding:6px;border:1px solid #ddd">${escapeHtml(schedule.title)}</td>
+          <td style="padding:6px;border:1px solid #ddd">${escapeHtml(schedule.next_run_at ?? "Ikke satt")}</td>
+          <td style="padding:6px;border:1px solid #ddd">${escapeHtml(result.status)}</td>
+          <td style="padding:6px;border:1px solid #ddd">${escapeHtml(result.message)}</td>
+        </tr>`;
+      }).join("");
+
+      const { error: sendError } = await supabase.functions.invoke("send-invoice", {
+        body: {
+          to: profile.email,
+          subject: `Cron-rapport: ${ownerSchedules.length} planlagte utsendinger`,
+          html: `<h2>Cron-rapport</h2>
+            <p>Kjørt: ${escapeHtml(processedAt)}</p>
+            <table style="border-collapse:collapse">
+              <thead><tr><th>Plan</th><th>Neste kjøring</th><th>Status</th><th>Beskrivelse</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>`,
+        },
+      });
+
+      if (sendError) {
+        console.error(`Failed to send cron debug summary to owner ${ownerUserId}`, sendError);
+      }
     }
   } catch (error) {
-    console.error(`Failed to send cron debug email for schedule ${schedule.id}`, error);
+    console.error("Failed to send cron debug summaries", error);
   }
+}
+
+function explainUnprocessedSchedule(schedule: DebugSchedule, processedAt: string): DebugResult {
+  if (!schedule.is_active) {
+    return { status: "ikke behandlet", message: "Planen er deaktivert (is_active = false)." };
+  }
+
+  if (!schedule.auto_send) {
+    return { status: "ikke behandlet", message: "Automatisk utsending er deaktivert (auto_send = false)." };
+  }
+
+  if (!schedule.next_run_at) {
+    return { status: "ikke behandlet", message: "next_run_at er ikke satt." };
+  }
+
+  if (new Date(schedule.next_run_at).getTime() > new Date(processedAt).getTime()) {
+    return { status: "venter", message: "Planlagt tidspunkt er fremdeles i fremtiden." };
+  }
+
+  return { status: "ikke behandlet", message: "Planen var forfalt, men kom ikke med blant de første 100 i denne kjøringen." };
 }
 
 function escapeHtml(value: string) {
