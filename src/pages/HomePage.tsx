@@ -81,7 +81,7 @@ export default function HomePage({ session }: HomePageProps) {
   }
 
   return (
-    <AppLayout session={session} activeView={activeView} onViewChange={setActiveView}>
+    <AppLayout activeView={activeView} onViewChange={setActiveView}>
       {error && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
           {error}
