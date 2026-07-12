@@ -40,7 +40,8 @@ function createDefaultRepeat(): RepeatDraft {
     dayOfMonth: today.getDate(),
     sendTime: "08:00",
     startDate: todayInputValue(),
-    autoSend: false,
+    autoSend: true,
+    paymentTermsDays: 14,
   };
 }
 
@@ -97,6 +98,7 @@ function repeatIntervalHelper(frequency: RepeatDraft["frequency"]) {
 }
 
 export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCompanies }: InvoiceBuilderProps) {
+  const [invoiceKind, setInvoiceKind] = useState<"single" | "recurring">("single");
   const [companyId, setCompanyId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState(createInvoiceNumber);
   const [issueDate, setIssueDate] = useState(todayInputValue);
@@ -198,16 +200,17 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         dueDate,
         notes,
         lines: validLines,
-        repeat,
+        repeat: { ...repeat, enabled: invoiceKind === "recurring", autoSend: true },
       });
 
-      setMessage("Faktura lagret.");
+      setMessage(invoiceKind === "recurring" ? "Gjentakende faktura lagret. Første faktura opprettes ved utsending." : "Faktura lagret.");
       setInvoiceNumber(createInvoiceNumber());
       setIssueDate(todayInputValue());
       setDueDate(addMonthsInputValue(1));
       setNotes("");
       setLines([createEmptyLine()]);
       setRepeat(createDefaultRepeat());
+      setInvoiceKind("single");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Kunne ikke lagre fakturaen.");
     } finally {
@@ -234,12 +237,28 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         description="Velg et selskap, fyll inn produkter eller manuelle linjer, og lagre fakturaen i Supabase."
         action={
           <button className={buttonPrimaryClass} type="submit" disabled={saving}>
-            {saving ? "Lagrer..." : "Lagre faktura"}
+            {saving ? "Lagrer..." : invoiceKind === "recurring" ? "Lagre gjentakelse" : "Lagre faktura"}
           </button>
         }
       />
 
       {message && <p className="rounded-md border border-blue-100 bg-white px-4 py-3 text-sm text-blue-900 shadow-sm">{message}</p>}
+
+      <section className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+        <h3 className="text-base font-semibold text-slate-950">Type faktura</h3>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className={`cursor-pointer rounded-lg border p-4 ${invoiceKind === "single" ? "border-blue-500 bg-blue-50" : "border-blue-100"}`}>
+            <input className="mr-3" type="radio" name="invoiceKind" checked={invoiceKind === "single"} onChange={() => setInvoiceKind("single")} />
+            <span className="font-semibold text-slate-950">Enkeltfaktura</span>
+            <span className="mt-1 block text-sm text-slate-600">Opprettes nå med fakturadato og fast forfallsdato.</span>
+          </label>
+          <label className={`cursor-pointer rounded-lg border p-4 ${invoiceKind === "recurring" ? "border-blue-500 bg-blue-50" : "border-blue-100"}`}>
+            <input className="mr-3" type="radio" name="invoiceKind" checked={invoiceKind === "recurring"} onChange={() => setInvoiceKind("recurring")} />
+            <span className="font-semibold text-slate-950">Gjentakende faktura</span>
+            <span className="mt-1 block text-sm text-slate-600">Lagrer bare planen. Fakturaen opprettes og dateres ved utsending.</span>
+          </label>
+        </div>
+      </section>
 
       <section className="grid gap-5 lg:grid-cols-[1fr_360px]">
         <div className="space-y-5">
@@ -255,15 +274,15 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                   ))}
                 </select>
               </FormField>
-              <FormField label="Fakturanummer">
+              {invoiceKind === "single" && <FormField label="Fakturanummer">
                 <input className={inputClass} value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} required />
-              </FormField>
-              <FormField label="Fakturadato">
+              </FormField>}
+              {invoiceKind === "single" && <FormField label="Fakturadato">
                 <input className={inputClass} type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} required />
-              </FormField>
-              <FormField label="Forfallsdato">
+              </FormField>}
+              {invoiceKind === "single" && <FormField label="Forfallsdato">
                 <div className="space-y-2">
-                  <input className={inputClass} type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+                  <input className={inputClass} type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} required />
                   <div className="flex flex-wrap gap-2">
                     <button className={buttonSecondaryClass} type="button" onClick={() => applyDueDatePreset("week")}>
                       Om 1 uke
@@ -276,7 +295,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                     </button>
                   </div>
                 </div>
-              </FormField>
+              </FormField>}
             </div>
           </div>
 
@@ -389,21 +408,14 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
             </dl>
           </div>
 
+          {invoiceKind === "recurring" && (
           <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
+            <div>
               <div>
                 <h3 className="text-base font-semibold text-slate-950">Gjentakelse</h3>
-                <p className="text-sm text-slate-600">Lag en plan for senere fakturering.</p>
+                <p className="text-sm text-slate-600">Fakturaen opprettes og sendes automatisk på neste tidspunkt.</p>
               </div>
-              <input
-                className="h-5 w-5 rounded border-blue-300 text-blue-700 focus:ring-blue-200"
-                type="checkbox"
-                checked={repeat.enabled}
-                onChange={(event) => setRepeat((value) => ({ ...value, enabled: event.target.checked }))}
-              />
-            </div>
 
-            {repeat.enabled && (
               <div className="mt-4 space-y-4">
                 <div className="rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-slate-800">
                   {repeatIntervalLabel(repeat.frequency, repeat.intervalCount)}
@@ -473,18 +485,20 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                     onChange={(event) => setRepeat((value) => ({ ...value, sendTime: event.target.value }))}
                   />
                 </FormField>
-                <label className="flex items-start gap-3 rounded-md border border-blue-100 bg-blue-50 p-3 text-sm text-slate-700">
+                <FormField label="Forfall etter utsending" helper="Antall dager fra utsending til forfallsdato.">
                   <input
-                    className="mt-0.5 h-4 w-4 rounded border-blue-300 text-blue-700 focus:ring-blue-200"
-                    type="checkbox"
-                    checked={repeat.autoSend}
-                    onChange={(event) => setRepeat((value) => ({ ...value, autoSend: event.target.checked }))}
+                    className={inputClass}
+                    type="number"
+                    min={0}
+                    max={365}
+                    value={repeat.paymentTermsDays}
+                    onChange={(event) => setRepeat((value) => ({ ...value, paymentTermsDays: Math.max(0, Math.min(365, Number(event.target.value))) }))}
                   />
-                  <span>Marker for automatisk utsending senere når sending er implementert.</span>
-                </label>
+                </FormField>
               </div>
-            )}
+            </div>
           </div>
+          )}
         </aside>
       </section>
     </form>

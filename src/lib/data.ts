@@ -191,6 +191,66 @@ export async function createProduct(input: ProductInput) {
 }
 
 export async function createInvoice(input: InvoiceInput) {
+  if (input.repeat.enabled) {
+    const recurrenceFields = recurrenceFieldsForFrequency(input.repeat);
+    const company = await supabase
+      .from("companies")
+      .select("name")
+      .eq("id", input.companyId)
+      .single();
+
+    if (company.error) {
+      throw company.error;
+    }
+
+    const { data: schedule, error: scheduleError } = await supabase
+      .from("invoice_schedules")
+      .insert({
+        owner_user_id: input.ownerUserId,
+        company_id: input.companyId,
+        title: `Gjentakende faktura - ${company.data.name}`,
+        frequency: input.repeat.frequency,
+        interval_count: input.repeat.intervalCount,
+        day_of_week: recurrenceFields.day_of_week,
+        day_of_month: recurrenceFields.day_of_month,
+        send_time: input.repeat.sendTime,
+        timezone: "Europe/Oslo",
+        start_date: input.repeat.startDate,
+        next_run_at: calculateNextRunAt(input.repeat),
+        auto_send: true,
+        payment_terms_days: input.repeat.paymentTermsDays,
+        invoice_notes: input.notes.trim() || null,
+      })
+      .select("id")
+      .single();
+
+    if (scheduleError) {
+      throw scheduleError;
+    }
+
+    const scheduleLines = input.lines.map((line, index) => ({
+      schedule_id: schedule.id,
+      product_id: line.productId,
+      description: line.description.trim(),
+      quantity: line.quantity,
+      unit: line.unit,
+      unit_price: line.unitPrice,
+      vat_rate: line.vatRate,
+      sort_order: index,
+    }));
+
+    const { error: scheduleLinesError } = await supabase
+      .from("invoice_schedule_lines")
+      .insert(scheduleLines);
+
+    if (scheduleLinesError) {
+      await supabase.from("invoice_schedules").delete().eq("id", schedule.id);
+      throw scheduleLinesError;
+    }
+
+    return schedule.id as string;
+  }
+
   const totals = calculateTotals(input.lines);
 
   const { data: invoice, error: invoiceError } = await supabase
@@ -238,57 +298,6 @@ export async function createInvoice(input: InvoiceInput) {
 
   if (itemsError) {
     throw itemsError;
-  }
-
-  if (input.repeat.enabled) {
-    const recurrenceFields = recurrenceFieldsForFrequency(input.repeat);
-    const { data: schedule, error: scheduleError } = await supabase
-      .from("invoice_schedules")
-      .insert({
-        owner_user_id: input.ownerUserId,
-        company_id: input.companyId,
-        title: `Faktura ${input.invoiceNumber}`,
-        frequency: input.repeat.frequency,
-        interval_count: input.repeat.intervalCount,
-        day_of_week: recurrenceFields.day_of_week,
-        day_of_month: recurrenceFields.day_of_month,
-        send_time: input.repeat.sendTime,
-        timezone: "Europe/Oslo",
-        start_date: input.repeat.startDate,
-        next_run_at: calculateNextRunAt(input.repeat),
-        auto_send: input.repeat.autoSend,
-      })
-      .select("id")
-      .single();
-
-    if (scheduleError) {
-      throw scheduleError;
-    }
-
-    const scheduleId = schedule.id as string;
-
-    const scheduleLines = input.lines.map((line, index) => ({
-      schedule_id: scheduleId,
-      product_id: line.productId,
-      description: line.description.trim(),
-      quantity: line.quantity,
-      unit: line.unit,
-      unit_price: line.unitPrice,
-      vat_rate: line.vatRate,
-      sort_order: index,
-    }));
-
-    const { error: scheduleLinesError } = await supabase.from("invoice_schedule_lines").insert(scheduleLines);
-
-    if (scheduleLinesError) {
-      throw scheduleLinesError;
-    }
-
-    const { error: updateError } = await supabase.from("invoices").update({ schedule_id: scheduleId }).eq("id", invoiceId);
-
-    if (updateError) {
-      throw updateError;
-    }
   }
 
   return invoiceId;

@@ -72,7 +72,7 @@ export default function HomePage({ session }: HomePageProps) {
   async function handleCreateInvoice(input: Omit<InvoiceInput, "ownerUserId">) {
     await createInvoice({ ...input, ownerUserId: session.user.id });
     await loadData();
-    setActiveView("invoices");
+    setActiveView(input.repeat.enabled ? "recurring" : "invoices");
   }
 
   async function handleDeleteInvoice(invoiceId: string) {

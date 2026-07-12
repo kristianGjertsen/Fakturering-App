@@ -51,6 +51,10 @@ export function RecurringView({ schedules }: RecurringViewProps) {
                     <dt className="text-slate-500">Neste</dt>
                     <dd className="mt-1 font-medium text-slate-950">{formatDateTime(schedule.next_run_at)}</dd>
                   </div>
+                  <div>
+                    <dt className="text-slate-500">Forfall</dt>
+                    <dd className="mt-1 font-medium text-slate-950">{schedule.payment_terms_days} dager etter utsending</dd>
+                  </div>
                 </dl>
 
                 <div className="mt-5 rounded-lg border border-blue-100 bg-blue-50 p-4">

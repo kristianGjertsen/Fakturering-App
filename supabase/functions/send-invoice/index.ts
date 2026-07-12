@@ -88,7 +88,16 @@ serve(async (request) => {
       attachments,
     });
 
-    return jsonResponse(result);
+    if (result.error) {
+      return jsonResponse(
+        { error: result.error.message },
+        result.error.statusCode >= 400 && result.error.statusCode <= 599
+          ? result.error.statusCode
+          : 502
+      );
+    }
+
+    return jsonResponse(result.data);
   } catch (error) {
     return jsonResponse(
       {

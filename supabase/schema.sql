@@ -73,6 +73,8 @@ create table if not exists public.invoice_schedules (
   last_run_at timestamptz,
   is_active boolean not null default true,
   auto_send boolean not null default false,
+  payment_terms_days integer not null default 14 check (payment_terms_days between 0 and 365),
+  invoice_notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint invoice_schedules_frequency_rules check (
@@ -97,10 +99,11 @@ create table if not exists public.invoices (
   owner_user_id uuid not null references public.profiles (id) on delete cascade,
   company_id uuid not null references public.companies (id) on delete restrict,
   schedule_id uuid references public.invoice_schedules (id) on delete set null,
+  scheduled_for timestamptz,
   invoice_number text not null,
   issue_date date not null default current_date,
   due_date date,
-  status text not null default 'draft' check (status in ('draft', 'ready', 'sent', 'reminded', 'paid', 'cancelled')),
+  status text not null default 'draft' check (status in ('draft', 'sending', 'ready', 'sent', 'reminded', 'paid', 'cancelled')),
   notes text,
   subtotal numeric(12, 2) not null default 0 check (subtotal >= 0),
   vat_total numeric(12, 2) not null default 0 check (vat_total >= 0),
@@ -168,6 +171,40 @@ drop trigger if exists invoices_set_updated_at on public.invoices;
 create trigger invoices_set_updated_at
   before update on public.invoices
   for each row execute procedure public.set_updated_at();
+
+create or replace function public.set_scheduled_invoice_due_date()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_timezone text;
+  v_payment_terms_days integer;
+  v_invoice_notes text;
+begin
+  if new.schedule_id is null or new.scheduled_for is null then
+    return new;
+  end if;
+
+  select timezone, payment_terms_days, invoice_notes
+    into v_timezone, v_payment_terms_days, v_invoice_notes
+    from public.invoice_schedules
+   where id = new.schedule_id;
+
+  if found then
+    new.issue_date := (new.scheduled_for at time zone v_timezone)::date;
+    new.due_date := new.issue_date + v_payment_terms_days;
+    new.notes := v_invoice_notes;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists invoices_set_scheduled_due_date on public.invoices;
+create trigger invoices_set_scheduled_due_date
+  before insert on public.invoices
+  for each row execute procedure public.set_scheduled_invoice_due_date();
 
 alter table public.profiles enable row level security;
 alter table public.companies enable row level security;
@@ -342,5 +379,8 @@ create index if not exists invoice_schedule_items_schedule_id_idx on public.invo
 create index if not exists invoices_owner_user_id_idx on public.invoices (owner_user_id);
 create index if not exists invoices_company_id_idx on public.invoices (company_id);
 create index if not exists invoices_created_at_idx on public.invoices (created_at desc);
+create unique index if not exists invoices_schedule_occurrence_idx
+  on public.invoices (schedule_id, scheduled_for)
+  where schedule_id is not null and scheduled_for is not null;
 create index if not exists invoice_items_invoice_id_idx on public.invoice_items (invoice_id);
 create index if not exists invoice_schedule_lines_schedule_id_idx on public.invoice_schedule_lines (schedule_id);

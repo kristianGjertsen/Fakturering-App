@@ -24,7 +24,7 @@ export type Product = {
   updated_at: string;
 };
 
-export type InvoiceStatus = "draft" | "ready" | "sent" | "reminded" | "paid" | "cancelled";
+export type InvoiceStatus = "draft" | "sending" | "ready" | "sent" | "reminded" | "paid" | "cancelled";
 
 export type InvoiceItem = {
   id: string;
@@ -47,6 +47,7 @@ export type Invoice = {
   owner_user_id: string;
   company_id: string;
   schedule_id: string | null;
+  scheduled_for: string | null;
   invoice_number: string;
   issue_date: string;
   due_date: string | null;
@@ -82,6 +83,8 @@ export type InvoiceSchedule = {
   last_run_at: string | null;
   is_active: boolean;
   auto_send: boolean;
+  payment_terms_days: number;
+  invoice_notes: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -123,4 +126,5 @@ export type RepeatDraft = {
   sendTime: string;
   startDate: string;
   autoSend: boolean;
+  paymentTermsDays: number;
 };

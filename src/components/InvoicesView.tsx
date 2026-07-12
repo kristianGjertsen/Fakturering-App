@@ -23,6 +23,7 @@ type InvoicesViewProps = {
 
 const statusLabels: Record<string, string> = {
   draft: "Utkast",
+  sending: "Sendes",
   ready: "Klar",
   sent: "Sendt",
   reminded: "Purret",
