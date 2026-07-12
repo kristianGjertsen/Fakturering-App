@@ -5,7 +5,7 @@ import { sendInvoiceEmail, updateInvoicePaid } from "../../lib/data";
 import { formatCurrency, formatDate } from "../../lib/format";
 import { createInvoicePdfBase64 } from "../../lib/pdf";
 import { EmptyState } from "../../components/EmptyState";
-import { buttonPrimaryClass, buttonSecondaryClass } from "../../components/FormField";
+import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
 import { PdfPreview } from "./InvoicesComponents/PdfPreview";
 import { InvoiceBuilder } from "./InvoicesComponents/InvoiceBuilder";
@@ -167,9 +167,9 @@ export default function InvoicesPage({
       title="Fakturaer"
       description="Lag nye fakturaer og velg en faktura for detaljer og PDF-forhandsvisning."
       action={
-        <button className={buttonPrimaryClass} type="button" onClick={() => setShowCreateForm((value) => !value)}>
+        <Button onClick={() => setShowCreateForm((value) => !value)}>
           {showCreateForm ? "Skjul skjema" : "Ny faktura"}
-        </button>
+        </Button>
       }
     />
   );
@@ -217,9 +217,10 @@ export default function InvoicesPage({
         <div className="rounded-lg border border-blue-100 bg-white p-4 shadow-sm">
           <div className="space-y-2">
             {invoices.map((invoice) => (
-              <button
+              <Button
                 key={invoice.id}
-                className={`w-full rounded-lg border p-4 text-left transition ${
+                variant="ghost"
+                className={`w-full justify-start rounded-lg border p-4 text-left ${
                   selectedInvoice?.id === invoice.id
                     ? "border-blue-400 bg-blue-50"
                     : "border-blue-100 bg-white hover:border-blue-300"
@@ -240,7 +241,7 @@ export default function InvoicesPage({
                   <span className="text-slate-500">{formatDate(invoice.issue_date)}</span>
                   <span className="font-semibold text-slate-950">{formatCurrency(invoice.total)}</span>
                 </span>
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -257,9 +258,8 @@ export default function InvoicesPage({
                 <div className="flex flex-col items-start gap-3 sm:items-end">
                   <p className="text-2xl font-semibold text-slate-950">{formatCurrency(selectedInvoice.total)}</p>
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      className={buttonSecondaryClass}
-                      type="button"
+                    <Button
+                      variant={selectedInvoice.paid ? "secondary" : "success"}
                       onClick={() => void handleTogglePaid()}
                       disabled={updatingPaidInvoiceId === selectedInvoice.id}
                     >
@@ -268,35 +268,31 @@ export default function InvoicesPage({
                         : selectedInvoice.paid
                           ? "Marker som ubetalt"
                           : "Marker som betalt"}
-                    </button>
+                    </Button>
                     {(selectedInvoice.status === "draft" || selectedInvoice.status === "ready") && (
-                      <button
-                        className={buttonPrimaryClass}
-                        type="button"
+                      <Button
                         onClick={() => void handleSendSelectedInvoice("send")}
                         disabled={sendingInvoiceId === selectedInvoice.id}
                       >
                         {sendingInvoiceId === selectedInvoice.id ? "Sender..." : "Send faktura"}
-                      </button>
+                      </Button>
                     )}
                     {selectedInvoice.status === "sent" && (
-                      <button
-                        className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        type="button"
+                      <Button
+                        variant="danger"
                         onClick={() => void handleSendSelectedInvoice("remind")}
                         disabled={sendingInvoiceId === selectedInvoice.id}
                       >
                         {sendingInvoiceId === selectedInvoice.id ? "Sender..." : "Purre"}
-                      </button>
+                      </Button>
                     )}
-                    <button
-                      className={buttonSecondaryClass}
-                      type="button"
+                    <Button
+                      variant="danger"
                       onClick={() => void handleDeleteSelectedInvoice()}
                       disabled={deletingInvoiceId === selectedInvoice.id}
                     >
                       {deletingInvoiceId === selectedInvoice.id ? "Sletter..." : "Slett faktura"}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>

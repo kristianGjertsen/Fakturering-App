@@ -6,7 +6,8 @@ import { addMonthsInputValue, formatCurrency, todayInputValue } from "../../../l
 import { createInvoiceNumber } from "../../../lib/data";
 import { calculateLine, calculateTotals, toNumber } from "../../../lib/invoiceMath";
 import { EmptyState } from "../../../components/EmptyState";
-import { FormField, buttonPrimaryClass, buttonSecondaryClass, inputClass } from "../../../components/FormField";
+import { FormField, inputClass } from "../../../components/FormField";
+import { Button } from "../../../components/Button";
 import { SectionHeader } from "../../../components/SectionHeader";
 
 type InvoiceBuilderProps = {
@@ -223,9 +224,9 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
       <div className="space-y-6">
         <SectionHeader title="Ny faktura" description="Du må ha minst ett selskap før du kan lage faktura." />
         <EmptyState title="Ingen selskaper" description="Registrer et selskap først, og legg deretter til produkter eller manuelle linjer." />
-        <button className={buttonPrimaryClass} type="button" onClick={onOpenCompanies}>
+        <Button onClick={onOpenCompanies}>
           Gå til selskaper
-        </button>
+        </Button>
       </div>
     );
   }
@@ -236,9 +237,9 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         title="Ny faktura"
         description="Velg et selskap, fyll inn produkter eller manuelle linjer, og lagre fakturaen i Supabase."
         action={
-          <button className={buttonPrimaryClass} type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving}>
             {saving ? "Lagrer..." : invoiceKind === "recurring" ? "Lagre gjentakelse" : "Lagre faktura"}
-          </button>
+          </Button>
         }
       />
 
@@ -284,15 +285,15 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                 <div className="space-y-2">
                   <input className={inputClass} type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} required />
                   <div className="flex flex-wrap gap-2">
-                    <button className={buttonSecondaryClass} type="button" onClick={() => applyDueDatePreset("week")}>
+                    <Button variant="secondary" size="sm" onClick={() => applyDueDatePreset("week")}>
                       Om 1 uke
-                    </button>
-                    <button className={buttonSecondaryClass} type="button" onClick={() => applyDueDatePreset("twoWeeks")}>
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => applyDueDatePreset("twoWeeks")}>
                       Om 14 dager
-                    </button>
-                    <button className={buttonSecondaryClass} type="button" onClick={() => applyDueDatePreset("month")}>
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => applyDueDatePreset("month")}>
                       Om 1 måned
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </FormField>}
@@ -305,9 +306,9 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                 <h3 className="text-base font-semibold text-slate-950">Fakturalinjer</h3>
                 <p className="text-sm text-slate-600">Velg lagrede produkter eller skriv inn manuelle linjer.</p>
               </div>
-              <button className={buttonSecondaryClass} type="button" onClick={addManualLine}>
+              <Button variant="secondary" onClick={addManualLine}>
                 Legg til linje
-              </button>
+              </Button>
             </div>
 
             <div className="mt-5 space-y-4">
@@ -371,9 +372,9 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                         <p className="mt-3 text-sm font-semibold text-slate-950">{formatCurrency(calculated.line_total)}</p>
                       </div>
                       <div className="flex items-end">
-                        <button className={buttonSecondaryClass} type="button" onClick={() => removeLine(line.localId)} aria-label={`Fjern linje ${index + 1}`}>
+                        <Button variant="secondary" size="sm" onClick={() => removeLine(line.localId)} aria-label={`Fjern linje ${index + 1}`}>
                           Fjern
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </div>

@@ -1,49 +1,46 @@
-import { NavLink } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Button } from "../Button";
 
 const tabs = [
-  { to: "/", label: "Oversikt", end: true },
+  { to: "/", label: "Oversikt" },
   { to: "/companies", label: "Selskaper" },
   { to: "/invoices", label: "Fakturaer" },
   { to: "/recurring", label: "Gjentakelser" },
 ];
 
 export function AppHeader() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   return (
     <header className="border-b border-blue-100 bg-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Fakturering</p>
-            <h1 className="text-2xl font-semibold text-slate-950">Fakturering-Test</h1>
+          <div className="flex text-2xl font-semibold">
+            <span className="text-slate-950">Auto</span>
+            <span className="text-blue-700">Faktura</span>
           </div>
-          <NavLink
-            className={({ isActive }) =>
-              `w-fit rounded-md px-3 py-2 text-sm font-medium shadow-sm transition ${
-                isActive
-                  ? "bg-blue-700 text-white"
-                  : "border border-blue-200 bg-white text-blue-800 hover:border-blue-300 hover:bg-blue-50"
-              }`
-            }
-            to="/profile"
+
+          <Button
+            variant={location.pathname === "/profile" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => navigate("/profile")}
           >
             Profil
-          </NavLink>
+          </Button>
         </div>
 
-        <nav className="flex gap-2 overflow-x-auto pb-1">
+        <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="Hovednavigasjon">
           {tabs.map((tab) => (
-            <NavLink
+            <Button
               key={tab.to}
-              className={({ isActive }) =>
-                `shrink-0 rounded-md px-3 py-2 text-sm font-medium transition ${
-                  isActive ? "bg-blue-700 text-white shadow-sm" : "bg-blue-50 text-blue-900 hover:bg-blue-100"
-                }`
-              }
-              end={tab.end}
-              to={tab.to}
+              className="shrink-0"
+              variant={location.pathname === tab.to ? "primary" : "ghost"}
+              size="sm"
+              onClick={() => navigate(tab.to)}
             >
               {tab.label}
-            </NavLink>
+            </Button>
           ))}
         </nav>
       </div>

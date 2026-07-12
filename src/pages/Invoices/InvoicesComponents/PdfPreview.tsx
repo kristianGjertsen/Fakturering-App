@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { InvoiceWithDetails } from "../../../types";
 import { createInvoicePdfBlob, openInvoicePdf } from "../../../lib/pdf";
-import { buttonSecondaryClass } from "../../../components/FormField";
+import { Button } from "../../../components/Button";
 
 type PdfPreviewProps = {
   invoice: InvoiceWithDetails;
@@ -24,9 +24,9 @@ export function PdfPreview({ invoice }: PdfPreviewProps) {
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-base font-semibold text-slate-950">PDF-forhåndsvisning</h3>
-        <button className={buttonSecondaryClass} type="button" onClick={() => openInvoicePdf(invoice)}>
+        <Button variant="secondary" onClick={() => openInvoicePdf(invoice)}>
           Åpne PDF
-        </button>
+        </Button>
       </div>
 
       {pdfUrl && (

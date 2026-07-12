@@ -5,7 +5,8 @@ import type { CompanyInput, ProductInput } from "../../lib/data";
 import { formatCurrency } from "../../lib/format";
 import { toNumber } from "../../lib/invoiceMath";
 import { EmptyState } from "../../components/EmptyState";
-import { FormField, buttonPrimaryClass, buttonSecondaryClass, inputClass } from "../../components/FormField";
+import { FormField, inputClass } from "../../components/FormField";
+import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
 
 type CompaniesViewProps = {
@@ -143,9 +144,9 @@ export default function CompaniesPage({ companies, products, onCreateCompany, on
                 onChange={(event) => setCompanyForm((form) => ({ ...form, private_notes: event.target.value }))}
               />
             </FormField>
-            <button className={buttonPrimaryClass} type="submit" disabled={savingCompany}>
+            <Button type="submit" disabled={savingCompany}>
               {savingCompany ? "Lagrer..." : "Lagre selskap"}
-            </button>
+            </Button>
           </div>
         </form>
 
@@ -159,9 +160,10 @@ export default function CompaniesPage({ companies, products, onCreateCompany, on
             ) : (
               <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {companies.map((company) => (
-                  <button
+                  <Button
                     key={company.id}
-                    className={`rounded-lg border p-4 text-left transition ${
+                    variant="ghost"
+                    className={`w-full justify-start rounded-lg border p-4 text-left ${
                       selectedCompanyId === company.id
                         ? "border-blue-400 bg-blue-50"
                         : "border-blue-100 bg-white hover:border-blue-300"
@@ -171,7 +173,7 @@ export default function CompaniesPage({ companies, products, onCreateCompany, on
                   >
                     <span className="block font-semibold text-slate-950">{company.name}</span>
                     <span className="mt-1 block text-sm text-slate-600">{company.email || company.org_number || "Ingen detaljer"}</span>
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -263,9 +265,9 @@ export default function CompaniesPage({ companies, products, onCreateCompany, on
                         />
                       </FormField>
                     </div>
-                    <button className={buttonSecondaryClass} type="submit" disabled={savingProduct}>
+                    <Button variant="secondary" type="submit" disabled={savingProduct}>
                       {savingProduct ? "Lagrer..." : "Lagre produkt"}
-                    </button>
+                    </Button>
                   </div>
                 </form>
               </div>
