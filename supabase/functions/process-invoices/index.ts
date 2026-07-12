@@ -5,6 +5,7 @@ import { createInvoicePdfBase64 } from "../_shared/invoice-pdf.ts";
 type Schedule = {
   id: string;
   next_run_at: string;
+  owner_user_id: string;
 };
 
 type InvoiceItem = {
@@ -39,6 +40,7 @@ type Failure = {
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const cronSecret = Deno.env.get("CRON_SECRET");
+const cronDebugEmailsEnabled = Deno.env.get("CRON_DEBUG_EMAILS") === "true";
 
 function jsonResponse(body: unknown, status = 200) {
   return Response.json(body, {
@@ -67,7 +69,7 @@ Deno.serve(async (request) => {
   const now = new Date().toISOString();
   const { data, error } = await supabase
     .from("invoice_schedules")
-    .select("id,next_run_at")
+    .select("id,next_run_at,owner_user_id")
     .eq("is_active", true)
     .eq("auto_send", true)
     .not("next_run_at", "is", null)
@@ -88,6 +90,8 @@ Deno.serve(async (request) => {
   for (const schedule of schedules) {
     let invoice: ClaimedInvoice | null = null;
     let emailSent = false;
+    let debugStatus = "skipped";
+    let debugMessage = "The schedule was due, but no invoice was claimed.";
 
     processed += 1;
 
@@ -150,9 +154,16 @@ Deno.serve(async (request) => {
       }
 
       sent += 1;
+      debugStatus = "sent";
+      debugMessage = `Invoice ${invoice.invoice_number} was sent to ${invoice.company.email}.`;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`Failed to process invoice schedule ${schedule.id}`, error);
+
+      debugStatus = emailSent ? "sent, finalization failed" : "failed";
+      debugMessage = emailSent
+        ? `The invoice email was delivered, but completing the schedule failed: ${message}`
+        : message;
 
       failures.push({ scheduleId: schedule.id, message });
 
@@ -166,6 +177,10 @@ Deno.serve(async (request) => {
           console.error(`Failed to release invoice ${invoice.id}`, releaseError);
         }
       }
+    } finally {
+      if (cronDebugEmailsEnabled) {
+        await sendCronDebugEmail(supabase, schedule, invoice, debugStatus, debugMessage);
+      }
     }
   }
 
@@ -176,6 +191,53 @@ Deno.serve(async (request) => {
     failures,
   });
 });
+
+async function sendCronDebugEmail(
+  supabase: ReturnType<typeof createClient>,
+  schedule: Schedule,
+  invoice: ClaimedInvoice | null,
+  status: string,
+  message: string,
+) {
+  try {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("id", schedule.owner_user_id)
+      .maybeSingle();
+
+    if (profileError) {
+      throw profileError;
+    }
+
+    if (!profile?.email) {
+      console.warn(`Cron debug email skipped for schedule ${schedule.id}: owner has no email`);
+      return;
+    }
+
+    const { error } = await supabase.functions.invoke("send-invoice", {
+      body: {
+        to: profile.email,
+        subject: `Cron debug: ${status} (${schedule.id.slice(0, 8)})`,
+        html: [
+          "<h2>Invoice cron report</h2>",
+          `<p><strong>Status:</strong> ${escapeHtml(status)}</p>`,
+          `<p><strong>Schedule:</strong> ${escapeHtml(schedule.id)}</p>`,
+          `<p><strong>Scheduled for:</strong> ${escapeHtml(schedule.next_run_at)}</p>`,
+          `<p><strong>Invoice:</strong> ${escapeHtml(invoice?.invoice_number ?? "not created")}</p>`,
+          `<p><strong>Result:</strong> ${escapeHtml(message)}</p>`,
+          `<p><strong>Processed at:</strong> ${escapeHtml(new Date().toISOString())}</p>`,
+        ].join(""),
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    console.error(`Failed to send cron debug email for schedule ${schedule.id}`, error);
+  }
+}
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>'"]/g, (character) => {
