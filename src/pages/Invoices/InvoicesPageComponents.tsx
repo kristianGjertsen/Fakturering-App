@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import type { Company, InvoiceWithDetails, Product } from "../types";
-import type { InvoiceInput } from "../lib/data";
-import { sendInvoiceEmail, updateInvoicePaid } from "../lib/data";
-import { formatCurrency, formatDate } from "../lib/format";
-import { createInvoicePdfBase64 } from "../lib/pdf";
-import { EmptyState } from "./EmptyState";
-import { buttonPrimaryClass, buttonSecondaryClass } from "./FormField";
-import { SectionHeader } from "./SectionHeader";
+import type { Company, InvoiceWithDetails, Product } from "../../types";
+import type { InvoiceInput } from "../../lib/data";
+import { sendInvoiceEmail, updateInvoicePaid } from "../../lib/data";
+import { formatCurrency, formatDate } from "../../lib/format";
+import { createInvoicePdfBase64 } from "../../lib/pdf";
+import { EmptyState } from "../../components/EmptyState";
+import { buttonPrimaryClass, buttonSecondaryClass } from "../../components/FormField";
+import { SectionHeader } from "../../components/SectionHeader";
 import { PdfPreview } from "./PdfPreview";
 import { InvoiceBuilder } from "./InvoiceBuilder";
 

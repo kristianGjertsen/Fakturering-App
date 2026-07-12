@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { deleteCurrentUser } from "../lib/data";
-import { buttonSecondaryClass } from "./FormField";
-import { SectionHeader } from "./SectionHeader";
+import { deleteCurrentUser } from "../../lib/data";
+import { buttonSecondaryClass } from "../../components/FormField";
+import { SectionHeader } from "../../components/SectionHeader";
 
 type ProfileViewProps = {
   session: Session;

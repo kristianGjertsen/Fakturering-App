@@ -1,7 +1,7 @@
-import type { Company, InvoiceScheduleWithDetails, InvoiceWithDetails, Product } from "../types";
-import { formatCurrency, formatDateTime } from "../lib/format";
-import { StatCard } from "./StatCard";
-import { EmptyState } from "./EmptyState";
+import type { Company, InvoiceScheduleWithDetails, InvoiceWithDetails, Product } from "../../types";
+import { formatCurrency, formatDateTime } from "../../lib/format";
+import { StatCard } from "../../components/StatCard";
+import { EmptyState } from "../../components/EmptyState";
 
 type DashboardViewProps = {
   companies: Company[];

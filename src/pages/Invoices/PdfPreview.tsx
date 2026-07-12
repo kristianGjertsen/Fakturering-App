@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import type { InvoiceWithDetails } from "../types";
-import { createInvoicePdfBlob, openInvoicePdf } from "../lib/pdf";
-import { buttonSecondaryClass } from "./FormField";
+import type { InvoiceWithDetails } from "../../types";
+import { createInvoicePdfBlob, openInvoicePdf } from "../../lib/pdf";
+import { buttonSecondaryClass } from "../../components/FormField";
 
 type PdfPreviewProps = {
   invoice: InvoiceWithDetails;

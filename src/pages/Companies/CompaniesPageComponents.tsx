@@ -1,12 +1,12 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import type { Company, Product } from "../types";
-import type { CompanyInput, ProductInput } from "../lib/data";
-import { formatCurrency } from "../lib/format";
-import { toNumber } from "../lib/invoiceMath";
-import { EmptyState } from "./EmptyState";
-import { FormField, buttonPrimaryClass, buttonSecondaryClass, inputClass } from "./FormField";
-import { SectionHeader } from "./SectionHeader";
+import type { Company, Product } from "../../types";
+import type { CompanyInput, ProductInput } from "../../lib/data";
+import { formatCurrency } from "../../lib/format";
+import { toNumber } from "../../lib/invoiceMath";
+import { EmptyState } from "../../components/EmptyState";
+import { FormField, buttonPrimaryClass, buttonSecondaryClass, inputClass } from "../../components/FormField";
+import { SectionHeader } from "../../components/SectionHeader";
 
 type CompaniesViewProps = {
   companies: Company[];
