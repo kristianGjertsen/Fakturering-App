@@ -2,6 +2,19 @@
 
 Vite + React + TypeScript + Tailwind + Supabase Auth.
 
+## PDF-mal
+
+Fakturadesignet ligger samlet i `src/pdf/InvoicePdfTemplate.tsx`. Nettleseren bruker malen til forhåndsvisning og manuell utsending. Automatiske fakturaer sender fakturadata til Vercel-funksjonen `api/generate-invoice-pdf.ts`, som renderer den samme malen.
+
+Supabase-funksjonen `process-invoices` trenger følgende secrets:
+
+```env
+PDF_GENERATOR_URL=https://ditt-domene.no/api/generate-invoice-pdf
+PDF_GENERATOR_SECRET=...
+```
+
+Samme `PDF_GENERATOR_SECRET` må settes i Vercel. Hvis den mangler der, brukes `CRON_SECRET` som fallback.
+
 ## Start
 
 ```bash
