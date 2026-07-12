@@ -367,7 +367,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
 
                 return (
                   <div key={line.localId} className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-                    <div className="grid gap-3 xl:grid-cols-[190px_1fr_82px_82px_110px_82px_110px_auto]">
+                    <div className="grid min-w-0 gap-3 xl:grid-cols-[160px_minmax(0,1fr)_70px_70px_95px_70px_125px]">
                       <FormField label="Produkt">
                         <select className={inputClass} value={line.productId ?? ""} onChange={(event) => handleProductSelect(line.localId, event.target.value)}>
                           <option value="">Manuell</option>
@@ -417,13 +417,22 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                           required
                         />
                       </FormField>
-                      <div>
-                        <span className="text-sm font-medium text-slate-700">Sum</span>
-                        <p className="mt-3 text-sm font-semibold text-slate-950">{formatCurrency(calculated.line_total)}</p>
-                      </div>
-                      <div className="flex items-end">
-                        <Button variant="secondary" size="sm" onClick={() => removeLine(line.localId)} aria-label={`Fjern linje ${index + 1}`}>
-                          Fjern
+                      <div className="flex items-end justify-between gap-2">
+                        <div>
+                          <span className="text-sm font-medium text-slate-700">Sum</span>
+                          <p className="mt-3 text-sm font-semibold text-slate-950">{formatCurrency(calculated.line_total)}</p>
+                        </div>
+                        <Button
+                          variant="danger"
+                          size="xs"
+                          className="h-9 w-9 shrink-0 rounded-md !bg-red-500 !p-0 !text-black hover:!bg-red-600"
+                          onClick={() => removeLine(line.localId)}
+                          aria-label={`Fjern linje ${index + 1}`}
+                          title="Fjern linje"
+                        >
+                          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" />
+                          </svg>
                         </Button>
                       </div>
                     </div>
