@@ -12,6 +12,7 @@
     "@react-pdf/renderer": "^4.5.1",
     "@supabase/supabase-js": "latest",
     "@vercel/node": "^5.8.23",
+    "pdfjs-dist": "^6.1.200",
     "react": "latest",
     "react-dom": "latest",
     "react-router-dom": "^7.18.1"

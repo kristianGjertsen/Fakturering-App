@@ -311,7 +311,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         </div>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[1fr_360px]">
+      <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-5">
           <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
             <h3 className="text-base font-semibold text-slate-950">Fakturainfo</h3>
@@ -441,7 +441,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         </div>
 
         <aside className="space-y-5">
-          <div className="space-y-4 rounded-lg border border-blue-100 bg-white p-4 shadow-sm">
+          <div className="space-y-4 rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
             <PdfTemplateSelector value={pdfTemplate} onChange={setPdfTemplate} />
             <PdfPreview invoice={previewInvoice} compact />
           </div>
