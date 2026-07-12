@@ -1,7 +1,7 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { supabase } from "../../supabaseClient";
-import SupabaseDebugPanel from "../../components/SupabaseDebugPanel";
+import SupabaseDebugPanel from "./LoginComponents/SupabaseDebugPanel";
 
 export default function LoginPage() {
   const [fullName, setFullName] = useState("");

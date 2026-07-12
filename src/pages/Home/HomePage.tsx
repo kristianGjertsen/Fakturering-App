@@ -19,7 +19,7 @@ import DashboardPage from "../Dashboard/DashboardPage";
 import InvoicesPage from "../Invoices/InvoicesPage";
 import ProfilePage from "../Profile/ProfilePage";
 import RecurringPage from "../Recurring/RecurringPage";
-import { HomePageError, HomePageLoading } from "./HomePageComponents";
+import { HomePageError, HomePageLoading } from "./HomeComponents/HomePageFeedback";
 
 type HomePageProps = { session: Session };
 
