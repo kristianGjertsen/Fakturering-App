@@ -27,9 +27,8 @@ export default async function handler(
 
     const cronSecret = process.env.CRON_SECRET;
     const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!cronSecret || !supabaseUrl || !serviceRoleKey) {
+    if (!cronSecret || !supabaseUrl) {
       console.error("Missing required environment variables for invoice processing");
 
       return response.status(500).json({
@@ -50,8 +49,7 @@ export default async function handler(
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${serviceRoleKey}`,
-          apikey: serviceRoleKey,
+          "x-cron-secret": cronSecret,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ triggeredBy: "vercel-cron" }),

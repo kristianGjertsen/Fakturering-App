@@ -37,6 +37,7 @@ type Failure = {
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const cronSecret = Deno.env.get("CRON_SECRET");
 
 function jsonResponse(body: unknown, status = 200) {
   return Response.json(body, {
@@ -50,11 +51,11 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
-  if (!supabaseUrl || !serviceRoleKey) {
-    return jsonResponse({ error: "Missing Supabase server configuration" }, 500);
+  if (!supabaseUrl || !serviceRoleKey || !cronSecret) {
+    return jsonResponse({ error: "Missing server configuration" }, 500);
   }
 
-  if (request.headers.get("authorization") !== `Bearer ${serviceRoleKey}`) {
+  if (request.headers.get("x-cron-secret") !== cronSecret) {
     return jsonResponse({ error: "Unauthorized" }, 401);
   }
 
