@@ -137,22 +137,26 @@ export function PdfPreview({ invoice, compact = false }: PdfPreviewProps) {
             <nav className="flex items-center gap-2" aria-label="Naviger mellom PDF-sider">
               <Button
                 variant="secondary"
-                size="sm"
+                size="xs"
                 onClick={showPreviousPage}
                 disabled={currentPage === 1 || loading}
+                aria-label="Forrige side"
+                title="Forrige side"
               >
-                Forrige side
+                &lt;
               </Button>
               <span className="min-w-16 text-center text-xs font-medium text-slate-600" aria-live="polite">
                 Side {currentPage} av {totalPages}
               </span>
               <Button
                 variant="secondary"
-                size="sm"
+                size="xs"
                 onClick={showNextPage}
                 disabled={currentPage === totalPages || loading}
+                aria-label="Neste side"
+                title="Neste side"
               >
-                Neste side
+                &gt;
               </Button>
             </nav>
           )}
