@@ -1,9 +1,15 @@
+export const config = {
+  maxDuration: 120,
+};
+
 type VercelRequest = {
   method?: string;
   headers: {
     authorization?: string;
   };
 };
+
+
 
 type VercelResponse = {
   status(code: number): VercelResponse;
