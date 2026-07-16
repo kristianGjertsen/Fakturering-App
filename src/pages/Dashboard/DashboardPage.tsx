@@ -1,5 +1,5 @@
 import type { Company, InvoiceScheduleWithDetails, InvoiceWithDetails, Product } from "../../types";
-import { formatCurrency, formatDateTime } from "../../lib/format";
+import { formatCurrency, formatDate } from "../../lib/format";
 import { EmptyState } from "../../components/EmptyState";
 import { Button } from "../../components/Button";
 import { SummaryCard } from "../../components/SummaryCard";
@@ -72,7 +72,7 @@ export default function DashboardPage({ companies, products, invoices, schedules
           {nextSchedule ? (
             <div className="mt-4 space-y-3">
               <p className="text-sm text-slate-600">{nextSchedule.company?.name}</p>
-              <p className="text-2xl font-semibold text-slate-950">{formatDateTime(nextSchedule.next_run_at)}</p>
+              <p className="text-2xl font-semibold text-slate-950">{formatDate(nextSchedule.next_run_at)}</p>
               <p className="text-sm text-slate-600">{nextSchedule.title}</p>
             </div>
           ) : (

@@ -69,13 +69,15 @@ export type InvoiceWithDetails = Invoice & {
 };
 
 export type ScheduleFrequency = "daily" | "weekly" | "monthly";
+export type ScheduleType = "once" | "recurring";
 
 export type InvoiceSchedule = {
   id: string;
   owner_user_id: string;
   company_id: string;
   title: string;
-  frequency: ScheduleFrequency;
+  schedule_type: ScheduleType;
+  frequency: ScheduleFrequency | null;
   interval_count: number;
   day_of_week: number | null;
   day_of_month: number | null;
@@ -84,6 +86,7 @@ export type InvoiceSchedule = {
   start_date: string;
   next_run_at: string | null;
   last_run_at: string | null;
+  completed_at: string | null;
   is_active: boolean;
   auto_send: boolean;
   payment_terms_days: number;
@@ -127,8 +130,11 @@ export type RepeatDraft = {
   intervalCount: number;
   dayOfWeek: number;
   dayOfMonth: number;
-  sendTime: string;
   startDate: string;
   autoSend: boolean;
   paymentTermsDays: number;
+};
+
+export type SingleScheduleDraft = {
+  enabled: boolean;
 };

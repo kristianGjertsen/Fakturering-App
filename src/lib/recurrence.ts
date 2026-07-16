@@ -1,6 +1,7 @@
 import type { RepeatDraft, ScheduleFrequency } from "../types";
 
 const dayMs = 24 * 60 * 60 * 1000;
+export const SCHEDULE_RUN_TIME = "03:00";
 
 function parseDateAndTime(dateValue: string, timeValue: string) {
   const [year, month, day] = dateValue.split("-").map(Number);
@@ -13,7 +14,7 @@ function isoDate(date: Date) {
 }
 
 export function calculateNextRunAt(repeat: RepeatDraft) {
-  const start = parseDateAndTime(repeat.startDate, repeat.sendTime);
+  const start = parseDateAndTime(repeat.startDate, SCHEDULE_RUN_TIME);
   const now = new Date();
   let next = new Date(start);
 
@@ -46,6 +47,30 @@ export function calculateNextRunAt(repeat: RepeatDraft) {
   }
 
   return isoDate(next);
+}
+
+export function calculateScheduledRunAt(dateValue: string, timeZone = "Europe/Oslo") {
+  const [year, month, day] = dateValue.split("-").map(Number);
+  const [hour, minute] = SCHEDULE_RUN_TIME.split(":").map(Number);
+  const desiredAsUtc = Date.UTC(year, month - 1, day, hour || 0, minute || 0, 0, 0);
+  let candidate = new Date(desiredAsUtc);
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(candidate);
+    const value = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value ?? 0);
+    const representedAsUtc = Date.UTC(value("year"), value("month") - 1, value("day"), value("hour"), value("minute"));
+    candidate = new Date(candidate.getTime() + desiredAsUtc - representedAsUtc);
+  }
+
+  return candidate.toISOString();
 }
 
 export function recurrenceFieldsForFrequency(repeat: RepeatDraft) {

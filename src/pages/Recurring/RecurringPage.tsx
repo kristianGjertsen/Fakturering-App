@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import type { InvoiceScheduleWithDetails, InvoiceWithDetails } from "../../types";
+import type { InvoiceScheduleWithDetails } from "../../types";
 import { describeRecurrence } from "../../lib/recurrence";
-import { formatCurrency, formatDateTime, frequencyLabel } from "../../lib/format";
+import { formatCurrency, formatDate, frequencyLabel } from "../../lib/format";
 import { EmptyState } from "../../components/EmptyState";
 import { SectionHeader } from "../../components/SectionHeader";
 import { DocumentBrowser, type DocumentBrowserItem } from "../../components/DocumentBrowser";
 import { PdfPreview } from "../Invoices/InvoicesComponents/PdfPreview";
+import { calculateScheduleTotals, scheduleToPreviewInvoice } from "../../lib/schedulePreview";
 
 type RecurringViewProps = {
   schedules: InvoiceScheduleWithDetails[];
@@ -23,12 +24,12 @@ export default function RecurringPage({ schedules }: RecurringViewProps) {
     companyId: schedule.company_id,
     companyName: schedule.company?.name ?? "Ukjent bedrift",
     title: displayScheduleTitle(schedule),
-    subtitle: frequencyLabel(schedule.frequency, schedule.interval_count),
+    subtitle: frequencyLabel(schedule.frequency ?? "monthly", schedule.interval_count),
     statusLabel: schedule.auto_send ? "Automatisk" : "Manuell",
     statusTone: schedule.auto_send ? "info" : "neutral",
     amount: totalsByScheduleId.get(schedule.id) ?? 0,
     date: schedule.next_run_at,
-    dateLabel: `Neste: ${formatDateTime(schedule.next_run_at)}`,
+    dateLabel: `Neste: ${formatDate(schedule.next_run_at)}`,
   })), [schedules, totalsByScheduleId]);
 
   useEffect(() => {
@@ -96,18 +97,18 @@ export default function RecurringPage({ schedules }: RecurringViewProps) {
                   <div>
                     <dt className="text-slate-500">Gjentas</dt>
                     <dd className="mt-1 font-semibold text-slate-950">
-                      {frequencyLabel(selectedSchedule.frequency, selectedSchedule.interval_count)}
+                      {frequencyLabel(selectedSchedule.frequency ?? "monthly", selectedSchedule.interval_count)}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-slate-500">Regel</dt>
                     <dd className="mt-1 font-semibold text-slate-950">
-                      {describeRecurrence(selectedSchedule.frequency, selectedSchedule.day_of_week, selectedSchedule.day_of_month)}
+                      {describeRecurrence(selectedSchedule.frequency ?? "monthly", selectedSchedule.day_of_week, selectedSchedule.day_of_month)}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-slate-500">Neste utsending</dt>
-                    <dd className="mt-1 font-semibold text-slate-950">{formatDateTime(selectedSchedule.next_run_at)}</dd>
+                    <dd className="mt-1 font-semibold text-slate-950">{formatDate(selectedSchedule.next_run_at)}</dd>
                   </div>
                   <div>
                     <dt className="text-slate-500">Forfall</dt>
@@ -168,109 +169,12 @@ export default function RecurringPage({ schedules }: RecurringViewProps) {
   );
 }
 
-function calculateScheduleTotals(schedule: InvoiceScheduleWithDetails) {
-  const totals = (schedule.invoice_schedule_lines ?? []).reduce(
-    (totals, line) => {
-      const subtotal = Number(line.quantity) * Number(line.unit_price);
-      const vat = subtotal * Number(line.vat_rate) / 100;
-      totals.subtotal += subtotal;
-      totals.vatTotal += vat;
-      totals.total += subtotal + vat;
-      return totals;
-    },
-    { subtotal: 0, vatTotal: 0, total: 0 },
-  );
-
-  return {
-    subtotal: roundCurrency(totals.subtotal),
-    vatTotal: roundCurrency(totals.vatTotal),
-    total: roundCurrency(totals.total),
-  };
-}
-
 function displayScheduleTitle(schedule: InvoiceScheduleWithDetails) {
   const genericTitle = `Gjentakende faktura - ${schedule.company?.name ?? ""}`;
 
   if (schedule.title === genericTitle) {
-    return `${frequencyLabel(schedule.frequency, schedule.interval_count)} kl. ${schedule.send_time.slice(0, 5)}`;
+    return frequencyLabel(schedule.frequency ?? "monthly", schedule.interval_count);
   }
 
   return schedule.title;
-}
-
-function scheduleToPreviewInvoice(schedule: InvoiceScheduleWithDetails): InvoiceWithDetails {
-  const totals = calculateScheduleTotals(schedule);
-  const issueDate = schedule.next_run_at
-    ? dateInTimeZone(schedule.next_run_at, schedule.timezone)
-    : schedule.start_date;
-  const dueDate = addDays(issueDate, schedule.payment_terms_days);
-
-  return {
-    id: `schedule-preview-${schedule.id}`,
-    owner_user_id: schedule.owner_user_id,
-    company_id: schedule.company_id,
-    schedule_id: schedule.id,
-    scheduled_for: schedule.next_run_at,
-    invoice_number: "Opprettes ved utsending",
-    issue_date: issueDate,
-    due_date: dueDate,
-    status: "ready",
-    paid: false,
-    pdf_template: schedule.pdf_template,
-    notes: schedule.invoice_notes,
-    subtotal: totals.subtotal,
-    vat_total: totals.vatTotal,
-    total: totals.total,
-    created_at: schedule.created_at,
-    updated_at: schedule.updated_at,
-    company: schedule.company ? {
-      ...schedule.company,
-      city: null,
-      country: null,
-    } : null,
-    invoice_items: (schedule.invoice_schedule_lines ?? []).map((line) => {
-      const subtotal = Number(line.quantity) * Number(line.unit_price);
-      const vat = subtotal * Number(line.vat_rate) / 100;
-
-      return {
-        id: `schedule-line-preview-${line.id}`,
-        invoice_id: `schedule-preview-${schedule.id}`,
-        product_id: line.product_id,
-        description: line.description,
-        quantity: Number(line.quantity),
-        unit: line.unit,
-        unit_price: Number(line.unit_price),
-        vat_rate: Number(line.vat_rate),
-        line_subtotal: roundCurrency(subtotal),
-        line_vat: roundCurrency(vat),
-        line_total: roundCurrency(subtotal + vat),
-        sort_order: line.sort_order,
-        created_at: line.created_at,
-      };
-    }),
-  };
-}
-
-function addDays(dateValue: string, days: number) {
-  const date = new Date(`${dateValue}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function dateInTimeZone(value: string, timeZone: string) {
-  const parts = new Intl.DateTimeFormat("nb-NO", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date(value));
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = parts.find((part) => part.type === "day")?.value;
-
-  return year && month && day ? `${year}-${month}-${day}` : value.slice(0, 10);
-}
-
-function roundCurrency(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
 }

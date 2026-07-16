@@ -82,7 +82,7 @@ export default function HomePage({ session }: HomePageProps) {
                 companies={data.companies}
                 products={data.products}
                 invoices={data.invoices}
-                schedules={data.schedules}
+                schedules={data.schedules.filter((schedule) => schedule.schedule_type !== "once")}
                 onCreateInvoice={() => navigate("/invoices")}
               />
             }
@@ -105,6 +105,7 @@ export default function HomePage({ session }: HomePageProps) {
                 companies={data.companies}
                 products={data.products}
                 invoices={data.invoices}
+                schedules={data.schedules.filter((schedule) => schedule.schedule_type === "once")}
                 currentUserEmail={session.user.email}
                 onCreateInvoice={handleCreateInvoice}
                 onOpenCompanies={() => navigate("/companies")}
@@ -113,7 +114,10 @@ export default function HomePage({ session }: HomePageProps) {
               />
             }
           />
-          <Route path="/recurring" element={<RecurringPage schedules={data.schedules} />} />
+          <Route
+            path="/recurring"
+            element={<RecurringPage schedules={data.schedules.filter((schedule) => schedule.schedule_type !== "once")} />}
+          />
           <Route
             path="/profile"
             element={<ProfilePage session={session} onSignOut={() => supabase.auth.signOut().then(() => undefined)} />}
