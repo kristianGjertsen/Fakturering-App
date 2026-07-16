@@ -2,7 +2,7 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import type { Company, InvoiceDraftLine, InvoiceWithDetails, PdfTemplate, Product, RepeatDraft } from "../../../types";
 import type { InvoiceInput } from "../../../lib/data";
-import { addMonthsInputValue, formatCurrency, todayInputValue } from "../../../lib/format";
+import { formatCurrency, todayInputValue } from "../../../lib/format";
 import { createInvoiceNumber } from "../../../lib/data";
 import { calculateLine, calculateTotals, toNumber } from "../../../lib/invoiceMath";
 import { EmptyState } from "../../../components/EmptyState";
@@ -41,7 +41,6 @@ function createDefaultRepeat(): RepeatDraft {
     intervalCount: 1,
     dayOfWeek: jsDay === 0 ? 7 : jsDay,
     dayOfMonth: today.getDate(),
-    sendTime: "08:00",
     startDate: todayInputValue(),
     autoSend: true,
     paymentTermsDays: 14,
@@ -51,12 +50,6 @@ function createDefaultRepeat(): RepeatDraft {
 function addDaysFromDate(dateValue: string, days: number) {
   const date = new Date(dateValue);
   date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function addMonthsFromDate(dateValue: string, months: number) {
-  const date = new Date(dateValue);
-  date.setMonth(date.getMonth() + months);
   return date.toISOString().slice(0, 10);
 }
 
@@ -105,11 +98,12 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
   const [companyId, setCompanyId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState(createInvoiceNumber);
   const [issueDate, setIssueDate] = useState(todayInputValue);
-  const [dueDate, setDueDate] = useState(() => addMonthsInputValue(1));
+  const [paymentTermsDays, setPaymentTermsDays] = useState(14);
   const [notes, setNotes] = useState("");
   const [pdfTemplate, setPdfTemplate] = useState<PdfTemplate>("classic");
   const [lines, setLines] = useState<InvoiceDraftLine[]>([createEmptyLine()]);
   const [repeat, setRepeat] = useState<RepeatDraft>(createDefaultRepeat);
+  const [scheduleOnce, setScheduleOnce] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -122,6 +116,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
   const companyProducts = products.filter((product) => product.company_id === companyId);
   const totals = calculateTotals(lines);
   const selectedCompany = companies.find((company) => company.id === companyId) ?? null;
+  const dueDate = addDaysFromDate(issueDate, paymentTermsDays);
   const previewIssueDate = invoiceKind === "recurring" ? repeat.startDate : issueDate;
   const previewDueDate = invoiceKind === "recurring"
     ? addDaysFromDate(repeat.startDate, repeat.paymentTermsDays)
@@ -132,7 +127,11 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
     company_id: companyId,
     schedule_id: null,
     scheduled_for: null,
-    invoice_number: invoiceKind === "recurring" ? "Neste faktura" : invoiceNumber || "Fakturanummer",
+    invoice_number: invoiceKind === "recurring"
+      ? "Neste faktura"
+      : scheduleOnce
+        ? "Opprettes ved utsending"
+        : invoiceNumber || "Fakturanummer",
     issue_date: previewIssueDate,
     due_date: previewDueDate,
     status: "ready",
@@ -209,20 +208,6 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
     );
   }
 
-  function applyDueDatePreset(preset: "week" | "twoWeeks" | "month") {
-    if (preset === "week") {
-      setDueDate(addDaysFromDate(issueDate, 7));
-      return;
-    }
-
-    if (preset === "twoWeeks") {
-      setDueDate(addDaysFromDate(issueDate, 14));
-      return;
-    }
-
-    setDueDate(addMonthsFromDate(issueDate, 1));
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
@@ -239,6 +224,11 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
       return;
     }
 
+    if (invoiceKind === "single" && scheduleOnce && !selectedCompany?.email) {
+      setMessage("Selskapet må ha en e-postadresse før fakturaen kan planlegges.");
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -251,16 +241,26 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         pdfTemplate,
         lines: validLines,
         repeat: { ...repeat, enabled: invoiceKind === "recurring", autoSend: true },
+        scheduleOnce: {
+          enabled: invoiceKind === "single" && scheduleOnce,
+        },
       });
 
-      setMessage(invoiceKind === "recurring" ? "Gjentakende faktura lagret. Første faktura opprettes ved utsending." : "Faktura lagret.");
+      setMessage(
+        invoiceKind === "recurring"
+          ? "Gjentakende faktura lagret. Første faktura opprettes ved utsending."
+          : scheduleOnce
+            ? "Fakturaen er planlagt og opprettes på fakturadatoen."
+            : "Faktura lagret.",
+      );
       setInvoiceNumber(createInvoiceNumber());
       setIssueDate(todayInputValue());
-      setDueDate(addMonthsInputValue(1));
+      setPaymentTermsDays(14);
       setNotes("");
       setPdfTemplate("classic");
       setLines([createEmptyLine()]);
       setRepeat(createDefaultRepeat());
+      setScheduleOnce(false);
       setInvoiceKind("single");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Kunne ikke lagre fakturaen.");
@@ -288,7 +288,13 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         description="Velg et selskap, fyll inn produkter eller manuelle linjer, og lagre fakturaen i Supabase."
         action={
           <Button type="submit" disabled={saving}>
-            {saving ? "Lagrer..." : invoiceKind === "recurring" ? "Lagre gjentakelse" : "Lagre faktura"}
+            {saving
+              ? "Lagrer..."
+              : invoiceKind === "recurring"
+                ? "Lagre gjentakelse"
+                : scheduleOnce
+                  ? "Planlegg faktura"
+                  : "Lagre faktura"}
           </Button>
         }
       />
@@ -301,10 +307,19 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
           <label className={`cursor-pointer rounded-lg border p-4 ${invoiceKind === "single" ? "border-blue-500 bg-blue-50" : "border-blue-100"}`}>
             <input className="mr-3" type="radio" name="invoiceKind" checked={invoiceKind === "single"} onChange={() => setInvoiceKind("single")} />
             <span className="font-semibold text-slate-950">Enkeltfaktura</span>
-            <span className="mt-1 block text-sm text-slate-600">Opprettes nå med fakturadato og fast forfallsdato.</span>
+            <span className="mt-1 block text-sm text-slate-600">Opprettes nå med valgt fakturadato og betalingsfrist.</span>
           </label>
           <label className={`cursor-pointer rounded-lg border p-4 ${invoiceKind === "recurring" ? "border-blue-500 bg-blue-50" : "border-blue-100"}`}>
-            <input className="mr-3" type="radio" name="invoiceKind" checked={invoiceKind === "recurring"} onChange={() => setInvoiceKind("recurring")} />
+            <input
+              className="mr-3"
+              type="radio"
+              name="invoiceKind"
+              checked={invoiceKind === "recurring"}
+              onChange={() => {
+                setInvoiceKind("recurring");
+                setScheduleOnce(false);
+              }}
+            />
             <span className="font-semibold text-slate-950">Gjentakende faktura</span>
             <span className="mt-1 block text-sm text-slate-600">Lagrer bare planen. Fakturaen opprettes og dateres ved utsending.</span>
           </label>
@@ -325,29 +340,63 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                   ))}
                 </select>
               </FormField>
-              {invoiceKind === "single" && <FormField label="Fakturanummer">
+              {invoiceKind === "single" && !scheduleOnce && <FormField label="Fakturanummer">
                 <input className={inputClass} value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} required />
               </FormField>}
               {invoiceKind === "single" && <FormField label="Fakturadato">
                 <input className={inputClass} type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} required />
               </FormField>}
-              {invoiceKind === "single" && <FormField label="Forfallsdato">
+              {invoiceKind === "single" && <FormField label="Betalingsfrist" helper={`Forfallsdato blir ${dueDate.split("-").reverse().join(".")}.`}>
                 <div className="space-y-2">
-                  <input className={inputClass} type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} required />
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => applyDueDatePreset("week")}>
-                      Om 1 uke
-                    </Button>
-                    <Button variant="secondary" size="sm" onClick={() => applyDueDatePreset("twoWeeks")}>
-                      Om 14 dager
-                    </Button>
-                    <Button variant="secondary" size="sm" onClick={() => applyDueDatePreset("month")}>
-                      Om 1 måned
-                    </Button>
+                  <div className="relative">
+                    <input
+                      className={`${inputClass} pr-16`}
+                      min={0}
+                      max={365}
+                      type="number"
+                      value={paymentTermsDays}
+                      onChange={(event) => setPaymentTermsDays(Math.max(0, Math.min(365, Number(event.target.value) || 0)))}
+                      required
+                    />
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-500">dager</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2" aria-label="Velg betalingsfrist">
+                    {[7, 14, 30].map((days) => (
+                      <Button
+                        key={days}
+                        variant={paymentTermsDays === days ? "primary" : "secondary"}
+                        size="sm"
+                        onClick={() => setPaymentTermsDays(days)}
+                      >
+                        {days} dager
+                      </Button>
+                    ))}
                   </div>
                 </div>
               </FormField>}
             </div>
+
+            {invoiceKind === "single" && (
+              <div className={`mt-5 rounded-lg border p-4 ${scheduleOnce ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-slate-50"}`}>
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-950">Når skal fakturaen opprettes?</h4>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Lagre den med en gang, eller opprett og send den automatisk på fakturadatoen.
+                    </p>
+                  </div>
+                  <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex" aria-label="Velg når fakturaen skal opprettes">
+                    <Button variant={!scheduleOnce ? "primary" : "secondary"} onClick={() => setScheduleOnce(false)}>
+                      Lagre faktura uten å sende
+                    </Button>
+                    <Button variant={scheduleOnce ? "primary" : "secondary"} onClick={() => setScheduleOnce(true)}>
+                      Send på fakturadato
+                    </Button>
+                  </div>
+                </div>
+
+              </div>
+            )}
           </div>
 
           <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
@@ -478,7 +527,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
             <div>
               <div>
                 <h3 className="text-base font-semibold text-slate-950">Gjentakelse</h3>
-                <p className="text-sm text-slate-600">Fakturaen opprettes og sendes automatisk på neste tidspunkt.</p>
+                <p className="text-sm text-slate-600">Fakturaen opprettes og sendes automatisk på neste dato.</p>
               </div>
 
               <div className="mt-4 space-y-4">
@@ -540,14 +589,6 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                     type="date"
                     value={repeat.startDate}
                     onChange={(event) => setRepeat((value) => ({ ...value, startDate: event.target.value }))}
-                  />
-                </FormField>
-                <FormField label="Tidspunkt">
-                  <input
-                    className={inputClass}
-                    type="time"
-                    value={repeat.sendTime}
-                    onChange={(event) => setRepeat((value) => ({ ...value, sendTime: event.target.value }))}
                   />
                 </FormField>
                 <FormField label="Forfall etter utsending" helper="Antall dager fra utsending til forfallsdato.">

@@ -22,6 +22,8 @@ export function PdfPreview({ invoice, compact = false }: PdfPreviewProps) {
   const [size, setSize] = useState<PreviewSize>({ width: 0, height: 0 });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -29,6 +31,8 @@ export function PdfPreview({ invoice, compact = false }: PdfPreviewProps) {
     let cancelled = false;
     setError("");
     setLoading(true);
+    setCurrentPage(1);
+    setTotalPages(0);
 
     const timeout = window.setTimeout(() => {
       void createInvoicePdfBlob(invoice)
@@ -75,7 +79,8 @@ export function PdfPreview({ invoice, compact = false }: PdfPreviewProps) {
         GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
         loadingTask = getDocument({ data: new Uint8Array(pdfBytes) });
         const document = await loadingTask.promise;
-        const page = await document.getPage(1);
+        if (!cancelled) setTotalPages(document.numPages);
+        const page = await document.getPage(Math.min(currentPage, document.numPages));
         const baseViewport = page.getViewport({ scale: 1 });
         const displayScale = Math.min(
           (size.width - previewPadding * 2) / baseViewport.width,
@@ -108,18 +113,57 @@ export function PdfPreview({ invoice, compact = false }: PdfPreviewProps) {
       renderTask?.cancel();
       void loadingTask?.destroy();
     };
-  }, [pdfBytes, size, previewPadding]);
+  }, [pdfBytes, size, previewPadding, currentPage]);
+
+  function showPreviousPage() {
+    setLoading(true);
+    setCurrentPage((page) => Math.max(1, page - 1));
+  }
+
+  function showNextPage() {
+    setLoading(true);
+    setCurrentPage((page) => Math.min(totalPages, page + 1));
+  }
 
   return (
     <section className="space-y-3" aria-label="PDF-forhåndsvisning">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-slate-950">PDF-forhåndsvisning</h3>
-          <p className="text-xs text-slate-500">Første side tilpasses automatisk til previewen.</p>
+          <p className="text-xs text-slate-500">Valgt side tilpasses automatisk til forhåndsvisningen.</p>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => void openInvoicePdf(invoice)}>
-          Åpne PDF
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {totalPages > 1 && (
+            <nav className="flex items-center gap-2" aria-label="Naviger mellom PDF-sider">
+              <Button
+                variant="secondary"
+                size="xs"
+                onClick={showPreviousPage}
+                disabled={currentPage === 1 || loading}
+                aria-label="Forrige side"
+                title="Forrige side"
+              >
+                &lt;
+              </Button>
+              <span className="min-w-16 text-center text-xs font-medium text-slate-600" aria-live="polite">
+                Side {currentPage} av {totalPages}
+              </span>
+              <Button
+                variant="secondary"
+                size="xs"
+                onClick={showNextPage}
+                disabled={currentPage === totalPages || loading}
+                aria-label="Neste side"
+                title="Neste side"
+              >
+                &gt;
+              </Button>
+            </nav>
+          )}
+          <Button variant="secondary" size="sm" onClick={() => void openInvoicePdf(invoice)}>
+            Åpne PDF
+          </Button>
+        </div>
       </div>
 
       {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}

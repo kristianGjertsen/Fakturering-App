@@ -8,9 +8,10 @@ import type {
   Product,
   PdfTemplate,
   RepeatDraft,
+  SingleScheduleDraft,
 } from "../types";
 import { calculateLine, calculateTotals } from "./invoiceMath";
-import { calculateNextRunAt, recurrenceFieldsForFrequency } from "./recurrence";
+import { calculateNextRunAt, calculateScheduledRunAt, recurrenceFieldsForFrequency, SCHEDULE_RUN_TIME } from "./recurrence";
 
 export type AppData = {
   companies: Company[];
@@ -46,6 +47,7 @@ export type InvoiceInput = {
   notes: string;
   lines: InvoiceDraftLine[];
   repeat: RepeatDraft;
+  scheduleOnce: SingleScheduleDraft;
   pdfTemplate: PdfTemplate;
 };
 
@@ -193,8 +195,11 @@ export async function createProduct(input: ProductInput) {
 }
 
 export async function createInvoice(input: InvoiceInput) {
-  if (input.repeat.enabled) {
-    const recurrenceFields = recurrenceFieldsForFrequency(input.repeat);
+  if (input.repeat.enabled || input.scheduleOnce.enabled) {
+    const isRecurring = input.repeat.enabled;
+    const recurrenceFields = isRecurring
+      ? recurrenceFieldsForFrequency(input.repeat)
+      : { day_of_week: null, day_of_month: null };
     const company = await supabase
       .from("companies")
       .select("name")
@@ -210,17 +215,22 @@ export async function createInvoice(input: InvoiceInput) {
       .insert({
         owner_user_id: input.ownerUserId,
         company_id: input.companyId,
-        title: `Gjentakende faktura - ${company.data.name}`,
-        frequency: input.repeat.frequency,
-        interval_count: input.repeat.intervalCount,
+        title: `${isRecurring ? "Gjentakende" : "Planlagt"} faktura - ${company.data.name}`,
+        schedule_type: isRecurring ? "recurring" : "once",
+        frequency: isRecurring ? input.repeat.frequency : null,
+        interval_count: isRecurring ? input.repeat.intervalCount : 1,
         day_of_week: recurrenceFields.day_of_week,
         day_of_month: recurrenceFields.day_of_month,
-        send_time: input.repeat.sendTime,
+        send_time: SCHEDULE_RUN_TIME,
         timezone: "Europe/Oslo",
-        start_date: input.repeat.startDate,
-        next_run_at: calculateNextRunAt(input.repeat),
+        start_date: isRecurring ? input.repeat.startDate : input.issueDate,
+        next_run_at: isRecurring
+          ? calculateNextRunAt(input.repeat)
+          : calculateScheduledRunAt(input.issueDate),
         auto_send: true,
-        payment_terms_days: input.repeat.paymentTermsDays,
+        payment_terms_days: isRecurring
+          ? input.repeat.paymentTermsDays
+          : daysBetween(input.issueDate, input.dueDate),
         invoice_notes: input.notes.trim() || null,
         pdf_template: input.pdfTemplate,
       })
@@ -381,4 +391,10 @@ export function createInvoiceNumber() {
   const day = String(date.getDate()).padStart(2, "0");
   const suffix = String(Date.now()).slice(-5);
   return `F-${year}${month}${day}-${suffix}`;
+}
+
+function daysBetween(startValue: string, endValue: string) {
+  const start = new Date(`${startValue}T00:00:00Z`).getTime();
+  const end = new Date(`${endValue}T00:00:00Z`).getTime();
+  return Math.max(0, Math.min(365, Math.round((end - start) / (24 * 60 * 60 * 1000))));
 }

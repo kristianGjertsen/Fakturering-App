@@ -62,15 +62,17 @@ create table if not exists public.invoice_schedules (
   owner_user_id uuid not null references public.profiles (id) on delete cascade,
   company_id uuid not null references public.companies (id) on delete cascade,
   title text not null,
-  frequency text not null check (frequency in ('daily', 'weekly', 'monthly')),
+  schedule_type text not null default 'recurring' check (schedule_type in ('once', 'recurring')),
+  frequency text check (frequency in ('daily', 'weekly', 'monthly')),
   interval_count integer not null default 1 check (interval_count > 0),
   day_of_week integer check (day_of_week between 1 and 7),
   day_of_month integer check (day_of_month between 1 and 31),
-  send_time time not null default '08:00',
+  send_time time not null default '03:00' check (send_time = time '03:00'),
   timezone text not null default 'Europe/Oslo',
   start_date date not null default current_date,
   next_run_at timestamptz,
   last_run_at timestamptz,
+  completed_at timestamptz,
   is_active boolean not null default true,
   auto_send boolean not null default false,
   payment_terms_days integer not null default 14 check (payment_terms_days between 0 and 365),
@@ -79,9 +81,21 @@ create table if not exists public.invoice_schedules (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint invoice_schedules_frequency_rules check (
-    (frequency = 'daily' and day_of_week is null and day_of_month is null) or
-    (frequency = 'weekly' and day_of_week is not null and day_of_month is null) or
-    (frequency = 'monthly' and day_of_month is not null and day_of_week is null)
+    (
+      schedule_type = 'once'
+      and frequency is null
+      and day_of_week is null
+      and day_of_month is null
+    )
+    or
+    (
+      schedule_type = 'recurring'
+      and (
+        (frequency = 'daily' and day_of_week is null and day_of_month is null) or
+        (frequency = 'weekly' and day_of_week is not null and day_of_month is null) or
+        (frequency = 'monthly' and day_of_month is not null and day_of_week is null)
+      )
+    )
   )
 );
 
