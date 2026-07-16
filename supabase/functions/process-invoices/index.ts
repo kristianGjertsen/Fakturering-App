@@ -1,24 +1,13 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
+type SupabaseClient = ReturnType<typeof createClient>;
+
 type Schedule = {
   id: string;
   next_run_at: string;
   owner_user_id: string;
-};
-
-type DebugSchedule = {
-  id: string;
-  owner_user_id: string;
   title: string;
-  next_run_at: string | null;
-  is_active: boolean;
-  auto_send: boolean;
-};
-
-type DebugResult = {
-  status: string;
-  message: string;
 };
 
 type InvoiceItem = {
@@ -50,12 +39,35 @@ type Failure = {
   message: string;
 };
 
+type RunItem = {
+  schedule_title: string;
+  scheduled_for: string;
+  status: string;
+  reason: string | null;
+};
+
+type RunSummary = {
+  id: string;
+  started_at: string;
+  finished_at: string | null;
+  status: string;
+  due_count: number;
+  sent_count: number;
+  failed_count: number;
+  skipped_count: number;
+  deferred_count: number;
+  interrupted_count: number;
+};
+
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const cronSecret = Deno.env.get("CRON_SECRET");
 const pdfGeneratorUrl = Deno.env.get("PDF_GENERATOR_URL");
 const pdfGeneratorSecret = Deno.env.get("PDF_GENERATOR_SECRET") ?? cronSecret;
 const cronDebugEmailsEnabled = Deno.env.get("CRON_DEBUG_EMAILS") === "true";
+const batchLimit = 100;
+const pageSize = 1000;
+const staleRunAgeMs = 5 * 60 * 1000;
 
 function jsonResponse(body: unknown, status = 200) {
   return Response.json(body, {
@@ -81,134 +93,507 @@ Deno.serve(async (request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const now = new Date().toISOString();
-  const { data, error } = await supabase
-    .from("invoice_schedules")
-    .select("id,next_run_at,owner_user_id")
-    .eq("is_active", true)
-    .eq("auto_send", true)
-    .not("next_run_at", "is", null)
-    .lte("next_run_at", now)
-    .order("next_run_at", { ascending: true })
-    .limit(100);
+  const requestBody = await request.json().catch(() => ({})) as { triggeredBy?: string };
+  const triggerSource = requestBody.triggeredBy?.slice(0, 100) || "unknown";
+  const cutoffAt = new Date().toISOString();
 
-  if (error) {
-    console.error("Failed to fetch due invoice schedules", error);
-    return jsonResponse({ error: "Failed to fetch due invoice schedules" }, 500);
+  const interruptedRunIds = await reconcileInterruptedRuns(supabase);
+
+  if (cronDebugEmailsEnabled && interruptedRunIds.length > 0) {
+    await sendCronRunReports(supabase, interruptedRunIds);
   }
 
-  const schedules = (data ?? []) as Schedule[];
-  let processed = 0;
-  let sent = 0;
-  const failures: Failure[] = [];
-  const debugResults = new Map<string, DebugResult>();
+  const { data: run, error: runError } = await supabase
+    .from("invoice_cron_runs")
+    .insert({ cutoff_at: cutoffAt, trigger_source: triggerSource })
+    .select("id")
+    .single();
 
-  for (const schedule of schedules) {
-    let invoice: ClaimedInvoice | null = null;
-    let emailSent = false;
-    let debugStatus = "skipped";
-    let debugMessage = "The schedule was due, but no invoice was claimed.";
+  if (runError || !run) {
+    console.error("Failed to create invoice cron run", runError);
+    return jsonResponse({ error: "Failed to create invoice cron run" }, 500);
+  }
 
-    processed += 1;
+  const runId = run.id as string;
 
-    try {
-      const { data: claimed, error: claimError } = await supabase.rpc(
-        "claim_scheduled_invoice",
-        {
-          p_schedule_id: schedule.id,
-          p_scheduled_for: schedule.next_run_at,
-        },
-      );
+  try {
+    const schedules = await fetchDueSchedules(supabase, cutoffAt);
+    await createRunSnapshot(supabase, runId, schedules);
 
-      if (claimError) {
-        throw claimError;
-      }
+    const schedulesToProcess = schedules.slice(0, batchLimit);
+    let processed = 0;
+    let sent = 0;
+    let skipped = 0;
+    const failures: Failure[] = [];
 
-      invoice = claimed as ClaimedInvoice | null;
+    for (const schedule of schedulesToProcess) {
+      let invoice: ClaimedInvoice | null = null;
+      let emailSent = false;
+      let resendEmailId: string | null = null;
 
-      if (!invoice) {
-        continue;
-      }
-
-      if (!invoice.company?.email) {
-        throw new Error("Company has no recipient email address");
-      }
-
-      const attachmentContent = await generateInvoicePdf(invoice);
-
-      const { data: sendResult, error: sendError } = await supabase.functions.invoke("send-invoice", {
-        body: {
-          to: invoice.company.email,
-          subject: `Faktura ${invoice.invoice_number}`,
-          html: `<p>Hei ${escapeHtml(invoice.company.name)}, vedlagt ligger faktura ${escapeHtml(invoice.invoice_number)}.</p>`,
-          attachmentFilename: `faktura-${invoice.invoice_number}.pdf`,
-          attachmentContent,
-        },
+      processed += 1;
+      await updateRunItem(supabase, runId, schedule.id, {
+        status: "processing",
+        reason: null,
+        started_at: new Date().toISOString(),
       });
 
-      if (sendError) {
-        throw sendError;
-      }
-
-      if (sendResult?.error) {
-        throw new Error(
-          typeof sendResult.error === "string"
-            ? sendResult.error
-            : sendResult.error.message ?? "Email provider rejected the invoice",
+      try {
+        const { data: claimed, error: claimError } = await supabase.rpc(
+          "claim_scheduled_invoice",
+          {
+            p_schedule_id: schedule.id,
+            p_scheduled_for: schedule.next_run_at,
+          },
         );
-      }
 
-      emailSent = true;
+        if (claimError) {
+          throw claimError;
+        }
 
-      const { error: completeError } = await supabase.rpc(
-        "complete_scheduled_invoice",
-        { p_invoice_id: invoice.id },
-      );
+        invoice = claimed as ClaimedInvoice | null;
 
-      if (completeError) {
-        throw completeError;
-      }
+        if (!invoice) {
+          skipped += 1;
+          await updateRunItem(supabase, runId, schedule.id, {
+            status: "skipped",
+            reason: "Planen var ikke lenger tilgjengelig for behandling da forsøket startet.",
+            finished_at: new Date().toISOString(),
+          });
+          continue;
+        }
 
-      sent += 1;
-      debugStatus = "sent";
-      debugMessage = `Invoice ${invoice.invoice_number} was sent to ${invoice.company.email}.`;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`Failed to process invoice schedule ${schedule.id}`, error);
+        await updateRunItem(supabase, runId, schedule.id, { invoice_id: invoice.id });
 
-      debugStatus = emailSent ? "sent, finalization failed" : "failed";
-      debugMessage = emailSent
-        ? `The invoice email was delivered, but completing the schedule failed: ${message}`
-        : message;
+        if (!invoice.company?.email) {
+          throw new Error("Kunden mangler e-postadresse.");
+        }
 
-      failures.push({ scheduleId: schedule.id, message });
+        const attachmentContent = await generateInvoicePdf(invoice);
+        const { data: sendResult, error: sendError } = await supabase.functions.invoke("send-invoice", {
+          body: {
+            to: invoice.company.email,
+            subject: `Faktura ${invoice.invoice_number}`,
+            html: `<p>Hei ${escapeHtml(invoice.company.name)}, vedlagt ligger faktura ${escapeHtml(invoice.invoice_number)}.</p>`,
+            attachmentFilename: `faktura-${invoice.invoice_number}.pdf`,
+            attachmentContent,
+          },
+        });
 
-      if (invoice && !emailSent) {
-        const { error: releaseError } = await supabase.rpc(
-          "release_scheduled_invoice",
+        if (sendError) {
+          throw sendError;
+        }
+
+        if (sendResult?.error) {
+          throw new Error(
+            typeof sendResult.error === "string"
+              ? sendResult.error
+              : sendResult.error.message ?? "E-postleverandøren avviste fakturaen.",
+          );
+        }
+
+        emailSent = true;
+        resendEmailId = typeof sendResult?.id === "string" ? sendResult.id : null;
+
+        const { error: completeError } = await supabase.rpc(
+          "complete_scheduled_invoice",
           { p_invoice_id: invoice.id },
         );
 
-        if (releaseError) {
-          console.error(`Failed to release invoice ${invoice.id}`, releaseError);
+        if (completeError) {
+          throw completeError;
+        }
+
+        sent += 1;
+        await updateRunItem(supabase, runId, schedule.id, {
+          status: "sent",
+          reason: "E-posten ble godtatt av Resend.",
+          resend_email_id: resendEmailId,
+          finished_at: new Date().toISOString(),
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`Failed to process invoice schedule ${schedule.id}`, error);
+        failures.push({ scheduleId: schedule.id, message });
+
+        if (emailSent) {
+          sent += 1;
+          await updateRunItem(supabase, runId, schedule.id, {
+            status: "sent",
+            reason: `E-posten ble godtatt av Resend, men ferdigstilling av planen feilet: ${message}`,
+            resend_email_id: resendEmailId,
+            finished_at: new Date().toISOString(),
+          });
+        } else {
+          await updateRunItem(supabase, runId, schedule.id, {
+            status: "failed",
+            reason: message,
+            finished_at: new Date().toISOString(),
+          });
+        }
+
+        if (invoice && !emailSent) {
+          const { error: releaseError } = await supabase.rpc(
+            "release_scheduled_invoice",
+            { p_invoice_id: invoice.id },
+          );
+
+          if (releaseError) {
+            console.error(`Failed to release invoice ${invoice.id}`, releaseError);
+          }
         }
       }
-    } finally {
-      debugResults.set(schedule.id, { status: debugStatus, message: debugMessage });
+    }
+
+    const deferred = Math.max(0, schedules.length - schedulesToProcess.length);
+    const finalStatus = failures.length > 0 || skipped > 0 || deferred > 0 ? "partial" : "completed";
+    await finalizeRun(supabase, runId, finalStatus);
+
+    if (cronDebugEmailsEnabled && schedules.length > 0) {
+      await sendCronRunReports(supabase, [runId]);
+    }
+
+    return jsonResponse({
+      runId,
+      due: schedules.length,
+      processed,
+      sent,
+      failed: failures.length,
+      skipped,
+      deferred,
+      failures,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Invoice cron run ${runId} failed`, error);
+
+    await supabase
+      .from("invoice_cron_run_items")
+      .update({
+        status: "interrupted",
+        reason: `Cron-kjøringen stoppet før et endelig resultat ble registrert: ${message}`,
+        finished_at: new Date().toISOString(),
+      })
+      .eq("run_id", runId)
+      .in("status", ["pending", "processing"]);
+
+    await finalizeRun(supabase, runId, "failed", message);
+
+    if (cronDebugEmailsEnabled) {
+      await sendCronRunReports(supabase, [runId]);
+    }
+
+    return jsonResponse({ runId, error: message }, 500);
+  }
+});
+
+async function fetchDueSchedules(supabase: SupabaseClient, cutoffAt: string) {
+  const schedules: Schedule[] = [];
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("invoice_schedules")
+      .select("id,next_run_at,owner_user_id,title")
+      .eq("is_active", true)
+      .eq("auto_send", true)
+      .not("next_run_at", "is", null)
+      .lte("next_run_at", cutoffAt)
+      .order("next_run_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    const page = (data ?? []) as Schedule[];
+    schedules.push(...page);
+
+    if (page.length < pageSize) {
+      return schedules;
+    }
+  }
+}
+
+async function createRunSnapshot(
+  supabase: SupabaseClient,
+  runId: string,
+  schedules: Schedule[],
+) {
+  const { error: countError } = await supabase
+    .from("invoice_cron_runs")
+    .update({ due_count: schedules.length })
+    .eq("id", runId);
+
+  if (countError) {
+    throw countError;
+  }
+
+  for (let from = 0; from < schedules.length; from += 500) {
+    const rows = schedules.slice(from, from + 500).map((schedule, index) => {
+      const position = from + index;
+      const deferred = position >= batchLimit;
+
+      return {
+        run_id: runId,
+        owner_user_id: schedule.owner_user_id,
+        schedule_id: schedule.id,
+        schedule_title: schedule.title,
+        scheduled_for: schedule.next_run_at,
+        status: deferred ? "deferred" : "pending",
+        reason: deferred
+          ? `Utsatt til neste cron-kjøring fordi denne kjøringen behandler maksimalt ${batchLimit} planer.`
+          : null,
+        finished_at: deferred ? new Date().toISOString() : null,
+      };
+    });
+
+    const { error } = await supabase.from("invoice_cron_run_items").insert(rows);
+
+    if (error) {
+      throw error;
     }
   }
 
-  if (cronDebugEmailsEnabled) {
-    await sendCronDebugSummaries(supabase, now, debugResults);
+  const owners = [...new Set(schedules.map((schedule) => schedule.owner_user_id))];
+
+  if (owners.length > 0) {
+    const { error } = await supabase.from("invoice_cron_run_reports").insert(
+      owners.map((ownerUserId) => ({ run_id: runId, owner_user_id: ownerUserId })),
+    );
+
+    if (error) {
+      throw error;
+    }
+  }
+}
+
+async function updateRunItem(
+  supabase: SupabaseClient,
+  runId: string,
+  scheduleId: string,
+  values: Record<string, unknown>,
+) {
+  const { error } = await supabase
+    .from("invoice_cron_run_items")
+    .update(values)
+    .eq("run_id", runId)
+    .eq("schedule_id", scheduleId);
+
+  if (error) {
+    console.error(`Failed to update cron log for schedule ${scheduleId}`, error);
+  }
+}
+
+async function finalizeRun(
+  supabase: SupabaseClient,
+  runId: string,
+  status: "completed" | "partial" | "interrupted" | "failed",
+  errorMessage: string | null = null,
+) {
+  const { error } = await supabase.rpc("finalize_invoice_cron_run", {
+    p_run_id: runId,
+    p_status: status,
+    p_error_message: errorMessage,
+  });
+
+  if (error) {
+    console.error(`Failed to finalize cron run ${runId}`, error);
+  }
+}
+
+async function reconcileInterruptedRuns(supabase: SupabaseClient) {
+  const staleBefore = new Date(Date.now() - staleRunAgeMs).toISOString();
+  const { data, error } = await supabase
+    .from("invoice_cron_runs")
+    .select("id")
+    .eq("status", "running")
+    .lt("started_at", staleBefore);
+
+  if (error) {
+    console.error("Failed to find interrupted cron runs", error);
+    return [];
   }
 
-  return jsonResponse({
-    processed,
-    sent,
-    failed: failures.length,
-    failures,
-  });
-});
+  const runIds = (data ?? []).map((run) => run.id as string);
+
+  for (const runId of runIds) {
+    const { error: itemError } = await supabase
+      .from("invoice_cron_run_items")
+      .update({
+        status: "interrupted",
+        reason: "Cron-kjøringen ble avsluttet før planen fikk et endelig resultat.",
+        finished_at: new Date().toISOString(),
+      })
+      .eq("run_id", runId)
+      .in("status", ["pending", "processing"]);
+
+    if (itemError) {
+      console.error(`Failed to mark cron run ${runId} as interrupted`, itemError);
+      continue;
+    }
+
+    await finalizeRun(
+      supabase,
+      runId,
+      "interrupted",
+      "Kjøringen overskred tids- eller ressursgrensen og ble avsluttet.",
+    );
+  }
+
+  return runIds;
+}
+
+async function sendCronRunReports(supabase: SupabaseClient, runIds: string[]) {
+  if (runIds.length === 0) {
+    return;
+  }
+
+  const { data: reports, error: reportsError } = await supabase
+    .from("invoice_cron_run_reports")
+    .select("run_id,owner_user_id")
+    .in("run_id", runIds)
+    .eq("status", "pending");
+
+  if (reportsError) {
+    console.error("Failed to fetch pending cron reports", reportsError);
+    return;
+  }
+
+  for (const report of reports ?? []) {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("id", report.owner_user_id)
+      .maybeSingle();
+
+    const { data: run, error: runError } = await supabase
+      .from("invoice_cron_runs")
+      .select("id,started_at,finished_at,status,due_count,sent_count,failed_count,skipped_count,deferred_count,interrupted_count")
+      .eq("id", report.run_id)
+      .single();
+
+    let items: RunItem[] = [];
+    let itemsError: Error | null = null;
+
+    try {
+      items = await fetchRunItems(supabase, report.run_id, report.owner_user_id);
+    } catch (error) {
+      itemsError = error instanceof Error ? error : new Error(String(error));
+    }
+
+    const preparationError = profileError ?? runError ?? itemsError;
+
+    if (preparationError || !profile?.email || !run) {
+      const message = preparationError?.message ?? "Eieren mangler e-postadresse.";
+      console.error(`Failed to prepare cron report ${report.run_id}`, preparationError ?? message);
+      await markReportFailed(supabase, report.run_id, report.owner_user_id, message);
+      continue;
+    }
+
+    const summary = run as RunSummary;
+    const ownerItems = items;
+    const ownerCounts = {
+      sent: ownerItems.filter((item) => item.status === "sent").length,
+      failed: ownerItems.filter((item) => item.status === "failed").length,
+      skipped: ownerItems.filter((item) => item.status === "skipped").length,
+      deferred: ownerItems.filter((item) => item.status === "deferred").length,
+      interrupted: ownerItems.filter((item) => item.status === "interrupted").length,
+    };
+    const rows = ownerItems.map((item) => `<tr>
+      <td style="padding:6px;border:1px solid #ddd">${escapeHtml(item.schedule_title)}</td>
+      <td style="padding:6px;border:1px solid #ddd">${escapeHtml(item.scheduled_for)}</td>
+      <td style="padding:6px;border:1px solid #ddd">${escapeHtml(statusLabel(item.status))}</td>
+      <td style="padding:6px;border:1px solid #ddd">${escapeHtml(item.reason ?? "-")}</td>
+    </tr>`).join("");
+
+    const { data: sendResult, error: sendError } = await supabase.functions.invoke("send-invoice", {
+      body: {
+        to: profile.email,
+        subject: `Cron-rapport: ${ownerItems.length} planlagte utsendinger`,
+        html: `<h2>Cron-rapport</h2>
+          <p>Startet: ${escapeHtml(summary.started_at)}</p>
+          <p>Status: ${escapeHtml(statusLabel(summary.status))}</p>
+          <p>Skulle kjøre: ${ownerItems.length}. Sendt: ${ownerCounts.sent}. Feilet: ${ownerCounts.failed}. Hoppet over: ${ownerCounts.skipped}. Utsatt: ${ownerCounts.deferred}. Avbrutt: ${ownerCounts.interrupted}.</p>
+          <table style="border-collapse:collapse;width:100%">
+            <thead><tr><th>Plan</th><th>Planlagt</th><th>Status</th><th>Årsak</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>`,
+      },
+    });
+
+    const reportError = sendError?.message ?? (
+      sendResult?.error
+        ? typeof sendResult.error === "string"
+          ? sendResult.error
+          : sendResult.error.message
+        : null
+    );
+
+    if (reportError) {
+      console.error(`Failed to send cron report ${report.run_id}`, reportError);
+      await markReportFailed(supabase, report.run_id, report.owner_user_id, reportError);
+      continue;
+    }
+
+    const { error: updateError } = await supabase
+      .from("invoice_cron_run_reports")
+      .update({ status: "sent", sent_at: new Date().toISOString(), error_message: null })
+      .eq("run_id", report.run_id)
+      .eq("owner_user_id", report.owner_user_id);
+
+    if (updateError) {
+      console.error(`Failed to mark cron report ${report.run_id} as sent`, updateError);
+    }
+  }
+}
+
+async function fetchRunItems(
+  supabase: SupabaseClient,
+  runId: string,
+  ownerUserId: string,
+) {
+  const items: RunItem[] = [];
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("invoice_cron_run_items")
+      .select("schedule_title,scheduled_for,status,reason")
+      .eq("run_id", runId)
+      .eq("owner_user_id", ownerUserId)
+      .order("scheduled_for", { ascending: true })
+      .order("schedule_title", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    const page = (data ?? []) as RunItem[];
+    items.push(...page);
+
+    if (page.length < pageSize) {
+      return items;
+    }
+  }
+}
+
+async function markReportFailed(
+  supabase: SupabaseClient,
+  runId: string,
+  ownerUserId: string,
+  message: string,
+) {
+  const { error } = await supabase
+    .from("invoice_cron_run_reports")
+    .update({ status: "failed", error_message: message })
+    .eq("run_id", runId)
+    .eq("owner_user_id", ownerUserId);
+
+  if (error) {
+    console.error(`Failed to record cron report error for ${runId}`, error);
+  }
+}
 
 async function generateInvoicePdf(invoice: ClaimedInvoice) {
   const response = await fetch(pdfGeneratorUrl!, {
@@ -229,97 +614,21 @@ async function generateInvoicePdf(invoice: ClaimedInvoice) {
   return result.pdfBase64;
 }
 
-async function sendCronDebugSummaries(
-  supabase: ReturnType<typeof createClient>,
-  processedAt: string,
-  results: Map<string, DebugResult>,
-) {
-  try {
-    const { data, error: schedulesError } = await supabase
-      .from("invoice_schedules")
-      .select("id,owner_user_id,title,next_run_at,is_active,auto_send")
-      .order("next_run_at", { ascending: true, nullsFirst: false });
+function statusLabel(status: string) {
+  const labels: Record<string, string> = {
+    running: "kjører",
+    completed: "fullført",
+    partial: "delvis fullført",
+    interrupted: "avbrutt",
+    failed: "feilet",
+    pending: "venter",
+    processing: "behandles",
+    sent: "sendt",
+    skipped: "hoppet over",
+    deferred: "utsatt",
+  };
 
-    if (schedulesError) {
-      throw schedulesError;
-    }
-
-    const schedulesByOwner = new Map<string, DebugSchedule[]>();
-
-    for (const schedule of (data ?? []) as DebugSchedule[]) {
-      const ownerSchedules = schedulesByOwner.get(schedule.owner_user_id) ?? [];
-      ownerSchedules.push(schedule);
-      schedulesByOwner.set(schedule.owner_user_id, ownerSchedules);
-    }
-
-    for (const [ownerUserId, ownerSchedules] of schedulesByOwner) {
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("email")
-        .eq("id", ownerUserId)
-        .maybeSingle();
-
-      if (profileError) {
-        console.error(`Failed to fetch cron debug recipient ${ownerUserId}`, profileError);
-        continue;
-      }
-
-      if (!profile?.email) {
-        console.warn(`Cron debug summary skipped for owner ${ownerUserId}: owner has no email`);
-        continue;
-      }
-
-      const rows = ownerSchedules.map((schedule) => {
-        const result = results.get(schedule.id) ?? explainUnprocessedSchedule(schedule, processedAt);
-
-        return `<tr>
-          <td style="padding:6px;border:1px solid #ddd">${escapeHtml(schedule.title)}</td>
-          <td style="padding:6px;border:1px solid #ddd">${escapeHtml(schedule.next_run_at ?? "Ikke satt")}</td>
-          <td style="padding:6px;border:1px solid #ddd">${escapeHtml(result.status)}</td>
-          <td style="padding:6px;border:1px solid #ddd">${escapeHtml(result.message)}</td>
-        </tr>`;
-      }).join("");
-
-      const { error: sendError } = await supabase.functions.invoke("send-invoice", {
-        body: {
-          to: profile.email,
-          subject: `Cron-rapport: ${ownerSchedules.length} planlagte utsendinger`,
-          html: `<h2>Cron-rapport</h2>
-            <p>Kjørt: ${escapeHtml(processedAt)}</p>
-            <table style="border-collapse:collapse">
-              <thead><tr><th>Plan</th><th>Neste kjøring</th><th>Status</th><th>Beskrivelse</th></tr></thead>
-              <tbody>${rows}</tbody>
-            </table>`,
-        },
-      });
-
-      if (sendError) {
-        console.error(`Failed to send cron debug summary to owner ${ownerUserId}`, sendError);
-      }
-    }
-  } catch (error) {
-    console.error("Failed to send cron debug summaries", error);
-  }
-}
-
-function explainUnprocessedSchedule(schedule: DebugSchedule, processedAt: string): DebugResult {
-  if (!schedule.is_active) {
-    return { status: "ikke behandlet", message: "Planen er deaktivert (is_active = false)." };
-  }
-
-  if (!schedule.auto_send) {
-    return { status: "ikke behandlet", message: "Automatisk utsending er deaktivert (auto_send = false)." };
-  }
-
-  if (!schedule.next_run_at) {
-    return { status: "ikke behandlet", message: "next_run_at er ikke satt." };
-  }
-
-  if (new Date(schedule.next_run_at).getTime() > new Date(processedAt).getTime()) {
-    return { status: "venter", message: "Planlagt tidspunkt er fremdeles i fremtiden." };
-  }
-
-  return { status: "ikke behandlet", message: "Planen var forfalt, men kom ikke med blant de første 100 i denne kjøringen." };
+  return labels[status] ?? status;
 }
 
 function escapeHtml(value: string) {
