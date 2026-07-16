@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
-import type { Company, InvoiceWithDetails, Product } from "../types";
-import type { InvoiceInput } from "../lib/data";
-import { sendInvoiceEmail } from "../lib/data";
-import { formatCurrency, formatDate } from "../lib/format";
-import { createInvoicePdfBase64 } from "../lib/pdf";
-import { EmptyState } from "./EmptyState";
-import { buttonPrimaryClass, buttonSecondaryClass } from "./FormField";
-import { SectionHeader } from "./SectionHeader";
-import { PdfPreview } from "./PdfPreview";
-import { InvoiceBuilder } from "./InvoiceBuilder";
+import type { Company, InvoiceWithDetails, Product } from "../../types";
+import type { InvoiceInput } from "../../lib/data";
+import { sendInvoiceEmail, updateInvoicePaid } from "../../lib/data";
+import { formatCurrency, formatDate } from "../../lib/format";
+import { createInvoicePdfBase64 } from "../../lib/pdf";
+import { EmptyState } from "../../components/EmptyState";
+import { Button } from "../../components/Button";
+import { SectionHeader } from "../../components/SectionHeader";
+import { PdfPreview } from "./InvoicesComponents/PdfPreview";
+import { InvoiceBuilder } from "./InvoicesComponents/InvoiceBuilder";
 
 type InvoicesViewProps = {
   companies: Company[];
@@ -31,7 +31,7 @@ const statusLabels: Record<string, string> = {
   cancelled: "Kansellert",
 };
 
-export function InvoicesView({
+export default function InvoicesPage({
   companies,
   products,
   invoices,
@@ -45,6 +45,7 @@ export function InvoicesView({
   const [deletingInvoiceId, setDeletingInvoiceId] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [sendingInvoiceId, setSendingInvoiceId] = useState("");
+  const [updatingPaidInvoiceId, setUpdatingPaidInvoiceId] = useState("");
   const [sendMessage, setSendMessage] = useState("");
 
   useEffect(() => {
@@ -142,44 +143,41 @@ export function InvoicesView({
     }
   }
 
+  async function handleTogglePaid() {
+    if (!selectedInvoice) {
+      return;
+    }
+
+    setUpdatingPaidInvoiceId(selectedInvoice.id);
+    setSendMessage("");
+
+    try {
+      await updateInvoicePaid(selectedInvoice.id, !selectedInvoice.paid);
+      await onRefreshInvoices();
+      setSendMessage(selectedInvoice.paid ? "Fakturaen er markert som ubetalt." : "Fakturaen er markert som betalt.");
+    } catch (error) {
+      setSendMessage(error instanceof Error ? error.message : "Kunne ikke oppdatere betalingsstatus.");
+    } finally {
+      setUpdatingPaidInvoiceId("");
+    }
+  }
+
   const header = (
     <SectionHeader
       title="Fakturaer"
       description="Lag nye fakturaer og velg en faktura for detaljer og PDF-forhandsvisning."
       action={
-        <button className={buttonPrimaryClass} type="button" onClick={() => setShowCreateForm((value) => !value)}>
+        <Button onClick={() => setShowCreateForm((value) => !value)}>
           {showCreateForm ? "Skjul skjema" : "Ny faktura"}
-        </button>
+        </Button>
       }
     />
   );
 
-  if (invoices.length === 0) {
+  if (showCreateForm) {
     return (
       <div className="space-y-6">
         {header}
-        {showCreateForm ? (
-          <InvoiceBuilder
-            companies={companies}
-            products={products}
-            onCreateInvoice={async (input) => {
-              await onCreateInvoice(input);
-              setShowCreateForm(false);
-            }}
-            onOpenCompanies={onOpenCompanies}
-          />
-        ) : (
-          <EmptyState title="Ingen fakturaer" description="Lag en faktura her, sa vises den i listen med en gang." />
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {header}
-
-      {showCreateForm && (
         <InvoiceBuilder
           companies={companies}
           products={products}
@@ -189,7 +187,22 @@ export function InvoicesView({
           }}
           onOpenCompanies={onOpenCompanies}
         />
-      )}
+      </div>
+    );
+  }
+
+  if (invoices.length === 0) {
+    return (
+      <div className="space-y-6">
+        {header}
+        <EmptyState title="Ingen fakturaer" description="Lag en faktura her, sa vises den i listen med en gang." />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {header}
 
       {sendMessage && <p className="rounded-md border border-blue-100 bg-white px-4 py-3 text-sm text-blue-900 shadow-sm">{sendMessage}</p>}
 
@@ -197,9 +210,10 @@ export function InvoicesView({
         <div className="rounded-lg border border-blue-100 bg-white p-4 shadow-sm">
           <div className="space-y-2">
             {invoices.map((invoice) => (
-              <button
+              <Button
                 key={invoice.id}
-                className={`w-full rounded-lg border p-4 text-left transition ${
+                variant="ghost"
+                className={`w-full justify-start rounded-lg border p-4 text-left ${
                   selectedInvoice?.id === invoice.id
                     ? "border-blue-400 bg-blue-50"
                     : "border-blue-100 bg-white hover:border-blue-300"
@@ -213,14 +227,14 @@ export function InvoicesView({
                     <span className="mt-1 block text-sm text-slate-600">{invoice.company?.name ?? "Ukjent selskap"}</span>
                   </span>
                   <span className="rounded-md bg-white px-2 py-1 text-xs font-medium text-blue-800 ring-1 ring-blue-100">
-                    {statusLabels[invoice.status] ?? invoice.status}
+                    {invoice.paid ? "Betalt" : statusLabels[invoice.status] ?? invoice.status}
                   </span>
                 </span>
                 <span className="mt-3 flex items-center justify-between gap-3 text-sm">
                   <span className="text-slate-500">{formatDate(invoice.issue_date)}</span>
                   <span className="font-semibold text-slate-950">{formatCurrency(invoice.total)}</span>
                 </span>
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -237,34 +251,41 @@ export function InvoicesView({
                 <div className="flex flex-col items-start gap-3 sm:items-end">
                   <p className="text-2xl font-semibold text-slate-950">{formatCurrency(selectedInvoice.total)}</p>
                   <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={selectedInvoice.paid ? "secondary" : "success"}
+                      onClick={() => void handleTogglePaid()}
+                      disabled={updatingPaidInvoiceId === selectedInvoice.id}
+                    >
+                      {updatingPaidInvoiceId === selectedInvoice.id
+                        ? "Oppdaterer..."
+                        : selectedInvoice.paid
+                          ? "Marker som ubetalt"
+                          : "Marker som betalt"}
+                    </Button>
                     {(selectedInvoice.status === "draft" || selectedInvoice.status === "ready") && (
-                      <button
-                        className={buttonPrimaryClass}
-                        type="button"
+                      <Button
                         onClick={() => void handleSendSelectedInvoice("send")}
                         disabled={sendingInvoiceId === selectedInvoice.id}
                       >
                         {sendingInvoiceId === selectedInvoice.id ? "Sender..." : "Send faktura"}
-                      </button>
+                      </Button>
                     )}
                     {selectedInvoice.status === "sent" && (
-                      <button
-                        className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        type="button"
+                      <Button
+                        variant="danger"
                         onClick={() => void handleSendSelectedInvoice("remind")}
                         disabled={sendingInvoiceId === selectedInvoice.id}
                       >
                         {sendingInvoiceId === selectedInvoice.id ? "Sender..." : "Purre"}
-                      </button>
+                      </Button>
                     )}
-                    <button
-                      className={buttonSecondaryClass}
-                      type="button"
+                    <Button
+                      variant="danger"
                       onClick={() => void handleDeleteSelectedInvoice()}
                       disabled={deletingInvoiceId === selectedInvoice.id}
                     >
                       {deletingInvoiceId === selectedInvoice.id ? "Sletter..." : "Slett faktura"}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>

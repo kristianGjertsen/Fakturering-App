@@ -1,14 +1,14 @@
-import type { InvoiceScheduleWithDetails } from "../types";
-import { describeRecurrence } from "../lib/recurrence";
-import { formatCurrency, formatDateTime, frequencyLabel } from "../lib/format";
-import { EmptyState } from "./EmptyState";
-import { SectionHeader } from "./SectionHeader";
+import type { InvoiceScheduleWithDetails } from "../../types";
+import { describeRecurrence } from "../../lib/recurrence";
+import { formatCurrency, formatDateTime, frequencyLabel } from "../../lib/format";
+import { EmptyState } from "../../components/EmptyState";
+import { SectionHeader } from "../../components/SectionHeader";
 
 type RecurringViewProps = {
   schedules: InvoiceScheduleWithDetails[];
 };
 
-export function RecurringView({ schedules }: RecurringViewProps) {
+export default function RecurringPage({ schedules }: RecurringViewProps) {
   return (
     <div className="space-y-6">
       <SectionHeader

@@ -6,6 +6,7 @@ import type {
   InvoiceScheduleWithDetails,
   InvoiceWithDetails,
   Product,
+  PdfTemplate,
   RepeatDraft,
 } from "../types";
 import { calculateLine, calculateTotals } from "./invoiceMath";
@@ -45,6 +46,7 @@ export type InvoiceInput = {
   notes: string;
   lines: InvoiceDraftLine[];
   repeat: RepeatDraft;
+  pdfTemplate: PdfTemplate;
 };
 
 export async function ensureProfile(userId: string, email: string | null | undefined, fullName?: string | null) {
@@ -220,6 +222,7 @@ export async function createInvoice(input: InvoiceInput) {
         auto_send: true,
         payment_terms_days: input.repeat.paymentTermsDays,
         invoice_notes: input.notes.trim() || null,
+        pdf_template: input.pdfTemplate,
       })
       .select("id")
       .single();
@@ -263,6 +266,7 @@ export async function createInvoice(input: InvoiceInput) {
       issue_date: input.issueDate,
       due_date: input.dueDate || null,
       status: "ready",
+      pdf_template: input.pdfTemplate,
       notes: input.notes.trim() || null,
       subtotal: totals.subtotal,
       vat_total: totals.vatTotal,
@@ -305,6 +309,14 @@ export async function createInvoice(input: InvoiceInput) {
 
 export async function deleteInvoice(invoiceId: string) {
   const { error } = await supabase.from("invoices").delete().eq("id", invoiceId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function updateInvoicePaid(invoiceId: string, paid: boolean) {
+  const { error } = await supabase.from("invoices").update({ paid }).eq("id", invoiceId);
 
   if (error) {
     throw error;

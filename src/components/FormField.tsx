@@ -18,9 +18,3 @@ export function FormField({ label, children, helper }: FormFieldProps) {
 
 export const inputClass =
   "w-full rounded-md border border-blue-100 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100";
-
-export const buttonPrimaryClass =
-  "rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60";
-
-export const buttonSecondaryClass =
-  "rounded-md border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60";

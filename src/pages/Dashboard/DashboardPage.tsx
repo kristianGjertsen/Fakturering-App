@@ -1,7 +1,8 @@
-import type { Company, InvoiceScheduleWithDetails, InvoiceWithDetails, Product } from "../types";
-import { formatCurrency, formatDateTime } from "../lib/format";
-import { StatCard } from "./StatCard";
-import { EmptyState } from "./EmptyState";
+import type { Company, InvoiceScheduleWithDetails, InvoiceWithDetails, Product } from "../../types";
+import { formatCurrency, formatDateTime } from "../../lib/format";
+import { EmptyState } from "../../components/EmptyState";
+import { Button } from "../../components/Button";
+import { SummaryCard } from "../../components/SummaryCard";
 
 type DashboardViewProps = {
   companies: Company[];
@@ -11,19 +12,19 @@ type DashboardViewProps = {
   onCreateInvoice: () => void;
 };
 
-export function DashboardView({ companies, products, invoices, schedules, onCreateInvoice }: DashboardViewProps) {
+export default function DashboardPage({ companies, products, invoices, schedules, onCreateInvoice }: DashboardViewProps) {
   const totalOutstanding = invoices
-    .filter((invoice) => invoice.status !== "paid" && invoice.status !== "cancelled")
+    .filter((invoice) => !invoice.paid && invoice.status !== "cancelled")
     .reduce((sum, invoice) => sum + invoice.total, 0);
   const nextSchedule = schedules.find((schedule) => schedule.next_run_at);
 
   return (
     <div className="space-y-6">
       <section className="grid gap-4 md:grid-cols-4">
-        <StatCard label="Selskaper" value={companies.length} helper="Registrerte fakturamottakere" />
-        <StatCard label="Produkter" value={products.length} helper="Aktive produkter og tjenester" />
-        <StatCard label="Fakturaer" value={invoices.length} helper="Lagret i Supabase" />
-        <StatCard label="Utestående" value={formatCurrency(totalOutstanding)} helper="Ikke markert betalt" />
+        <SummaryCard label="Selskaper" value={companies.length} description="Registrerte fakturamottakere" />
+        <SummaryCard label="Produkter" value={products.length} description="Aktive produkter og tjenester" />
+        <SummaryCard label="Fakturaer" value={invoices.length} description="Lagret i Supabase" />
+        <SummaryCard label="Utestående" value={formatCurrency(totalOutstanding)} description="Ikke markert betalt" />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
@@ -33,13 +34,9 @@ export function DashboardView({ companies, products, invoices, schedules, onCrea
               <h2 className="text-lg font-semibold text-slate-950">Siste fakturaer</h2>
               <p className="text-sm text-slate-600">De nyeste fakturaene du har opprettet.</p>
             </div>
-            <button
-              className="rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800"
-              type="button"
-              onClick={onCreateInvoice}
-            >
+            <Button onClick={onCreateInvoice}>
               Ny faktura
-            </button>
+            </Button>
           </div>
 
           <div className="mt-5 overflow-x-auto">
@@ -60,7 +57,7 @@ export function DashboardView({ companies, products, invoices, schedules, onCrea
                     <tr key={invoice.id}>
                       <td className="py-3 pr-4 font-medium text-slate-950">{invoice.invoice_number}</td>
                       <td className="py-3 pr-4 text-slate-600">{invoice.company?.name ?? "Ukjent"}</td>
-                      <td className="py-3 pr-4 text-slate-600">{invoice.status}</td>
+                      <td className="py-3 pr-4 text-slate-600">{invoice.paid ? "Betalt" : invoice.status}</td>
                       <td className="py-3 pr-4 text-right font-medium text-slate-950">{formatCurrency(invoice.total)}</td>
                     </tr>
                   ))}

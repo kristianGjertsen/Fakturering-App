@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    { "source": "/companies", "destination": "/index.html" },
+    { "source": "/invoices", "destination": "/index.html" },
+    { "source": "/recurring", "destination": "/index.html" },
+    { "source": "/profile", "destination": "/index.html" }
+  ],
   "crons": [
     {
       "path": "/api/cron/process-invoices",

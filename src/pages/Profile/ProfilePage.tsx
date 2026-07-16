@@ -1,18 +1,15 @@
 import { useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { deleteCurrentUser } from "../lib/data";
-import { buttonSecondaryClass } from "./FormField";
-import { SectionHeader } from "./SectionHeader";
+import { deleteCurrentUser } from "../../lib/data";
+import { Button } from "../../components/Button";
+import { SectionHeader } from "../../components/SectionHeader";
 
 type ProfileViewProps = {
   session: Session;
   onSignOut: () => Promise<void>;
 };
 
-const dangerButtonClass =
-  "rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60";
-
-export function ProfileView({ session, onSignOut }: ProfileViewProps) {
+export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
   const [deleting, setDeleting] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -74,17 +71,16 @@ export function ProfileView({ session, onSignOut }: ProfileViewProps) {
         </dl>
 
         <div className="mt-6 flex flex-wrap gap-2">
-          <button className={buttonSecondaryClass} type="button" onClick={() => void onSignOut()}>
+          <Button variant="secondary" onClick={() => void onSignOut()}>
             Logg ut
-          </button>
-          <button
-            className={dangerButtonClass}
-            type="button"
+          </Button>
+          <Button
+            variant="danger"
             onClick={() => void handleDeleteUser()}
             disabled={deleting}
           >
             {deleting ? "Sletter..." : "Slett bruker"}
-          </button>
+          </Button>
         </div>
       </section>
     </div>

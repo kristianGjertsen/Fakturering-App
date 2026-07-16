@@ -1,7 +1,8 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { supabase } from "../supabaseClient";
-import SupabaseDebugPanel from "../components/SupabaseDebugPanel";
+import { supabase } from "../../supabaseClient";
+import SupabaseDebugPanel from "./LoginComponents/SupabaseDebugPanel";
+import { Button } from "../../components/Button";
 
 export default function LoginPage() {
   const [fullName, setFullName] = useState("");
@@ -103,25 +104,26 @@ export default function LoginPage() {
 
           {message && <p className="text-sm text-slate-600">{message}</p>}
 
-          <button
-            className="w-full rounded-lg bg-slate-900 px-4 py-2 font-medium text-white disabled:opacity-60"
+          <Button
+            className="w-full"
             type="submit"
             disabled={loading}
           >
             {loading ? "Vent..." : isRegistering ? "Opprett bruker" : "Logg inn"}
-          </button>
+          </Button>
         </form>
 
-        <button
-          className="mt-4 w-full text-sm text-slate-600 underline"
-          type="button"
+        <Button
+          className="mt-4 w-full underline"
+          variant="ghost"
+          size="sm"
           onClick={() => {
             setIsRegistering((value) => !value);
             setMessage("");
           }}
         >
           {isRegistering ? "Har du bruker? Logg inn" : "Ingen bruker? Opprett en"}
-        </button>
+        </Button>
 
         <SupabaseDebugPanel />
       </section>

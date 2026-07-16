@@ -1,13 +1,16 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import type { Company, InvoiceDraftLine, Product, RepeatDraft } from "../types";
-import type { InvoiceInput } from "../lib/data";
-import { addMonthsInputValue, formatCurrency, todayInputValue } from "../lib/format";
-import { createInvoiceNumber } from "../lib/data";
-import { calculateLine, calculateTotals, toNumber } from "../lib/invoiceMath";
-import { EmptyState } from "./EmptyState";
-import { FormField, buttonPrimaryClass, buttonSecondaryClass, inputClass } from "./FormField";
-import { SectionHeader } from "./SectionHeader";
+import type { Company, InvoiceDraftLine, InvoiceWithDetails, PdfTemplate, Product, RepeatDraft } from "../../../types";
+import type { InvoiceInput } from "../../../lib/data";
+import { addMonthsInputValue, formatCurrency, todayInputValue } from "../../../lib/format";
+import { createInvoiceNumber } from "../../../lib/data";
+import { calculateLine, calculateTotals, toNumber } from "../../../lib/invoiceMath";
+import { EmptyState } from "../../../components/EmptyState";
+import { FormField, inputClass } from "../../../components/FormField";
+import { Button } from "../../../components/Button";
+import { SectionHeader } from "../../../components/SectionHeader";
+import { PdfPreview } from "./PdfPreview";
+import { PdfTemplateSelector } from "./PdfTemplateSelector";
 
 type InvoiceBuilderProps = {
   companies: Company[];
@@ -104,6 +107,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
   const [issueDate, setIssueDate] = useState(todayInputValue);
   const [dueDate, setDueDate] = useState(() => addMonthsInputValue(1));
   const [notes, setNotes] = useState("");
+  const [pdfTemplate, setPdfTemplate] = useState<PdfTemplate>("classic");
   const [lines, setLines] = useState<InvoiceDraftLine[]>([createEmptyLine()]);
   const [repeat, setRepeat] = useState<RepeatDraft>(createDefaultRepeat);
   const [saving, setSaving] = useState(false);
@@ -117,6 +121,51 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
 
   const companyProducts = products.filter((product) => product.company_id === companyId);
   const totals = calculateTotals(lines);
+  const selectedCompany = companies.find((company) => company.id === companyId) ?? null;
+  const previewIssueDate = invoiceKind === "recurring" ? repeat.startDate : issueDate;
+  const previewDueDate = invoiceKind === "recurring"
+    ? addDaysFromDate(repeat.startDate, repeat.paymentTermsDays)
+    : dueDate;
+  const previewInvoice: InvoiceWithDetails = {
+    id: "preview",
+    owner_user_id: "preview",
+    company_id: companyId,
+    schedule_id: null,
+    scheduled_for: null,
+    invoice_number: invoiceKind === "recurring" ? "Neste faktura" : invoiceNumber || "Fakturanummer",
+    issue_date: previewIssueDate,
+    due_date: previewDueDate,
+    status: "ready",
+    paid: false,
+    pdf_template: pdfTemplate,
+    notes: notes || null,
+    subtotal: totals.subtotal,
+    vat_total: totals.vatTotal,
+    total: totals.total,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    company: selectedCompany,
+    invoice_items: lines
+      .filter((line) => line.description.trim())
+      .map((line, index) => {
+        const calculated = calculateLine(line);
+        return {
+          id: `preview-${line.localId}`,
+          invoice_id: "preview",
+          product_id: line.productId,
+          description: line.description,
+          quantity: line.quantity,
+          unit: line.unit,
+          unit_price: line.unitPrice,
+          vat_rate: line.vatRate,
+          line_subtotal: calculated.line_subtotal,
+          line_vat: calculated.line_vat,
+          line_total: calculated.line_total,
+          sort_order: index,
+          created_at: new Date().toISOString(),
+        };
+      }),
+  };
 
   function handleCompanyChange(nextCompanyId: string) {
     setCompanyId(nextCompanyId);
@@ -199,6 +248,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         issueDate,
         dueDate,
         notes,
+        pdfTemplate,
         lines: validLines,
         repeat: { ...repeat, enabled: invoiceKind === "recurring", autoSend: true },
       });
@@ -208,6 +258,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
       setIssueDate(todayInputValue());
       setDueDate(addMonthsInputValue(1));
       setNotes("");
+      setPdfTemplate("classic");
       setLines([createEmptyLine()]);
       setRepeat(createDefaultRepeat());
       setInvoiceKind("single");
@@ -223,9 +274,9 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
       <div className="space-y-6">
         <SectionHeader title="Ny faktura" description="Du må ha minst ett selskap før du kan lage faktura." />
         <EmptyState title="Ingen selskaper" description="Registrer et selskap først, og legg deretter til produkter eller manuelle linjer." />
-        <button className={buttonPrimaryClass} type="button" onClick={onOpenCompanies}>
+        <Button onClick={onOpenCompanies}>
           Gå til selskaper
-        </button>
+        </Button>
       </div>
     );
   }
@@ -236,9 +287,9 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         title="Ny faktura"
         description="Velg et selskap, fyll inn produkter eller manuelle linjer, og lagre fakturaen i Supabase."
         action={
-          <button className={buttonPrimaryClass} type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving}>
             {saving ? "Lagrer..." : invoiceKind === "recurring" ? "Lagre gjentakelse" : "Lagre faktura"}
-          </button>
+          </Button>
         }
       />
 
@@ -260,7 +311,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         </div>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[1fr_360px]">
+      <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-5">
           <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
             <h3 className="text-base font-semibold text-slate-950">Fakturainfo</h3>
@@ -284,15 +335,15 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                 <div className="space-y-2">
                   <input className={inputClass} type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} required />
                   <div className="flex flex-wrap gap-2">
-                    <button className={buttonSecondaryClass} type="button" onClick={() => applyDueDatePreset("week")}>
+                    <Button variant="secondary" size="sm" onClick={() => applyDueDatePreset("week")}>
                       Om 1 uke
-                    </button>
-                    <button className={buttonSecondaryClass} type="button" onClick={() => applyDueDatePreset("twoWeeks")}>
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => applyDueDatePreset("twoWeeks")}>
                       Om 14 dager
-                    </button>
-                    <button className={buttonSecondaryClass} type="button" onClick={() => applyDueDatePreset("month")}>
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => applyDueDatePreset("month")}>
                       Om 1 måned
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </FormField>}
@@ -305,9 +356,9 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                 <h3 className="text-base font-semibold text-slate-950">Fakturalinjer</h3>
                 <p className="text-sm text-slate-600">Velg lagrede produkter eller skriv inn manuelle linjer.</p>
               </div>
-              <button className={buttonSecondaryClass} type="button" onClick={addManualLine}>
+              <Button variant="secondary" onClick={addManualLine}>
                 Legg til linje
-              </button>
+              </Button>
             </div>
 
             <div className="mt-5 space-y-4">
@@ -316,7 +367,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
 
                 return (
                   <div key={line.localId} className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-                    <div className="grid gap-3 xl:grid-cols-[190px_1fr_82px_82px_110px_82px_110px_auto]">
+                    <div className="grid min-w-0 gap-3 xl:grid-cols-[160px_minmax(0,1fr)_70px_70px_95px_70px_125px]">
                       <FormField label="Produkt">
                         <select className={inputClass} value={line.productId ?? ""} onChange={(event) => handleProductSelect(line.localId, event.target.value)}>
                           <option value="">Manuell</option>
@@ -366,14 +417,23 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                           required
                         />
                       </FormField>
-                      <div>
-                        <span className="text-sm font-medium text-slate-700">Sum</span>
-                        <p className="mt-3 text-sm font-semibold text-slate-950">{formatCurrency(calculated.line_total)}</p>
-                      </div>
-                      <div className="flex items-end">
-                        <button className={buttonSecondaryClass} type="button" onClick={() => removeLine(line.localId)} aria-label={`Fjern linje ${index + 1}`}>
-                          Fjern
-                        </button>
+                      <div className="flex items-end justify-between gap-2">
+                        <div>
+                          <span className="text-sm font-medium text-slate-700">Sum</span>
+                          <p className="mt-3 text-sm font-semibold text-slate-950">{formatCurrency(calculated.line_total)}</p>
+                        </div>
+                        <Button
+                          variant="danger"
+                          size="xs"
+                          className="h-9 w-9 shrink-0 rounded-md !bg-red-500 !p-0 !text-black hover:!bg-red-600"
+                          onClick={() => removeLine(line.localId)}
+                          aria-label={`Fjern linje ${index + 1}`}
+                          title="Fjern linje"
+                        >
+                          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" />
+                          </svg>
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -390,6 +450,11 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         </div>
 
         <aside className="space-y-5">
+          <div className="space-y-4 rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+            <PdfTemplateSelector value={pdfTemplate} onChange={setPdfTemplate} />
+            <PdfPreview invoice={previewInvoice} compact />
+          </div>
+
           <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
             <h3 className="text-base font-semibold text-slate-950">Summer</h3>
             <dl className="mt-4 space-y-3 text-sm">
