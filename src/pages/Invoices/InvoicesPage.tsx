@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Company, InvoiceWithDetails, Product } from "../../types";
 import type { InvoiceInput } from "../../lib/data";
 import { sendInvoiceEmail, updateInvoicePaid } from "../../lib/data";
@@ -7,6 +7,7 @@ import { createInvoicePdfBase64 } from "../../lib/pdf";
 import { EmptyState } from "../../components/EmptyState";
 import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
+import { DocumentBrowser, statusToneClasses, type DocumentBrowserItem, type StatusTone } from "../../components/DocumentBrowser";
 import { PdfPreview } from "./InvoicesComponents/PdfPreview";
 import { InvoiceBuilder } from "./InvoicesComponents/InvoiceBuilder";
 
@@ -48,17 +49,41 @@ export default function InvoicesPage({
   const [updatingPaidInvoiceId, setUpdatingPaidInvoiceId] = useState("");
   const [sendMessage, setSendMessage] = useState("");
 
+  const displayedInvoices = useMemo(() => invoices.filter((invoice) => {
+    if (invoice.status === "draft" || invoice.status === "sending") {
+      return false;
+    }
+
+    if (invoice.schedule_id && !invoice.paid && !["sent", "reminded", "paid"].includes(invoice.status)) {
+      return false;
+    }
+
+    return true;
+  }), [invoices]);
+
+  const browserItems = useMemo<DocumentBrowserItem[]>(() => displayedInvoices.map((invoice) => ({
+    id: invoice.id,
+    companyId: invoice.company_id,
+    companyName: invoice.company?.name ?? "Ukjent bedrift",
+    title: invoice.invoice_number,
+    subtitle: invoice.schedule_id ? "Gjentakende faktura" : "Enkeltfaktura",
+    statusLabel: invoice.paid ? "Betalt" : statusLabels[invoice.status] ?? invoice.status,
+    statusTone: invoiceStatusTone(invoice.status, invoice.paid),
+    amount: Number(invoice.total),
+    date: invoice.issue_date,
+  })), [displayedInvoices]);
+
   useEffect(() => {
-    if (!selectedInvoiceId && invoices[0]) {
-      setSelectedInvoiceId(invoices[0].id);
+    if (!selectedInvoiceId && displayedInvoices[0]) {
+      setSelectedInvoiceId(displayedInvoices[0].id);
     }
 
-    if (selectedInvoiceId && !invoices.some((invoice) => invoice.id === selectedInvoiceId)) {
-      setSelectedInvoiceId(invoices[0]?.id ?? "");
+    if (selectedInvoiceId && !displayedInvoices.some((invoice) => invoice.id === selectedInvoiceId)) {
+      setSelectedInvoiceId(displayedInvoices[0]?.id ?? "");
     }
-  }, [invoices, selectedInvoiceId]);
+  }, [displayedInvoices, selectedInvoiceId]);
 
-  const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId) ?? invoices[0] ?? null;
+  const selectedInvoice = displayedInvoices.find((invoice) => invoice.id === selectedInvoiceId) ?? displayedInvoices[0] ?? null;
 
   async function handleDeleteSelectedInvoice() {
     if (!selectedInvoice) {
@@ -165,7 +190,7 @@ export default function InvoicesPage({
   const header = (
     <SectionHeader
       title="Fakturaer"
-      description="Lag nye fakturaer og velg en faktura for detaljer og PDF-forhandsvisning."
+      description="Finn fakturaer etter bedrift, sorter listen og åpne en faktura for detaljer og PDF-forhåndsvisning."
       action={
         <Button onClick={() => setShowCreateForm((value) => !value)}>
           {showCreateForm ? "Skjul skjema" : "Ny faktura"}
@@ -191,11 +216,11 @@ export default function InvoicesPage({
     );
   }
 
-  if (invoices.length === 0) {
+  if (displayedInvoices.length === 0) {
     return (
       <div className="space-y-6">
         {header}
-        <EmptyState title="Ingen fakturaer" description="Lag en faktura her, sa vises den i listen med en gang." />
+        <EmptyState title="Ingen fakturaer" description="Lag en faktura, eller vent til en gjentakende faktura er sendt, så vises den her." />
       </div>
     );
   }
@@ -207,40 +232,16 @@ export default function InvoicesPage({
       {sendMessage && <p className="rounded-md border border-blue-100 bg-white px-4 py-3 text-sm text-blue-900 shadow-sm">{sendMessage}</p>}
 
       <section className="grid gap-5 lg:grid-cols-[420px_1fr]">
-        <div className="rounded-lg border border-blue-100 bg-white p-4 shadow-sm">
-          <div className="space-y-2">
-            {invoices.map((invoice) => (
-              <Button
-                key={invoice.id}
-                variant="ghost"
-                className={`w-full justify-start rounded-lg border p-4 text-left ${
-                  selectedInvoice?.id === invoice.id
-                    ? "border-blue-400 bg-blue-50"
-                    : "border-blue-100 bg-white hover:border-blue-300"
-                }`}
-                type="button"
-                onClick={() => setSelectedInvoiceId(invoice.id)}
-              >
-                <span className="flex items-start justify-between gap-3">
-                  <span>
-                    <span className="block font-semibold text-slate-950">{invoice.invoice_number}</span>
-                    <span className="mt-1 block text-sm text-slate-600">{invoice.company?.name ?? "Ukjent selskap"}</span>
-                  </span>
-                  <span className="rounded-md bg-white px-2 py-1 text-xs font-medium text-blue-800 ring-1 ring-blue-100">
-                    {invoice.paid ? "Betalt" : statusLabels[invoice.status] ?? invoice.status}
-                  </span>
-                </span>
-                <span className="mt-3 flex items-center justify-between gap-3 text-sm">
-                  <span className="text-slate-500">{formatDate(invoice.issue_date)}</span>
-                  <span className="font-semibold text-slate-950">{formatCurrency(invoice.total)}</span>
-                </span>
-              </Button>
-            ))}
-          </div>
-        </div>
+        <DocumentBrowser
+          items={browserItems}
+          selectedId={selectedInvoice?.id ?? ""}
+          onSelect={setSelectedInvoiceId}
+          searchPlaceholder="Søk etter faktura eller bedrift"
+          itemLabel="fakturaer"
+        />
 
         {selectedInvoice && (
-          <div className="space-y-5">
+          <div className="min-w-0 space-y-5">
             <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -250,6 +251,9 @@ export default function InvoicesPage({
                 </div>
                 <div className="flex flex-col items-start gap-3 sm:items-end">
                   <p className="text-2xl font-semibold text-slate-950">{formatCurrency(selectedInvoice.total)}</p>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${statusToneClasses[invoiceStatusTone(selectedInvoice.status, selectedInvoice.paid)]}`}>
+                    {selectedInvoice.paid ? "Betalt" : statusLabels[selectedInvoice.status] ?? selectedInvoice.status}
+                  </span>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       variant={selectedInvoice.paid ? "secondary" : "success"}
@@ -343,4 +347,13 @@ export default function InvoicesPage({
       </section>
     </div>
   );
+}
+
+function invoiceStatusTone(status: InvoiceWithDetails["status"], paid: boolean): StatusTone {
+  if (paid || status === "paid") return "success";
+  if (status === "sent") return "info";
+  if (status === "ready") return "warning";
+  if (status === "reminded") return "purple";
+  if (status === "cancelled") return "danger";
+  return "neutral";
 }
