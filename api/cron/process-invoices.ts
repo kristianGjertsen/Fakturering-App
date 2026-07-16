@@ -1,5 +1,5 @@
 export const config = {
-  maxDuration: 120,
+  maxDuration: 300,
 };
 
 type VercelRequest = {
