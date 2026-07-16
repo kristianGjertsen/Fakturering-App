@@ -387,7 +387,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                   </div>
                   <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex" aria-label="Velg når fakturaen skal opprettes">
                     <Button variant={!scheduleOnce ? "primary" : "secondary"} onClick={() => setScheduleOnce(false)}>
-                      Lagre nå
+                      Lagre faktura uten å sende
                     </Button>
                     <Button variant={scheduleOnce ? "primary" : "secondary"} onClick={() => setScheduleOnce(true)}>
                       Send på fakturadato
