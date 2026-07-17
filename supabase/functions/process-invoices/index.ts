@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createInvoicePdfBase64, type PdfTemplate } from "../_shared/invoice-pdf.ts";
 
 type SupabaseClient = ReturnType<typeof createClient>;
 
@@ -21,6 +22,7 @@ type InvoiceItem = {
 
 type ClaimedInvoice = {
   id: string;
+  pdf_template?: PdfTemplate;
   invoice_number: string;
   issue_date: string;
   due_date: string | null;
@@ -62,8 +64,6 @@ type RunSummary = {
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const cronSecret = Deno.env.get("CRON_SECRET");
-const pdfGeneratorUrl = Deno.env.get("PDF_GENERATOR_URL");
-const pdfGeneratorSecret = Deno.env.get("PDF_GENERATOR_SECRET") ?? cronSecret;
 const cronDebugEmailsEnabled = Deno.env.get("CRON_DEBUG_EMAILS") === "true";
 const batchLimit = 100;
 const pageSize = 1000;
@@ -81,7 +81,7 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
-  if (!supabaseUrl || !serviceRoleKey || !cronSecret || !pdfGeneratorUrl || !pdfGeneratorSecret) {
+  if (!supabaseUrl || !serviceRoleKey || !cronSecret) {
     return jsonResponse({ error: "Missing server configuration" }, 500);
   }
 
@@ -169,7 +169,7 @@ Deno.serve(async (request) => {
           throw new Error("Kunden mangler e-postadresse.");
         }
 
-        const attachmentContent = await generateInvoicePdf(invoice);
+        const attachmentContent = createInvoicePdfBase64(invoice);
         const { data: sendResult, error: sendError } = await supabase.functions.invoke("send-invoice", {
           body: {
             to: invoice.company.email,
@@ -593,25 +593,6 @@ async function markReportFailed(
   if (error) {
     console.error(`Failed to record cron report error for ${runId}`, error);
   }
-}
-
-async function generateInvoicePdf(invoice: ClaimedInvoice) {
-  const response = await fetch(pdfGeneratorUrl!, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-pdf-secret": pdfGeneratorSecret!,
-    },
-    body: JSON.stringify({ invoice }),
-  });
-
-  const result = await response.json().catch(() => null) as { pdfBase64?: string; error?: string } | null;
-
-  if (!response.ok || !result?.pdfBase64) {
-    throw new Error(result?.error ?? `PDF generator returned ${response.status}`);
-  }
-
-  return result.pdfBase64;
 }
 
 function statusLabel(status: string) {

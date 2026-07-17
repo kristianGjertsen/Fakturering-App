@@ -1,0 +1,278 @@
+export type PdfTemplate = "classic" | "modern" | "minimal";
+
+export type PdfInvoice = {
+  pdf_template?: PdfTemplate;
+  invoice_number: string;
+  issue_date: string;
+  due_date: string | null;
+  notes?: string | null;
+  subtotal: number;
+  vat_total: number;
+  total: number;
+  company: { name: string; email: string | null } | null;
+  invoice_items: Array<{
+    description: string;
+    quantity: number;
+    unit: string;
+    unit_price: number;
+    vat_rate: number;
+    line_total: number;
+    sort_order?: number;
+  }>;
+};
+
+type Theme = {
+  pageBackground?: string;
+  headerBackground?: string;
+  headerText: string;
+  accent: string;
+  muted: string;
+  tableHeaderBackground?: string;
+  tableHeaderText: string;
+  footerText: string;
+};
+
+const encoder = new TextEncoder();
+
+const themes: Record<PdfTemplate, Theme> = {
+  classic: {
+    headerBackground: "0.059 0.220 0.435",
+    headerText: "1 1 1",
+    accent: "0.059 0.220 0.435",
+    muted: "0.392 0.455 0.541",
+    tableHeaderBackground: "0.937 0.965 1",
+    tableHeaderText: "0.392 0.455 0.541",
+    footerText: "0.392 0.455 0.541",
+  },
+  modern: {
+    pageBackground: "0.973 0.980 0.988",
+    headerBackground: "0.145 0.388 0.922",
+    headerText: "1 1 1",
+    accent: "0.145 0.388 0.922",
+    muted: "0.294 0.416 0.635",
+    tableHeaderBackground: "0.145 0.388 0.922",
+    tableHeaderText: "1 1 1",
+    footerText: "0.114 0.306 0.847",
+  },
+  minimal: {
+    headerText: "0.059 0.220 0.435",
+    accent: "0.059 0.220 0.435",
+    muted: "0.392 0.455 0.541",
+    tableHeaderText: "0.059 0.220 0.435",
+    footerText: "0.392 0.455 0.541",
+  },
+};
+
+export function createInvoicePdfBase64(invoice: PdfInvoice) {
+  const items = [...invoice.invoice_items].sort(
+    (left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0),
+  );
+  const pages = chunk(items, 18);
+  const pageItems = pages.length > 0 ? pages : [[]];
+  const template = invoice.pdf_template ?? "classic";
+  const streams = pageItems.map((itemsForPage, index) =>
+    createPage(invoice, itemsForPage, index + 1, pageItems.length, template),
+  );
+  const bytes = buildPdf(streams);
+  let binary = "";
+
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+
+  return btoa(binary);
+}
+
+function createPage(
+  invoice: PdfInvoice,
+  items: PdfInvoice["invoice_items"],
+  page: number,
+  pageCount: number,
+  template: PdfTemplate,
+) {
+  const theme = themes[template];
+  const commands: string[] = [];
+
+  if (theme.pageBackground) {
+    commands.push(`${theme.pageBackground} rg 0 0 595 842 re f`);
+  }
+
+  if (theme.headerBackground) {
+    commands.push(`${theme.headerBackground} rg 0 790 595 52 re f`);
+  } else {
+    commands.push(`${theme.accent} RG 1.5 w 45 790 m 550 790 l S`);
+  }
+
+  commands.push(
+    text(45, 812, template === "minimal" ? 20 : 22, "Faktura", theme.headerText),
+    text(455, 815, 10, `Side ${page} av ${pageCount}`, template === "minimal" ? theme.muted : theme.headerText),
+    text(45, 752, 9, "Fakturanummer", theme.muted),
+    text(45, 733, 16, invoice.invoice_number),
+    text(240, 752, 9, "Fakturadato", theme.muted),
+    text(240, 733, 12, formatDate(invoice.issue_date)),
+    text(400, 752, 9, "Forfallsdato", theme.muted),
+    text(400, 733, 12, formatDate(invoice.due_date)),
+    text(45, 690, 9, "Kunde", theme.muted),
+    text(45, 671, 14, invoice.company?.name ?? "Ukjent kunde"),
+    text(45, 653, 10, invoice.company?.email ?? "", "0.12 0.18 0.28"),
+  );
+
+  if (template === "modern") {
+    commands.push("0.859 0.918 1 rg 35 635 525 70 re f");
+  } else if (template === "minimal") {
+    commands.push(
+      "0.796 0.835 0.882 RG 0.8 w 45 705 m 550 705 l S",
+      "0.796 0.835 0.882 RG 0.8 w 45 635 m 550 635 l S",
+    );
+  }
+
+  if (theme.tableHeaderBackground) {
+    commands.push(`${theme.tableHeaderBackground} rg 45 572 505 28 re f`);
+  }
+
+  commands.push(
+    text(52, 582, 9, "Beskrivelse", theme.tableHeaderText),
+    text(303, 582, 9, "Antall", theme.tableHeaderText),
+    text(370, 582, 9, "Pris", theme.tableHeaderText),
+    text(440, 582, 9, "MVA", theme.tableHeaderText),
+    text(500, 582, 9, "Sum", theme.tableHeaderText),
+    `${theme.accent} RG 0.8 w 45 572 m 550 572 l S`,
+  );
+
+  let y = 548;
+  for (const item of items) {
+    commands.push(
+      text(52, y, 9, truncate(item.description, 41)),
+      text(303, y, 9, `${formatNumber(item.quantity)} ${item.unit}`, "0.12 0.18 0.28"),
+      text(370, y, 9, formatCurrency(item.unit_price), "0.12 0.18 0.28"),
+      text(440, y, 9, `${formatNumber(item.vat_rate)}%`, "0.12 0.18 0.28"),
+      text(500, y, 9, formatCurrency(item.line_total)),
+      "0.89 0.91 0.94 RG 0.4 w 45 " + (y - 9) + " m 550 " + (y - 9) + " l S",
+    );
+    y -= 25;
+  }
+
+  if (page === pageCount) {
+    const totalsY = Math.min(y - 20, 160);
+    commands.push(
+      `${theme.accent} RG 0.8 w 335 ${totalsY + 54} m 550 ${totalsY + 54} l S`,
+      text(360, totalsY + 32, 10, "Eks. MVA", theme.muted),
+      text(480, totalsY + 32, 10, formatCurrency(invoice.subtotal)),
+      text(360, totalsY + 12, 10, "MVA", theme.muted),
+      text(480, totalsY + 12, 10, formatCurrency(invoice.vat_total)),
+      text(360, totalsY - 16, 14, "Total", theme.accent),
+      text(480, totalsY - 16, 14, formatCurrency(invoice.total), theme.accent),
+    );
+
+    if (invoice.notes) {
+      commands.push(
+        text(45, 112, 9, "Notat", theme.muted),
+        text(45, 94, 9, truncate(invoice.notes, 95), "0.12 0.18 0.28"),
+      );
+    }
+  }
+
+  commands.push(
+    text(45, 38, 8, "Generert i AutoFaktura", theme.footerText),
+    text(475, 38, 8, invoice.invoice_number, theme.footerText),
+  );
+
+  return winAnsi(commands.filter(Boolean).join("\n") + "\n");
+}
+
+function buildPdf(streams: Uint8Array[]) {
+  const chunks: Uint8Array[] = [];
+  const offsets: number[] = [0];
+  let length = 0;
+  const append = (value: Uint8Array) => {
+    chunks.push(value);
+    length += value.length;
+  };
+  const object = (id: number, value: Uint8Array) => {
+    offsets[id] = length;
+    append(encoder.encode(`${id} 0 obj\n`));
+    append(value);
+    append(encoder.encode("\nendobj\n"));
+  };
+
+  append(encoder.encode("%PDF-1.4\n"));
+  const pageIds = streams.map((_, index) => 4 + index * 2);
+  const contentIds = streams.map((_, index) => 5 + index * 2);
+  const objectCount = 3 + streams.length * 2;
+  object(1, encoder.encode("<< /Type /Catalog /Pages 2 0 R >>"));
+  object(2, encoder.encode(`<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${streams.length} >>`));
+  object(3, encoder.encode("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"));
+
+  streams.forEach((stream, index) => {
+    object(pageIds[index], encoder.encode(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentIds[index]} 0 R >>`));
+    object(contentIds[index], concat([encoder.encode(`<< /Length ${stream.length} >>\nstream\n`), stream, encoder.encode("endstream")]));
+  });
+
+  const xref = length;
+  append(encoder.encode(`xref\n0 ${objectCount + 1}\n0000000000 65535 f \n`));
+  for (let id = 1; id <= objectCount; id += 1) {
+    append(encoder.encode(`${String(offsets[id]).padStart(10, "0")} 00000 n \n`));
+  }
+  append(encoder.encode(`trailer\n<< /Size ${objectCount + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`));
+  return concat(chunks);
+}
+
+function text(x: number, y: number, size: number, value: string, color = "0.03 0.1 0.22") {
+  return value ? `${color} rg BT /F1 ${size} Tf ${x} ${y} Td ${literal(value)} Tj ET` : "";
+}
+
+function literal(value: string) {
+  return `(${value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/[\r\n]/g, " ")})`;
+}
+
+function winAnsi(value: string) {
+  const special: Record<string, number> = {
+    æ: 230,
+    ø: 248,
+    å: 229,
+    Æ: 198,
+    Ø: 216,
+    Å: 197,
+    é: 233,
+  };
+  return new Uint8Array(
+    Array.from(value).map((character) =>
+      special[character] ?? (character.charCodeAt(0) <= 255 ? character.charCodeAt(0) : 63)
+    ),
+  );
+}
+
+function concat(values: Uint8Array[]) {
+  const output = new Uint8Array(values.reduce((sum, value) => sum + value.length, 0));
+  let offset = 0;
+  for (const value of values) {
+    output.set(value, offset);
+    offset += value.length;
+  }
+  return output;
+}
+
+function chunk<T>(values: T[], size: number) {
+  return Array.from(
+    { length: Math.ceil(values.length / size) },
+    (_, index) => values.slice(index * size, (index + 1) * size),
+  );
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "-";
+  const [year, month, day] = value.slice(0, 10).split("-");
+  return `${day}.${month}.${year}`;
+}
+
+function formatCurrency(value: number) {
+  return `${formatNumber(Number(value))} kr`;
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 2 }).format(Number(value));
+}
+
+function truncate(value: string, length: number) {
+  return value.length > length ? `${value.slice(0, length - 3)}...` : value;
+}
