@@ -8,6 +8,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { FormField, inputClass } from "../../components/FormField";
 import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
+import { NewCompanyForm } from "./CompaniesComponents/NewCompanyForm";
 
 type CompaniesViewProps = {
   companies: Company[];
@@ -16,20 +17,9 @@ type CompaniesViewProps = {
   onCreateProduct: (input: ProductInput) => Promise<void>;
 };
 
-const emptyCompanyForm: CompanyInput = {
-  name: "",
-  org_number: "",
-  email: "",
-  city: "",
-  country: "Norway",
-  private_notes: "",
-};
-
 export default function CompaniesPage({ companies, products, onCreateCompany, onCreateProduct }: CompaniesViewProps) {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
-  const [companyForm, setCompanyForm] = useState<CompanyInput>(emptyCompanyForm);
   const [productForm, setProductForm] = useState({ name: "", description: "", unit: "stk", unit_price: "0", vat_rate: "25" });
-  const [savingCompany, setSavingCompany] = useState(false);
   const [savingProduct, setSavingProduct] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -41,22 +31,6 @@ export default function CompaniesPage({ companies, products, onCreateCompany, on
 
   const selectedCompany = companies.find((company) => company.id === selectedCompanyId) ?? null;
   const selectedProducts = products.filter((product) => product.company_id === selectedCompanyId);
-
-  async function handleCreateCompany(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSavingCompany(true);
-    setMessage("");
-
-    try {
-      await onCreateCompany(companyForm);
-      setCompanyForm(emptyCompanyForm);
-      setMessage("Selskap lagret.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Kunne ikke lagre selskapet.");
-    } finally {
-      setSavingCompany(false);
-    }
-  }
 
   async function handleCreateProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -97,7 +71,7 @@ export default function CompaniesPage({ companies, products, onCreateCompany, on
       {message && <p className="rounded-md border border-blue-100 bg-white px-4 py-3 text-sm text-blue-900 shadow-sm">{message}</p>}
 
       <section className="grid gap-5 lg:grid-cols-[360px_1fr]">
-       
+        <NewCompanyForm onCreateCompany={onCreateCompany} onMessage={setMessage} />
 
         <div className="space-y-5">
           <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
