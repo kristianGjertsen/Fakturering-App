@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { AppFooter } from "./page-sections/AppFooter";
-import { AppHeader } from "./page-sections/AppHeader";
+import { AppFooter } from "./page-sections/Footer";
+import { AppHeader } from "./page-sections/Header";
 
 type AppLayoutProps = {
   children: ReactNode;
