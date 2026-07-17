@@ -46,7 +46,12 @@ export type InvoiceItem = {
 export type Invoice = {
   id: string;
   owner_user_id: string;
-  company_id: string;
+  company_id: string | null;
+  recipient_name: string;
+  recipient_org_number: string | null;
+  recipient_email: string | null;
+  recipient_city: string | null;
+  recipient_country: string | null;
   schedule_id: string | null;
   scheduled_for: string | null;
   invoice_number: string;

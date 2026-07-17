@@ -4,7 +4,7 @@ import { FormField, inputClass } from "../../../components/FormField";
 import type { ProductInput } from "../../../lib/data";
 import { toNumber } from "../../../lib/invoiceMath";
 
-type NewProductFormProps = {
+export type NewProductFormProps = {
   companyId: string;
   onCreateProduct: (input: ProductInput) => Promise<void>;
   onMessage: (message: string) => void;

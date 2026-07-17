@@ -35,7 +35,11 @@ export function AppHeader() {
             <Button
               key={tab.to}
               className="shrink-0"
-              variant={location.pathname === tab.to ? "primary" : "ghost"}
+              variant={
+                location.pathname === tab.to || (tab.to !== "/" && location.pathname.startsWith(`${tab.to}/`))
+                  ? "primary"
+                  : "ghost"
+              }
               size="sm"
               onClick={() => navigate(tab.to)}
             >

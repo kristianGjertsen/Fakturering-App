@@ -15,6 +15,7 @@ import {
   type ProductInput,
 } from "../lib/data";
 import CompaniesPage from "../pages/Companies/CompaniesPage";
+import CompanyPage from "../pages/Company/CompanyPage";
 import DashboardPage from "../pages/Dashboard/DashboardPage";
 import InvoicesPage from "../pages/Invoices/InvoicesPage";
 import ProfilePage from "../pages/Profile/ProfilePage";
@@ -92,8 +93,18 @@ export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
             element={
               <CompaniesPage
                 companies={data.companies}
-                products={data.products}
                 onCreateCompany={handleCreateCompany}
+                onOpenCompany={(companyId) => navigate(`/companies/${companyId}`)}
+              />
+            }
+          />
+          <Route
+            path="/companies/:companyId"
+            element={
+              <CompanyPage
+                companies={data.companies}
+                products={data.products}
+                invoices={data.invoices}
                 onCreateProduct={handleCreateProduct}
               />
             }

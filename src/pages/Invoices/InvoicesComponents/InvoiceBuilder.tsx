@@ -5,18 +5,19 @@ import type { InvoiceInput } from "../../../lib/data";
 import { formatCurrency, todayInputValue } from "../../../lib/format";
 import { createInvoiceNumber } from "../../../lib/data";
 import { calculateLine, calculateTotals, toNumber } from "../../../lib/invoiceMath";
-import { EmptyState } from "../../../components/EmptyState";
 import { FormField, inputClass } from "../../../components/FormField";
 import { Button } from "../../../components/Button";
 import { SectionHeader } from "../../../components/SectionHeader";
 import { PdfPreview } from "./PdfPreview";
 import { PdfTemplateSelector } from "./PdfTemplateSelector";
+import { UnsavedRecipientDialog } from "./UnsavedRecipientDialog";
 
 type InvoiceBuilderProps = {
   companies: Company[];
   products: Product[];
   onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<void>;
   onOpenCompanies: () => void;
+  initialCompanyId?: string;
 };
 
 function createEmptyLine(): InvoiceDraftLine {
@@ -93,9 +94,13 @@ function repeatIntervalHelper(frequency: RepeatDraft["frequency"]) {
   return "1 = hver måned, 2 = annenhver måned";
 }
 
-export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCompanies }: InvoiceBuilderProps) {
+export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCompanies, initialCompanyId = "" }: InvoiceBuilderProps) {
   const [invoiceKind, setInvoiceKind] = useState<"single" | "recurring">("single");
-  const [companyId, setCompanyId] = useState("");
+  const [companyId, setCompanyId] = useState(initialCompanyId);
+  const [recipientMode, setRecipientMode] = useState<"company" | "guest">("company");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [showUnsavedRecipientDialog, setShowUnsavedRecipientDialog] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState(createInvoiceNumber);
   const [issueDate, setIssueDate] = useState(todayInputValue);
   const [paymentTermsDays, setPaymentTermsDays] = useState(14);
@@ -108,10 +113,10 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (!companyId && companies[0]) {
+    if (recipientMode === "company" && !companyId && companies[0]) {
       setCompanyId(companies[0].id);
     }
-  }, [companies, companyId]);
+  }, [companies, companyId, recipientMode]);
 
   const companyProducts = products.filter((product) => product.company_id === companyId);
   const totals = calculateTotals(lines);
@@ -124,7 +129,12 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
   const previewInvoice: InvoiceWithDetails = {
     id: "preview",
     owner_user_id: "preview",
-    company_id: companyId,
+    company_id: companyId || null,
+    recipient_name: selectedCompany?.name ?? (recipientName.trim() || recipientEmail.trim() || "Engangskunde"),
+    recipient_org_number: selectedCompany?.org_number ?? null,
+    recipient_email: selectedCompany?.email ?? (recipientEmail.trim() || null),
+    recipient_city: selectedCompany?.city ?? null,
+    recipient_country: selectedCompany?.country ?? null,
     schedule_id: null,
     scheduled_for: null,
     invoice_number: invoiceKind === "recurring"
@@ -143,7 +153,22 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
     total: totals.total,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    company: selectedCompany,
+    company: selectedCompany ?? (
+      recipientMode === "guest"
+        ? {
+          id: "guest",
+          owner_user_id: "preview",
+          name: recipientName.trim() || "Engangskunde",
+          org_number: null,
+          email: recipientEmail.trim() || null,
+          city: null,
+          country: null,
+          private_notes: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+        : null
+    ),
     invoice_items: lines
       .filter((line) => line.description.trim())
       .map((line, index) => {
@@ -167,8 +192,25 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
   };
 
   function handleCompanyChange(nextCompanyId: string) {
+    if (nextCompanyId === "__guest__") {
+      setShowUnsavedRecipientDialog(true);
+      return;
+    }
+
+    setRecipientMode("company");
     setCompanyId(nextCompanyId);
+    setRecipientName("");
+    setRecipientEmail("");
     setLines([createEmptyLine()]);
+  }
+
+  function continueWithoutCompany() {
+    setRecipientMode("guest");
+    setCompanyId("");
+    setInvoiceKind("single");
+    setScheduleOnce(false);
+    setLines([createEmptyLine()]);
+    setShowUnsavedRecipientDialog(false);
   }
 
   function updateLine(localId: string, patch: Partial<InvoiceDraftLine>) {
@@ -214,8 +256,18 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
 
     const validLines = lines.filter((line) => line.description.trim() && line.quantity > 0);
 
-    if (!companyId) {
+    if (recipientMode === "company" && !companyId) {
       setMessage("Velg et selskap før du lagrer fakturaen.");
+      return;
+    }
+
+    if (recipientMode === "guest" && !recipientEmail.trim()) {
+      setMessage("Oppgi e-postadressen til mottakeren.");
+      return;
+    }
+
+    if (recipientMode === "guest" && (invoiceKind === "recurring" || scheduleOnce)) {
+      setMessage("Engangskunder kan bare brukes på fakturaer som lagres nå.");
       return;
     }
 
@@ -233,7 +285,9 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
 
     try {
       await onCreateInvoice({
-        companyId,
+        companyId: companyId || null,
+        recipientName,
+        recipientEmail,
         invoiceNumber,
         issueDate,
         dueDate,
@@ -269,20 +323,14 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
     }
   }
 
-  if (companies.length === 0) {
-    return (
-      <div className="space-y-6">
-        <SectionHeader title="Ny faktura" description="Du må ha minst ett selskap før du kan lage faktura." />
-        <EmptyState title="Ingen selskaper" description="Registrer et selskap først, og legg deretter til produkter eller manuelle linjer." />
-        <Button onClick={onOpenCompanies}>
-          Gå til selskaper
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
+      <UnsavedRecipientDialog
+        open={showUnsavedRecipientDialog}
+        onCancel={() => setShowUnsavedRecipientDialog(false)}
+        onCreateCompany={onOpenCompanies}
+        onContinue={continueWithoutCompany}
+      />
       <SectionHeader
         title="Ny faktura"
         description="Velg et selskap, fyll inn produkter eller manuelle linjer, og lagre fakturaen i Supabase."
@@ -315,6 +363,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
               type="radio"
               name="invoiceKind"
               checked={invoiceKind === "recurring"}
+              disabled={recipientMode === "guest"}
               onChange={() => {
                 setInvoiceKind("recurring");
                 setScheduleOnce(false);
@@ -332,14 +381,42 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
             <h3 className="text-base font-semibold text-slate-950">Fakturainfo</h3>
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <FormField label="Selskap">
-                <select className={inputClass} value={companyId} onChange={(event) => handleCompanyChange(event.target.value)} required>
+                <select
+                  className={inputClass}
+                  value={recipientMode === "guest" ? "__guest__" : companyId}
+                  onChange={(event) => handleCompanyChange(event.target.value)}
+                >
+                  {companies.length === 0 && <option value="">Ingen registrerte selskaper</option>}
                   {companies.map((company) => (
                     <option key={company.id} value={company.id}>
                       {company.name}
                     </option>
                   ))}
+                  <option value="__guest__">Ingen selskap (engangskunde)</option>
                 </select>
               </FormField>
+              {recipientMode === "guest" && (
+                <>
+                  <FormField label="Mottakernavn">
+                    <input
+                      className={inputClass}
+                      value={recipientName}
+                      onChange={(event) => setRecipientName(event.target.value)}
+                      placeholder="Valgfritt navn"
+                    />
+                  </FormField>
+                  <FormField label="Mottakers e-post">
+                    <input
+                      className={inputClass}
+                      type="email"
+                      value={recipientEmail}
+                      onChange={(event) => setRecipientEmail(event.target.value)}
+                      placeholder="mottaker@eksempel.no"
+                      required
+                    />
+                  </FormField>
+                </>
+              )}
               {invoiceKind === "single" && !scheduleOnce && <FormField label="Fakturanummer">
                 <input className={inputClass} value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} required />
               </FormField>}
@@ -376,7 +453,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
               </FormField>}
             </div>
 
-            {invoiceKind === "single" && (
+            {invoiceKind === "single" && recipientMode === "company" && (
               <div className={`mt-5 rounded-lg border p-4 ${scheduleOnce ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-slate-50"}`}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
