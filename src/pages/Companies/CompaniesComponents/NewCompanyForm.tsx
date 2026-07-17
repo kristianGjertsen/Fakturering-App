@@ -6,6 +6,9 @@ import type { CompanyInput } from "../../../lib/data";
 type NewCompanyFormProps = {
   onCreateCompany: (input: CompanyInput) => Promise<void>;
   onMessage: (message: string) => void;
+  onCreated?: () => void;
+  onCancel?: () => void;
+  embedded?: boolean;
 };
 
 const emptyCompanyForm: CompanyInput = {
@@ -17,7 +20,13 @@ const emptyCompanyForm: CompanyInput = {
   private_notes: "",
 };
 
-export function NewCompanyForm({ onCreateCompany, onMessage }: NewCompanyFormProps) {
+export function NewCompanyForm({
+  onCreateCompany,
+  onMessage,
+  onCreated,
+  onCancel,
+  embedded = false,
+}: NewCompanyFormProps) {
   const [companyForm, setCompanyForm] = useState<CompanyInput>(emptyCompanyForm);
   const [savingCompany, setSavingCompany] = useState(false);
 
@@ -30,6 +39,7 @@ export function NewCompanyForm({ onCreateCompany, onMessage }: NewCompanyFormPro
       await onCreateCompany(companyForm);
       setCompanyForm(emptyCompanyForm);
       onMessage("Selskap lagret.");
+      onCreated?.();
     } catch (error) {
       onMessage(error instanceof Error ? error.message : "Kunne ikke lagre selskapet.");
     } finally {
@@ -38,9 +48,12 @@ export function NewCompanyForm({ onCreateCompany, onMessage }: NewCompanyFormPro
   }
 
   return (
-    <form className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm" onSubmit={handleCreateCompany}>
-      <h3 className="text-base font-semibold text-slate-950">Nytt selskap</h3>
-      <div className="mt-4 space-y-4">
+    <form
+      className={embedded ? "" : "rounded-lg border border-blue-100 bg-white p-5 shadow-sm"}
+      onSubmit={handleCreateCompany}
+    >
+      {!embedded && <h3 className="text-base font-semibold text-slate-950">Nytt selskap</h3>}
+      <div className={embedded ? "space-y-4" : "mt-4 space-y-4"}>
         <FormField label="Navn">
           <input
             className={inputClass}
@@ -85,9 +98,16 @@ export function NewCompanyForm({ onCreateCompany, onMessage }: NewCompanyFormPro
             onChange={(event) => setCompanyForm((form) => ({ ...form, private_notes: event.target.value }))}
           />
         </FormField>
-        <Button type="submit" disabled={savingCompany}>
-          {savingCompany ? "Lagrer..." : "Lagre selskap"}
-        </Button>
+        <div className="flex justify-end gap-2">
+          {onCancel && (
+            <Button variant="ghost" onClick={onCancel} disabled={savingCompany}>
+              Avbryt
+            </Button>
+          )}
+          <Button type="submit" disabled={savingCompany}>
+            {savingCompany ? "Lagrer..." : "Lagre selskap"}
+          </Button>
+        </div>
       </div>
     </form>
   );

@@ -4,7 +4,7 @@ import type { CompanyInput } from "../../lib/data";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { SectionHeader } from "../../components/SectionHeader";
-import { NewCompanyForm } from "./CompaniesComponents/NewCompanyForm";
+import { NewCompanyDialog } from "./CompaniesComponents/NewCompanyDialog";
 
 type CompaniesPageProps = {
   companies: Company[];
@@ -14,12 +14,36 @@ type CompaniesPageProps = {
 
 export default function CompaniesPage({ companies, onCreateCompany, onOpenCompany }: CompaniesPageProps) {
   const [message, setMessage] = useState("");
+  const [showNewCompany, setShowNewCompany] = useState(false);
 
   return (
     <div className="space-y-6">
       <SectionHeader
         title="Selskaper"
-        description="Registrer et nytt selskap, eller åpne et eksisterende selskap for detaljer og produkter."
+        description="Åpne et selskap for å se informasjon, produkter og fakturaer."
+        action={
+          <Button onClick={() => setShowNewCompany(true)}>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 20 20"
+              fill="none"
+              className="h-4 w-4"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            >
+              <path d="M10 4v12M4 10h12" />
+            </svg>
+            Nytt selskap
+          </Button>
+        }
+      />
+
+      <NewCompanyDialog
+        open={showNewCompany}
+        onClose={() => setShowNewCompany(false)}
+        onCreateCompany={onCreateCompany}
+        onMessage={setMessage}
       />
 
       {message && (
@@ -28,9 +52,7 @@ export default function CompaniesPage({ companies, onCreateCompany, onOpenCompan
         </p>
       )}
 
-      <section className="grid gap-5 lg:grid-cols-[360px_1fr]">
-        <NewCompanyForm onCreateCompany={onCreateCompany} onMessage={setMessage} />
-
+      <section>
         <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -42,7 +64,10 @@ export default function CompaniesPage({ companies, onCreateCompany, onOpenCompan
 
           {companies.length === 0 ? (
             <div className="mt-5">
-              <EmptyState title="Ingen selskaper" description="Legg inn det første selskapet med skjemaet." />
+              <EmptyState
+                title="Ingen selskaper"
+                description="Trykk på «Nytt selskap» for å registrere det første selskapet."
+              />
             </div>
           ) : (
             <div className="mt-5 divide-y divide-blue-100 overflow-hidden rounded-lg border border-blue-100">
@@ -56,7 +81,8 @@ export default function CompaniesPage({ companies, onCreateCompany, onOpenCompan
                   <span className="min-w-0">
                     <span className="block truncate font-semibold text-slate-950">{company.name}</span>
                     <span className="mt-1 block truncate text-sm font-normal text-slate-600">
-                      {[company.org_number, company.email, company.city].filter(Boolean).join(" · ") || "Ingen detaljer registrert"}
+                      {[company.org_number, company.email, company.city].filter(Boolean).join(" · ") ||
+                        "Ingen detaljer registrert"}
                     </span>
                   </span>
                   <span aria-hidden="true" className="shrink-0 text-lg text-blue-700">→</span>
