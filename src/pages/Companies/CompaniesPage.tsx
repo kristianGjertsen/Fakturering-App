@@ -8,6 +8,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { FormField, inputClass } from "../../components/FormField";
 import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
+import { NewCompanyForm } from "./CompaniesComponents/NewCompanyForm";
 
 type CompaniesViewProps = {
   companies: Company[];
@@ -16,20 +17,9 @@ type CompaniesViewProps = {
   onCreateProduct: (input: ProductInput) => Promise<void>;
 };
 
-const emptyCompanyForm: CompanyInput = {
-  name: "",
-  org_number: "",
-  email: "",
-  city: "",
-  country: "Norway",
-  private_notes: "",
-};
-
 export default function CompaniesPage({ companies, products, onCreateCompany, onCreateProduct }: CompaniesViewProps) {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
-  const [companyForm, setCompanyForm] = useState<CompanyInput>(emptyCompanyForm);
   const [productForm, setProductForm] = useState({ name: "", description: "", unit: "stk", unit_price: "0", vat_rate: "25" });
-  const [savingCompany, setSavingCompany] = useState(false);
   const [savingProduct, setSavingProduct] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -41,22 +31,6 @@ export default function CompaniesPage({ companies, products, onCreateCompany, on
 
   const selectedCompany = companies.find((company) => company.id === selectedCompanyId) ?? null;
   const selectedProducts = products.filter((product) => product.company_id === selectedCompanyId);
-
-  async function handleCreateCompany(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSavingCompany(true);
-    setMessage("");
-
-    try {
-      await onCreateCompany(companyForm);
-      setCompanyForm(emptyCompanyForm);
-      setMessage("Selskap lagret.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Kunne ikke lagre selskapet.");
-    } finally {
-      setSavingCompany(false);
-    }
-  }
 
   async function handleCreateProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -97,58 +71,7 @@ export default function CompaniesPage({ companies, products, onCreateCompany, on
       {message && <p className="rounded-md border border-blue-100 bg-white px-4 py-3 text-sm text-blue-900 shadow-sm">{message}</p>}
 
       <section className="grid gap-5 lg:grid-cols-[360px_1fr]">
-        <form className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm" onSubmit={handleCreateCompany}>
-          <h3 className="text-base font-semibold text-slate-950">Nytt selskap</h3>
-          <div className="mt-4 space-y-4">
-            <FormField label="Navn">
-              <input
-                className={inputClass}
-                value={companyForm.name}
-                onChange={(event) => setCompanyForm((form) => ({ ...form, name: event.target.value }))}
-                required
-              />
-            </FormField>
-            <FormField label="Org.nr.">
-              <input
-                className={inputClass}
-                value={companyForm.org_number}
-                onChange={(event) => setCompanyForm((form) => ({ ...form, org_number: event.target.value }))}
-              />
-            </FormField>
-            <FormField label="E-post">
-              <input
-                className={inputClass}
-                type="email"
-                value={companyForm.email}
-                onChange={(event) => setCompanyForm((form) => ({ ...form, email: event.target.value }))}
-              />
-            </FormField>
-            <FormField label="By">
-              <input
-                className={inputClass}
-                value={companyForm.city}
-                onChange={(event) => setCompanyForm((form) => ({ ...form, city: event.target.value }))}
-              />
-            </FormField>
-            <FormField label="Land">
-              <input
-                className={inputClass}
-                value={companyForm.country}
-                onChange={(event) => setCompanyForm((form) => ({ ...form, country: event.target.value }))}
-              />
-            </FormField>
-            <FormField label="Internt notat">
-              <textarea
-                className={`${inputClass} min-h-24 resize-y`}
-                value={companyForm.private_notes}
-                onChange={(event) => setCompanyForm((form) => ({ ...form, private_notes: event.target.value }))}
-              />
-            </FormField>
-            <Button type="submit" disabled={savingCompany}>
-              {savingCompany ? "Lagrer..." : "Lagre selskap"}
-            </Button>
-          </div>
-        </form>
+        <NewCompanyForm onCreateCompany={onCreateCompany} onMessage={setMessage} />
 
         <div className="space-y-5">
           <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
