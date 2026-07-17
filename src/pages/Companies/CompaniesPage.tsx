@@ -1,14 +1,12 @@
-import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import type { Company, Product } from "../../types";
 import type { CompanyInput, ProductInput } from "../../lib/data";
 import { formatCurrency } from "../../lib/format";
-import { toNumber } from "../../lib/invoiceMath";
 import { EmptyState } from "../../components/EmptyState";
-import { FormField, inputClass } from "../../components/FormField";
 import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
 import { NewCompanyForm } from "./CompaniesComponents/NewCompanyForm";
+import { NewProductForm } from "./CompaniesComponents/NewProductForm";
 
 type CompaniesViewProps = {
   companies: Company[];
@@ -19,8 +17,6 @@ type CompaniesViewProps = {
 
 export default function CompaniesPage({ companies, products, onCreateCompany, onCreateProduct }: CompaniesViewProps) {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
-  const [productForm, setProductForm] = useState({ name: "", description: "", unit: "stk", unit_price: "0", vat_rate: "25" });
-  const [savingProduct, setSavingProduct] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -31,35 +27,6 @@ export default function CompaniesPage({ companies, products, onCreateCompany, on
 
   const selectedCompany = companies.find((company) => company.id === selectedCompanyId) ?? null;
   const selectedProducts = products.filter((product) => product.company_id === selectedCompanyId);
-
-  async function handleCreateProduct(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!selectedCompanyId) {
-      setMessage("Velg et selskap først.");
-      return;
-    }
-
-    setSavingProduct(true);
-    setMessage("");
-
-    try {
-      await onCreateProduct({
-        company_id: selectedCompanyId,
-        name: productForm.name,
-        description: productForm.description,
-        unit: productForm.unit,
-        unit_price: toNumber(productForm.unit_price),
-        vat_rate: toNumber(productForm.vat_rate, 25),
-      });
-      setProductForm({ name: "", description: "", unit: "stk", unit_price: "0", vat_rate: "25" });
-      setMessage("Produkt lagret.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Kunne ikke lagre produktet.");
-    } finally {
-      setSavingProduct(false);
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -143,56 +110,11 @@ export default function CompaniesPage({ companies, products, onCreateCompany, on
                   )}
                 </div>
 
-                <form className="rounded-lg border border-blue-100 bg-blue-50 p-4" onSubmit={handleCreateProduct}>
-                  <h4 className="text-sm font-semibold text-slate-950">Nytt produkt</h4>
-                  <div className="mt-4 space-y-3">
-                    <FormField label="Navn">
-                      <input
-                        className={inputClass}
-                        value={productForm.name}
-                        onChange={(event) => setProductForm((form) => ({ ...form, name: event.target.value }))}
-                        required
-                      />
-                    </FormField>
-                    <FormField label="Beskrivelse">
-                      <textarea
-                        className={`${inputClass} min-h-20 resize-y`}
-                        value={productForm.description}
-                        onChange={(event) => setProductForm((form) => ({ ...form, description: event.target.value }))}
-                      />
-                    </FormField>
-                    <div className="grid grid-cols-3 gap-2">
-                      <FormField label="Enhet">
-                        <input
-                          className={inputClass}
-                          value={productForm.unit}
-                          onChange={(event) => setProductForm((form) => ({ ...form, unit: event.target.value }))}
-                        />
-                      </FormField>
-                      <FormField label="Pris">
-                        <input
-                          className={inputClass}
-                          inputMode="decimal"
-                          value={productForm.unit_price}
-                          onChange={(event) => setProductForm((form) => ({ ...form, unit_price: event.target.value }))}
-                          required
-                        />
-                      </FormField>
-                      <FormField label="MVA %">
-                        <input
-                          className={inputClass}
-                          inputMode="decimal"
-                          value={productForm.vat_rate}
-                          onChange={(event) => setProductForm((form) => ({ ...form, vat_rate: event.target.value }))}
-                          required
-                        />
-                      </FormField>
-                    </div>
-                    <Button variant="secondary" type="submit" disabled={savingProduct}>
-                      {savingProduct ? "Lagrer..." : "Lagre produkt"}
-                    </Button>
-                  </div>
-                </form>
+                <NewProductForm
+                  companyId={selectedCompanyId}
+                  onCreateProduct={onCreateProduct}
+                  onMessage={setMessage}
+                />
               </div>
             ) : (
               <div className="mt-4">
