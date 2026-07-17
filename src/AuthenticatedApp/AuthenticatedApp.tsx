@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
-import { AppLayout } from "../../components/AppLayout";
-import { supabase } from "../../supabaseClient";
+import { AppLayout } from "../components/AppLayout";
+import { supabase } from "../supabaseClient";
 import {
   createCompany,
   createInvoice,
@@ -13,19 +13,19 @@ import {
   type CompanyInput,
   type InvoiceInput,
   type ProductInput,
-} from "../../lib/data";
-import CompaniesPage from "../Companies/CompaniesPage";
-import DashboardPage from "../Dashboard/DashboardPage";
-import InvoicesPage from "../Invoices/InvoicesPage";
-import ProfilePage from "../Profile/ProfilePage";
-import RecurringPage from "../Recurring/RecurringPage";
-import { HomePageError, HomePageLoading } from "./HomeComponents/HomePageFeedback";
+} from "../lib/data";
+import CompaniesPage from "../pages/Companies/CompaniesPage";
+import DashboardPage from "../pages/Dashboard/DashboardPage";
+import InvoicesPage from "../pages/Invoices/InvoicesPage";
+import ProfilePage from "../pages/Profile/ProfilePage";
+import RecurringPage from "../pages/Recurring/RecurringPage";
+import { AuthenticatedAppError, AuthenticatedAppLoading } from "./AuthenticatedAppFeedback";
 
-type HomePageProps = { session: Session };
+type AuthenticatedAppProps = { session: Session };
 
 const emptyData: AppData = { companies: [], products: [], invoices: [], schedules: [] };
 
-export default function HomePage({ session }: HomePageProps) {
+export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
   const navigate = useNavigate();
   const [data, setData] = useState<AppData>(emptyData);
   const [loading, setLoading] = useState(true);
@@ -70,9 +70,9 @@ export default function HomePage({ session }: HomePageProps) {
 
   return (
     <AppLayout>
-      {error && <HomePageError message={error} />}
+      {error && <AuthenticatedAppError message={error} />}
       {loading ? (
-        <HomePageLoading />
+        <AuthenticatedAppLoading />
       ) : (
         <Routes>
           <Route
