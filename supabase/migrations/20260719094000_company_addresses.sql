@@ -1,6 +1,7 @@
 alter table public.companies
   add column if not exists address text,
-  add column if not exists postal_address text;
+  add column if not exists postal_address text,
+  add column if not exists country text default 'Norway';
 
 alter table public.companies
   drop column if exists city;
