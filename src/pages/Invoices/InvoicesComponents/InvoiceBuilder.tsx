@@ -514,7 +514,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
 
                 return (
                   <div key={line.localId} className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-                    <div className="grid min-w-0 gap-3 xl:grid-cols-[160px_minmax(0,1fr)_70px_70px_95px_70px_125px]">
+                    <div className="min-w-0 space-y-3">
                       <FormField label="Produkt">
                         <select className={inputClass} value={line.productId ?? ""} onChange={(event) => handleProductSelect(line.localId, event.target.value)}>
                           <option value="">Manuell</option>
@@ -526,61 +526,64 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                         </select>
                       </FormField>
                       <FormField label="Tekst">
-                        <input
-                          className={inputClass}
+                        <textarea
+                          className={`${inputClass} resize-y`}
+                          rows={2}
                           value={line.description}
                           onChange={(event) => updateLine(line.localId, { description: event.target.value })}
                           placeholder="Beskrivelse på fakturalinjen"
                           required
                         />
                       </FormField>
-                      <FormField label="Antall">
-                        <input
-                          className={inputClass}
-                          inputMode="decimal"
-                          value={line.quantity}
-                          onChange={(event) => updateLine(line.localId, { quantity: toNumber(event.target.value, 1) })}
-                          required
-                        />
-                      </FormField>
-                      <FormField label="Enhet">
-                        <input className={inputClass} value={line.unit} onChange={(event) => updateLine(line.localId, { unit: event.target.value })} />
-                      </FormField>
-                      <FormField label="Pris">
-                        <input
-                          className={inputClass}
-                          inputMode="decimal"
-                          value={line.unitPrice}
-                          onChange={(event) => updateLine(line.localId, { unitPrice: toNumber(event.target.value) })}
-                          required
-                        />
-                      </FormField>
-                      <FormField label="MVA">
-                        <input
-                          className={inputClass}
-                          inputMode="decimal"
-                          value={line.vatRate}
-                          onChange={(event) => updateLine(line.localId, { vatRate: toNumber(event.target.value, 25) })}
-                          required
-                        />
-                      </FormField>
-                      <div className="flex items-end justify-between gap-2">
-                        <div>
-                          <span className="text-sm font-medium text-slate-700">Sum</span>
-                          <p className="mt-3 text-sm font-semibold text-slate-950">{formatCurrency(calculated.line_total)}</p>
+                      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.25fr)_minmax(0,1fr)_minmax(125px,auto)]">
+                        <FormField label="Antall">
+                          <input
+                            className={inputClass}
+                            inputMode="decimal"
+                            value={line.quantity}
+                            onChange={(event) => updateLine(line.localId, { quantity: toNumber(event.target.value, 1) })}
+                            required
+                          />
+                        </FormField>
+                        <FormField label="Enhet">
+                          <input className={inputClass} value={line.unit} onChange={(event) => updateLine(line.localId, { unit: event.target.value })} />
+                        </FormField>
+                        <FormField label="Pris">
+                          <input
+                            className={inputClass}
+                            inputMode="decimal"
+                            value={line.unitPrice}
+                            onChange={(event) => updateLine(line.localId, { unitPrice: toNumber(event.target.value) })}
+                            required
+                          />
+                        </FormField>
+                        <FormField label="MVA">
+                          <input
+                            className={inputClass}
+                            inputMode="decimal"
+                            value={line.vatRate}
+                            onChange={(event) => updateLine(line.localId, { vatRate: toNumber(event.target.value, 25) })}
+                            required
+                          />
+                        </FormField>
+                        <div className="flex items-end justify-between gap-2">
+                          <div>
+                            <span className="text-sm font-medium text-slate-700">Sum</span>
+                            <p className="mt-3 text-sm font-semibold text-slate-950">{formatCurrency(calculated.line_total)}</p>
+                          </div>
+                          <Button
+                            variant="danger"
+                            size="xs"
+                            className="h-9 w-9 shrink-0 rounded-md !bg-red-500 !p-0 !text-black hover:!bg-red-600"
+                            onClick={() => removeLine(line.localId)}
+                            aria-label={`Fjern linje ${index + 1}`}
+                            title="Fjern linje"
+                          >
+                            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" />
+                            </svg>
+                          </Button>
                         </div>
-                        <Button
-                          variant="danger"
-                          size="xs"
-                          className="h-9 w-9 shrink-0 rounded-md !bg-red-500 !p-0 !text-black hover:!bg-red-600"
-                          onClick={() => removeLine(line.localId)}
-                          aria-label={`Fjern linje ${index + 1}`}
-                          title="Fjern linje"
-                        >
-                          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" />
-                          </svg>
-                        </Button>
                       </div>
                     </div>
                   </div>
