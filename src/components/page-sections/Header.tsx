@@ -13,8 +13,8 @@ export function AppHeader() {
   const navigate = useNavigate();
 
   return (
-    <header className="border-b border-blue-100 bg-white">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+    <header className="shrink-0 border-b border-blue-100 bg-white">
+      <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex text-2xl font-semibold">
             <span className="text-slate-950">Auto</span>

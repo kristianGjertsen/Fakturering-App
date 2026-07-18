@@ -6,7 +6,7 @@ type LayoutProps = HTMLAttributes<HTMLDivElement> & {
 
 export function PageLayout({ children, className = "", ...props }: LayoutProps) {
   return (
-    <div className={`space-y-6 ${className}`.trim()} {...props}>
+    <div className={`w-full min-w-0 space-y-6 ${className}`.trim()} {...props}>
       {children}
     </div>
   );
