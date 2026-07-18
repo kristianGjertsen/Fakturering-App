@@ -35,6 +35,7 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
   const [fullName, setFullName] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [address, setAddress] = useState("");
+  const [postalAddress, setPostalAddress] = useState("");
   const [orgNumber, setOrgNumber] = useState("");
   const [bankAccounts, setBankAccounts] = useState<BankAccountFormRow[]>([createBankAccountRow()]);
 
@@ -55,6 +56,7 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
         setFullName(profile.full_name ?? "");
         setCompanyName(profile.company_name ?? "");
         setAddress(profile.address ?? "");
+        setPostalAddress(profile.postal_address ?? "");
         setOrgNumber(profile.org_number ?? "");
         setBankAccounts(
           nextBankAccounts.length > 0
@@ -115,6 +117,7 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
         full_name: fullName,
         company_name: companyName,
         address,
+        postal_address: postalAddress,
         org_number: orgNumber,
         bank_accounts: normalizedBankAccounts,
       });
@@ -202,7 +205,7 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
                 required
               />
             </FormField>
-            <div className="sm:col-span-2">
+            <div>
               <FormField label="Adresse">
                 <Input
                   value={address}
@@ -212,6 +215,14 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
                 />
               </FormField>
             </div>
+            <FormField label="Postadresse">
+              <Input
+                value={postalAddress}
+                onChange={(event) => setPostalAddress(event.target.value)}
+                disabled={loading}
+                required
+              />
+            </FormField>
           </div>
 
           <div>

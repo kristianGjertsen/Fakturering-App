@@ -21,6 +21,7 @@ export default function LoginPage() {
   const [fullName, setFullName] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [address, setAddress] = useState("");
+  const [postalAddress, setPostalAddress] = useState("");
   const [orgNumber, setOrgNumber] = useState("");
   const [bankAccounts, setBankAccounts] = useState<BankAccountFormRow[]>([createBankAccountRow()]);
   const [email, setEmail] = useState("");
@@ -64,6 +65,7 @@ export default function LoginPage() {
                 full_name: fullName.trim(),
                 company_name: companyName.trim(),
                 address: address.trim(),
+                postal_address: postalAddress.trim(),
                 org_number: orgNumber.trim(),
                 bank_accounts: normalizedBankAccounts,
               },
@@ -134,6 +136,17 @@ export default function LoginPage() {
                   type="text"
                   value={address}
                   onChange={(event) => setAddress(event.target.value)}
+                  required={isRegistering}
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Postadresse</span>
+                <Input
+                  className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
+                  type="text"
+                  value={postalAddress}
+                  onChange={(event) => setPostalAddress(event.target.value)}
                   required={isRegistering}
                 />
               </label>

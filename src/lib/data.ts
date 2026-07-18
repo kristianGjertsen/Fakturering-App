@@ -44,6 +44,7 @@ export type ProfileDetailsInput = {
   full_name: string;
   company_name: string;
   address: string;
+  postal_address: string;
   org_number: string;
   bank_accounts: Array<{
     account_name: string;
@@ -152,6 +153,7 @@ export async function saveProfileDetails(input: ProfileDetailsInput) {
     p_full_name: input.full_name,
     p_company_name: input.company_name,
     p_address: input.address,
+    p_postal_address: input.postal_address,
     p_org_number: input.org_number,
     p_bank_accounts: normalizedAccounts,
   });
