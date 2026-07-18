@@ -4,7 +4,8 @@ export type Company = {
   name: string;
   org_number: string | null;
   email: string | null;
-  city: string | null;
+  address: string | null;
+  postal_address: string | null;
   country: string | null;
   private_notes: string | null;
   created_at: string;
@@ -71,7 +72,6 @@ export type Invoice = {
   recipient_name: string;
   recipient_org_number: string | null;
   recipient_email: string | null;
-  recipient_city: string | null;
   recipient_country: string | null;
   schedule_id: string | null;
   scheduled_for: string | null;
@@ -91,7 +91,7 @@ export type Invoice = {
 };
 
 export type InvoiceWithDetails = Invoice & {
-  company?: Pick<Company, "id" | "name" | "org_number" | "email" | "city" | "country"> | null;
+  company?: Pick<Company, "id" | "name" | "org_number" | "email" | "address" | "postal_address" | "country"> | null;
   invoice_items?: InvoiceItem[];
 };
 
@@ -138,7 +138,7 @@ export type InvoiceScheduleLine = {
 };
 
 export type InvoiceScheduleWithDetails = InvoiceSchedule & {
-  company?: Pick<Company, "id" | "name" | "org_number" | "email"> | null;
+  company?: Pick<Company, "id" | "name" | "org_number" | "email" | "address" | "postal_address" | "country"> | null;
   invoice_schedule_lines?: InvoiceScheduleLine[];
 };
 

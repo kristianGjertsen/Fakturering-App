@@ -17,7 +17,6 @@ export type InvoicePdfData = {
     postal_address?: string | null;
     org_number?: string | null;
     email?: string | null;
-    city?: string | null;
     country?: string | null;
   } | null;
   invoice_items?: Array<{
@@ -115,7 +114,7 @@ export function InvoicePdfTemplate({ invoice }: { invoice: InvoicePdfData }) {
   const customerName = invoice.company?.name || fallbackInvoice.customer.name;
   const customerDetails = [
     invoice.company?.address || fallbackInvoice.customer.address,
-    invoice.company?.postal_address || invoice.company?.city || fallbackInvoice.customer.postalAddress,
+    invoice.company?.postal_address || fallbackInvoice.customer.postalAddress,
     invoice.company?.org_number ? `Org.nr. ${invoice.company.org_number}` : `Org.nr. ${fallbackInvoice.customer.orgNumber}`,
     invoice.company?.email,
     invoice.company?.country,

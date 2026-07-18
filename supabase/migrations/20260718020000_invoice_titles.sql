@@ -26,7 +26,6 @@ declare
   v_recipient_name text;
   v_recipient_org_number text;
   v_recipient_email text;
-  v_recipient_city text;
   v_recipient_country text;
 begin
   if new.schedule_id is null or new.scheduled_for is null then
@@ -45,7 +44,6 @@ begin
     company.name,
     company.org_number,
     company.email,
-    company.city,
     company.country
   into
     v_timezone,
@@ -57,7 +55,6 @@ begin
     v_recipient_name,
     v_recipient_org_number,
     v_recipient_email,
-    v_recipient_city,
     v_recipient_country
   from public.invoice_schedules schedule
   join public.companies company on company.id = schedule.company_id
@@ -74,7 +71,6 @@ begin
     new.recipient_name := v_recipient_name;
     new.recipient_org_number := v_recipient_org_number;
     new.recipient_email := v_recipient_email;
-    new.recipient_city := v_recipient_city;
     new.recipient_country := v_recipient_country;
   else
     new.title := coalesce(nullif(btrim(new.title), ''), new.invoice_number);

@@ -26,7 +26,8 @@ export type CompanyInput = {
   name: string;
   org_number: string;
   email: string;
-  city: string;
+  address: string;
+  postal_address: string;
   country: string;
   private_notes: string;
 };
@@ -211,7 +212,7 @@ export async function fetchProducts() {
 export async function fetchInvoices() {
   const { data, error } = await supabase
     .from("invoices")
-    .select("*, company:companies(id,name,org_number,email,city,country), invoice_items(*)")
+    .select("*, company:companies(id,name,org_number,email,address,postal_address,country), invoice_items(*)")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -225,7 +226,8 @@ export async function fetchInvoices() {
       name: invoice.recipient_name,
       org_number: invoice.recipient_org_number,
       email: invoice.recipient_email,
-      city: invoice.recipient_city,
+      address: invoice.company?.address ?? null,
+      postal_address: invoice.company?.postal_address ?? null,
       country: invoice.recipient_country,
     },
   }));
@@ -234,7 +236,7 @@ export async function fetchInvoices() {
 export async function fetchSchedules() {
   const { data, error } = await supabase
     .from("invoice_schedules")
-    .select("*, company:companies(id,name,org_number,email), invoice_schedule_lines(*)")
+    .select("*, company:companies(id,name,org_number,email,address,postal_address,country), invoice_schedule_lines(*)")
     .eq("is_active", true)
     .order("next_run_at", { ascending: true });
 
@@ -251,7 +253,8 @@ export async function createCompany(ownerUserId: string, input: CompanyInput) {
     name: input.name.trim(),
     org_number: input.org_number.trim() || null,
     email: input.email.trim() || null,
-    city: input.city.trim() || null,
+    address: input.address.trim() || null,
+    postal_address: input.postal_address.trim() || null,
     country: input.country.trim() || "Norway",
     private_notes: input.private_notes.trim() || null,
   });
@@ -356,7 +359,7 @@ export async function createInvoice(input: InvoiceInput) {
   const company = input.companyId
     ? await supabase
       .from("companies")
-      .select("name,org_number,email,city,country")
+      .select("name,org_number,email,address,postal_address,country")
       .eq("id", input.companyId)
       .single()
     : null;
@@ -376,7 +379,6 @@ export async function createInvoice(input: InvoiceInput) {
       recipient_name: recipientName,
       recipient_org_number: company?.data.org_number ?? null,
       recipient_email: recipientEmail,
-      recipient_city: company?.data.city ?? null,
       recipient_country: company?.data.country ?? null,
       schedule_id: null,
       invoice_number: input.invoiceNumber.trim(),

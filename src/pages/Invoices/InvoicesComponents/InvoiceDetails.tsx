@@ -37,6 +37,14 @@ export function InvoiceDetails({
             </h3>
             <p className="text-sm font-medium text-slate-700">{invoice.invoice_number}</p>
             <p className="text-sm text-slate-600">{invoice.company?.name ?? invoice.recipient_name}</p>
+            {(invoice.company?.address || invoice.company?.postal_address) && (
+              <p className="text-sm text-slate-600">
+                {[invoice.company?.address, invoice.company?.postal_address].filter(Boolean).join(", ")}
+              </p>
+            )}
+            {(invoice.company?.org_number ?? invoice.recipient_org_number) && (
+              <p className="text-sm text-slate-600">Org.nr. {invoice.company?.org_number ?? invoice.recipient_org_number}</p>
+            )}
             <p className="text-sm text-slate-600">{invoice.company?.email ?? invoice.recipient_email ?? "!Mangler e-post!"}</p>
           </div>
           <div className="flex flex-col items-start gap-3 sm:items-end">

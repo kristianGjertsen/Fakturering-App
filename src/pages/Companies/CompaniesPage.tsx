@@ -83,7 +83,7 @@ export default function CompaniesPage({ companies, onCreateCompany, onOpenCompan
                   <span className="min-w-0">
                     <span className="block truncate font-semibold text-slate-950">{company.name}</span>
                     <span className="mt-1 block truncate text-sm font-normal text-slate-600">
-                      {[company.org_number, company.email, company.city].filter(Boolean).join(" · ") ||
+                      {[company.org_number, company.email, company.address, company.postal_address].filter(Boolean).join(" · ") ||
                         "Ingen detaljer registrert"}
                     </span>
                   </span>

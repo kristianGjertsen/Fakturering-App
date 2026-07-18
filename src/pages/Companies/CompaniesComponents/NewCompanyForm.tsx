@@ -15,7 +15,8 @@ const emptyCompanyForm: CompanyInput = {
   name: "",
   org_number: "",
   email: "",
-  city: "",
+  address: "",
+  postal_address: "",
   country: "Norway",
   private_notes: "",
 };
@@ -69,10 +70,16 @@ export function NewCompanyForm({
             onChange={(event) => setCompanyForm((form) => ({ ...form, email: event.target.value }))}
           />
         </FormField>
-        <FormField label="By">
+        <FormField label="Adresse">
           <Input
-            value={companyForm.city}
-            onChange={(event) => setCompanyForm((form) => ({ ...form, city: event.target.value }))}
+            value={companyForm.address}
+            onChange={(event) => setCompanyForm((form) => ({ ...form, address: event.target.value }))}
+          />
+        </FormField>
+        <FormField label="Postadresse">
+          <Input
+            value={companyForm.postal_address}
+            onChange={(event) => setCompanyForm((form) => ({ ...form, postal_address: event.target.value }))}
           />
         </FormField>
         <FormField label="Land">

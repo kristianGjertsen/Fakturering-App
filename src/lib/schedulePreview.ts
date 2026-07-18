@@ -34,7 +34,6 @@ export function scheduleToPreviewInvoice(schedule: InvoiceScheduleWithDetails): 
     recipient_name: schedule.company?.name ?? "Ukjent mottaker",
     recipient_org_number: schedule.company?.org_number ?? null,
     recipient_email: schedule.company?.email ?? null,
-    recipient_city: null,
     recipient_country: null,
     schedule_id: schedule.id,
     scheduled_for: schedule.next_run_at,
@@ -53,8 +52,6 @@ export function scheduleToPreviewInvoice(schedule: InvoiceScheduleWithDetails): 
     updated_at: schedule.updated_at,
     company: schedule.company ? {
       ...schedule.company,
-      city: null,
-      country: null,
     } : null,
     invoice_items: (schedule.invoice_schedule_lines ?? []).map((line) => {
       const subtotal = Number(line.quantity) * Number(line.unit_price);

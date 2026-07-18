@@ -17,7 +17,6 @@ export type PdfInvoice = {
     postal_address?: string | null;
     org_number?: string | null;
     email: string | null;
-    city?: string | null;
     country?: string | null;
   } | null;
   invoice_items: Array<{
@@ -129,7 +128,7 @@ function createPage(
   const deliveryPlace = invoice.delivery_place || fallbackInvoice.deliveryPlace;
   const customerName = invoice.company?.name || fallbackInvoice.customer.name;
   const customerAddress = invoice.company?.address || fallbackInvoice.customer.address;
-  const customerPostalAddress = invoice.company?.postal_address || invoice.company?.city || fallbackInvoice.customer.postalAddress;
+  const customerPostalAddress = invoice.company?.postal_address || fallbackInvoice.customer.postalAddress;
   const customerOrgNumber = invoice.company?.org_number || fallbackInvoice.customer.orgNumber;
 
   if (theme.pageBackground) {

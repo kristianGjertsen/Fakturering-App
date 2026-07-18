@@ -77,7 +77,8 @@ create table if not exists public.companies (
   name text not null,
   org_number text,
   email text,
-  city text,
+  address text,
+  postal_address text,
   country text default 'Norway',
   
   private_notes text,
@@ -158,7 +159,6 @@ create table if not exists public.invoices (
   recipient_name text not null,
   recipient_org_number text,
   recipient_email text,
-  recipient_city text,
   recipient_country text,
   schedule_id uuid references public.invoice_schedules (id) on delete set null,
   scheduled_for timestamptz,
@@ -351,7 +351,6 @@ declare
   v_recipient_name text;
   v_recipient_org_number text;
   v_recipient_email text;
-  v_recipient_city text;
   v_recipient_country text;
 begin
   if new.schedule_id is null or new.scheduled_for is null then
@@ -368,7 +367,6 @@ begin
     company.name,
     company.org_number,
     company.email,
-    company.city,
     company.country
     into
       v_timezone,
@@ -379,7 +377,6 @@ begin
       v_recipient_name,
       v_recipient_org_number,
       v_recipient_email,
-      v_recipient_city,
       v_recipient_country
     from public.invoice_schedules schedule
     join public.companies company on company.id = schedule.company_id
@@ -394,7 +391,6 @@ begin
     new.recipient_name := v_recipient_name;
     new.recipient_org_number := v_recipient_org_number;
     new.recipient_email := v_recipient_email;
-    new.recipient_city := v_recipient_city;
     new.recipient_country := v_recipient_country;
   end if;
 

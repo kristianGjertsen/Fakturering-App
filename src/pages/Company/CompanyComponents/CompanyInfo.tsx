@@ -15,7 +15,8 @@ export function CompanyInfo({ company }: CompanyInfoProps) {
         <InfoItem label="Navn" value={company.name} />
         <InfoItem label="Organisasjonsnummer" value={company.org_number} />
         <InfoItem label="E-post" value={company.email} />
-        <InfoItem label="By" value={company.city} />
+        <InfoItem label="Adresse" value={company.address} />
+        <InfoItem label="Postadresse" value={company.postal_address} />
         <InfoItem label="Land" value={company.country} />
         <InfoItem label="Opprettet" value={formatDate(company.created_at)} />
         <InfoItem label="Sist oppdatert" value={formatDate(company.updated_at)} />
