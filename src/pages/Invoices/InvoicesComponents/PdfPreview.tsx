@@ -16,7 +16,7 @@ type PreviewSize = {
 };
 
 export function PdfPreview({ invoice, compact = false }: PdfPreviewProps) {
-  const previewPadding = compact ? 6 : 16;
+  const previewPadding = compact ? 6 : 0;
   const previewPaddingClass = compact ? "p-[6px]" : "p-4";
   const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
   const [size, setSize] = useState<PreviewSize>({ width: 0, height: 0 });

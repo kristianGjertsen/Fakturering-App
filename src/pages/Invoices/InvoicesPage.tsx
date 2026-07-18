@@ -7,8 +7,8 @@ import { createInvoicePdfBase64 } from "../../lib/pdf";
 import { EmptyState } from "../../components/EmptyState";
 import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
-import { MasterDetailLayout } from "../../components/layout/PageLayout";
 import { Notice } from "../../components/layout/Notice";
+import { DetailModal } from "../../components/layout/DetailModal";
 import { InvoiceBuilder } from "./InvoicesComponents/InvoiceBuilder";
 import { InvoiceDetails } from "./InvoicesComponents/InvoiceDetails";
 import { getVisibleInvoices, InvoiceList } from "./InvoicesComponents/InvoiceList";
@@ -37,7 +37,7 @@ export default function InvoicesPage({
   onRefreshInvoices,
   onDeleteInvoice,
 }: InvoicesPageProps) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const companyFilterId = searchParams.get("companyId") ?? "";
   const [selectedInvoiceId, setSelectedInvoiceId] = useState(searchParams.get("invoiceId") ?? "");
   const [deletingInvoiceId, setDeletingInvoiceId] = useState("");
@@ -69,22 +69,38 @@ export default function InvoicesPage({
   );
 
   useEffect(() => {
-    if (!selectedInvoiceId && selectableInvoices[0]) {
-      setSelectedInvoiceId(selectableInvoices[0].id);
-    }
-
     if (selectedInvoiceId && !selectableInvoices.some((invoice) => invoice.id === selectedInvoiceId)) {
-      setSelectedInvoiceId(selectableInvoices[0]?.id ?? "");
+      setSelectedInvoiceId("");
     }
   }, [selectableInvoices, selectedInvoiceId]);
 
-  const selectedInvoice =
-    selectableInvoices.find((invoice) => invoice.id === selectedInvoiceId)
-    ?? selectableInvoices[0]
-    ?? null;
+  const selectedInvoice = selectableInvoices.find((invoice) => invoice.id === selectedInvoiceId) ?? null;
   const selectedSchedule = selectedInvoice
     ? pageSchedules.find((schedule) => `schedule-preview-${schedule.id}` === selectedInvoice.id) ?? null
     : null;
+
+  function selectInvoice(invoiceId: string) {
+    const nextInvoiceId = selectedInvoiceId === invoiceId ? "" : invoiceId;
+    setSelectedInvoiceId(nextInvoiceId);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (nextInvoiceId) {
+        next.set("invoiceId", nextInvoiceId);
+      } else {
+        next.delete("invoiceId");
+      }
+      return next;
+    }, { replace: true });
+  }
+
+  function closeInvoiceDetails() {
+    setSelectedInvoiceId("");
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete("invoiceId");
+      return next;
+    }, { replace: true });
+  }
 
   async function handleDeleteSelectedInvoice() {
     if (!selectedInvoice || selectedSchedule) return;
@@ -93,6 +109,7 @@ export default function InvoicesPage({
     setDeletingInvoiceId(selectedInvoice.id);
     try {
       await onDeleteInvoice(selectedInvoice.id);
+      closeInvoiceDetails();
     } finally {
       setDeletingInvoiceId("");
     }
@@ -223,20 +240,27 @@ export default function InvoicesPage({
     <>
       {header}
 
-      {sendMessage && (
+      {sendMessage && !selectedInvoice && (
         <Notice>
           {sendMessage}
         </Notice>
       )}
 
-      <MasterDetailLayout>
-        <InvoiceList
-          invoices={displayedInvoices}
-          schedules={pageSchedules}
-          selectedId={selectedInvoice?.id ?? ""}
-          onSelect={setSelectedInvoiceId}
-        />
+      <InvoiceList
+        invoices={displayedInvoices}
+        schedules={pageSchedules}
+        selectedId={selectedInvoiceId}
+        onSelect={selectInvoice}
+      />
 
+      <DetailModal
+        open={Boolean(selectedInvoice)}
+        onClose={closeInvoiceDetails}
+        ariaLabel={selectedInvoice
+          ? `Fakturadetaljer for ${selectedInvoice.title || selectedInvoice.invoice_number}`
+          : "Fakturadetaljer"}
+      >
+        {sendMessage && <Notice className="mb-5">{sendMessage}</Notice>}
         {selectedInvoice && (
           <InvoiceDetails
             invoice={selectedInvoice}
@@ -249,7 +273,7 @@ export default function InvoicesPage({
             onTogglePaid={() => void handleTogglePaid()}
           />
         )}
-      </MasterDetailLayout>
+      </DetailModal>
     </>
   );
 }

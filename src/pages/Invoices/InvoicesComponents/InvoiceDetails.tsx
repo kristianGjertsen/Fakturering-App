@@ -3,8 +3,7 @@ import { statusToneClasses } from "../../../components/DocumentBrowser";
 import { formatCurrency, formatDate } from "../../../lib/format";
 import type { InvoiceScheduleWithDetails, InvoiceWithDetails } from "../../../types";
 import { invoiceStatusLabels, invoiceStatusTone } from "./InvoiceList";
-import { PdfPreview } from "./PdfPreview";
-import { ContentStack } from "../../../components/layout/PageLayout";
+import { PdfPreviewPanel } from "./PdfPreviewPanel";
 import { Panel } from "../../../components/layout/Panel";
 
 type InvoiceDetailsProps = {
@@ -29,7 +28,7 @@ export function InvoiceDetails({
   onTogglePaid,
 }: InvoiceDetailsProps) {
   return (
-    <ContentStack>
+    <div className="grid min-w-0 gap-5 lg:grid-cols-2 lg:items-start">
       <Panel as="div">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -116,10 +115,8 @@ export function InvoiceDetails({
         </div>
       </Panel>
 
-      <Panel as="div">
-        <PdfPreview invoice={invoice} />
-      </Panel>
-    </ContentStack>
+      <PdfPreviewPanel invoice={invoice} className="lg:sticky lg:top-12" />
+    </div>
   );
 }
 

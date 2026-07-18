@@ -88,12 +88,6 @@ export function DocumentBrowser({
   }, [filteredItems]);
 
   useEffect(() => {
-    if (filteredItems.length > 0 && !filteredItems.some((item) => item.id === selectedId)) {
-      onSelect(filteredItems[0].id);
-    }
-  }, [filteredItems, selectedId, onSelect]);
-
-  useEffect(() => {
     if (statusFilter !== "all" && !statuses.includes(statusFilter)) {
       setStatusFilter("all");
     }
@@ -101,13 +95,12 @@ export function DocumentBrowser({
 
   useEffect(() => {
     const selectedItem = items.find((item) => item.id === selectedId);
-    const fallbackCompanyId = groups[0]?.companyId;
-    const companyId = selectedItem?.companyId ?? fallbackCompanyId;
+    const companyId = selectedItem?.companyId;
 
     if (companyId) {
       setOpenCompanyIds((current) => current.includes(companyId) ? current : [...current, companyId]);
     }
-  }, [selectedId, items, groups]);
+  }, [selectedId, items]);
 
   function toggleCompany(companyId: string) {
     setOpenCompanyIds((current) => current.includes(companyId)
@@ -145,8 +138,8 @@ export function DocumentBrowser({
           </div>
         </div>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-          <label className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+        <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+          <label className="md:col-span-2 xl:col-span-1">
             <span className="sr-only">Søk</span>
             <input
               className={`${controlClass} w-full`}
@@ -170,7 +163,7 @@ export function DocumentBrowser({
               {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
             </select>
           </label>
-          <label className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+          <label>
             <span className="sr-only">Sorter</span>
             <select className={`${controlClass} w-full`} value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
               <option value="date-desc">Nyeste dato</option>
