@@ -4,7 +4,20 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text unique,
   full_name text,
+  company_name text,
+  address text,
+  org_number text,
+  updated_at timestamptz not null default now(),
   created_at timestamptz not null default now()
+);
+
+create table if not exists public.profile_bank_accounts (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid not null references public.profiles (id) on delete cascade,
+  account_name text not null,
+  account_number text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create or replace function public.handle_new_user()
@@ -14,11 +27,36 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, full_name)
-  values (new.id, new.email, new.raw_user_meta_data ->> 'full_name')
+  insert into public.profiles (id, email, full_name, company_name, address, org_number)
+  values (
+    new.id,
+    new.email,
+    new.raw_user_meta_data ->> 'full_name',
+    new.raw_user_meta_data ->> 'company_name',
+    new.raw_user_meta_data ->> 'address',
+    new.raw_user_meta_data ->> 'org_number'
+  )
   on conflict (id) do update
     set email = excluded.email,
-        full_name = coalesce(excluded.full_name, public.profiles.full_name);
+        full_name = coalesce(excluded.full_name, public.profiles.full_name),
+        company_name = coalesce(excluded.company_name, public.profiles.company_name),
+        address = coalesce(excluded.address, public.profiles.address),
+        org_number = coalesce(excluded.org_number, public.profiles.org_number);
+
+  insert into public.profile_bank_accounts (profile_id, account_name, account_number)
+  select
+    new.id,
+    nullif(btrim(account ->> 'account_name'), ''),
+    nullif(btrim(account ->> 'account_number'), '')
+  from jsonb_array_elements(
+    case
+      when jsonb_typeof(new.raw_user_meta_data -> 'bank_accounts') = 'array'
+        then new.raw_user_meta_data -> 'bank_accounts'
+      else '[]'::jsonb
+    end
+  ) account
+  where nullif(btrim(account ->> 'account_name'), '') is not null
+    and nullif(btrim(account ->> 'account_number'), '') is not null;
 
   return new;
 end;
@@ -271,6 +309,16 @@ create trigger companies_set_updated_at
   before update on public.companies
   for each row execute procedure public.set_updated_at();
 
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at
+  before update on public.profiles
+  for each row execute procedure public.set_updated_at();
+
+drop trigger if exists profile_bank_accounts_set_updated_at on public.profile_bank_accounts;
+create trigger profile_bank_accounts_set_updated_at
+  before update on public.profile_bank_accounts
+  for each row execute procedure public.set_updated_at();
+
 drop trigger if exists products_set_updated_at on public.products;
 create trigger products_set_updated_at
   before update on public.products
@@ -357,6 +405,7 @@ create trigger invoices_set_scheduled_due_date
   for each row execute procedure public.set_scheduled_invoice_due_date();
 
 alter table public.profiles enable row level security;
+alter table public.profile_bank_accounts enable row level security;
 alter table public.companies enable row level security;
 alter table public.products enable row level security;
 alter table public.invoice_schedules enable row level security;
@@ -385,6 +434,55 @@ create policy "profiles_insert_own"
   on public.profiles
   for insert
   with check (auth.uid() = id);
+
+drop policy if exists "profile_bank_accounts_owner_access" on public.profile_bank_accounts;
+create policy "profile_bank_accounts_owner_access"
+  on public.profile_bank_accounts
+  for all
+  using (auth.uid() = profile_id)
+  with check (auth.uid() = profile_id);
+
+create or replace function public.save_profile_details(
+  p_full_name text,
+  p_company_name text,
+  p_address text,
+  p_org_number text,
+  p_bank_accounts jsonb
+)
+returns void
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  update public.profiles
+     set full_name = nullif(btrim(p_full_name), ''),
+         company_name = nullif(btrim(p_company_name), ''),
+         address = nullif(btrim(p_address), ''),
+         org_number = nullif(btrim(p_org_number), '')
+   where id = auth.uid();
+
+  delete from public.profile_bank_accounts
+   where profile_id = auth.uid();
+
+  insert into public.profile_bank_accounts (profile_id, account_name, account_number)
+  select
+    auth.uid(),
+    nullif(btrim(account ->> 'account_name'), ''),
+    nullif(btrim(account ->> 'account_number'), '')
+  from jsonb_array_elements(
+    case
+      when jsonb_typeof(p_bank_accounts) = 'array' then p_bank_accounts
+      else '[]'::jsonb
+    end
+  ) account
+  where nullif(btrim(account ->> 'account_name'), '') is not null
+    and nullif(btrim(account ->> 'account_number'), '') is not null;
+end;
+$$;
+
+grant execute on function public.save_profile_details(text, text, text, text, jsonb)
+  to authenticated;
 
 drop policy if exists "companies_owner_access" on public.companies;
 create policy "companies_owner_access"

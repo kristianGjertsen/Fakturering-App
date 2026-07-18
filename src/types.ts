@@ -11,6 +11,26 @@ export type Company = {
   updated_at: string;
 };
 
+export type ProfileBankAccount = {
+  id: string;
+  profile_id: string;
+  account_name: string;
+  account_number: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Profile = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  company_name: string | null;
+  address: string | null;
+  org_number: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Product = {
   id: string;
   company_id: string;

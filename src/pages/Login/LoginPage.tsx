@@ -5,8 +5,24 @@ import SupabaseDebugPanel from "./LoginComponents/SupabaseDebugPanel";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
 
+type BankAccountFormRow = {
+  localId: string;
+  account_name: string;
+  account_number: string;
+};
+
+const createBankAccountRow = (): BankAccountFormRow => ({
+  localId: crypto.randomUUID(),
+  account_name: "",
+  account_number: "",
+});
+
 export default function LoginPage() {
   const [fullName, setFullName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [address, setAddress] = useState("");
+  const [orgNumber, setOrgNumber] = useState("");
+  const [bankAccounts, setBankAccounts] = useState<BankAccountFormRow[]>([createBankAccountRow()]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
@@ -23,6 +39,22 @@ export default function LoginPage() {
     setMessage("");
 
     try {
+      const normalizedBankAccounts = bankAccounts
+        .map((account) => ({
+          account_name: account.account_name.trim(),
+          account_number: account.account_number.trim(),
+        }))
+        .filter((account) => account.account_name || account.account_number);
+
+      if (
+        isRegistering &&
+        (normalizedBankAccounts.length === 0 ||
+          normalizedBankAccounts.some((account) => !account.account_name || !account.account_number))
+      ) {
+        setMessage("Legg inn navn og kontonummer for minst en konto.");
+        return;
+      }
+
       const response = isRegistering
         ? await supabase.auth.signUp({
             email,
@@ -30,6 +62,10 @@ export default function LoginPage() {
             options: {
               data: {
                 full_name: fullName.trim(),
+                company_name: companyName.trim(),
+                address: address.trim(),
+                org_number: orgNumber.trim(),
+                bank_accounts: normalizedBankAccounts,
               },
             },
           })
@@ -68,16 +104,119 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           {isRegistering && (
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">Navn</span>
-              <Input
-                className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
-                type="text"
-                value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
-                required={isRegistering}
-              />
-            </label>
+            <>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Navn</span>
+                <Input
+                  className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
+                  type="text"
+                  value={fullName}
+                  onChange={(event) => setFullName(event.target.value)}
+                  required={isRegistering}
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Firmanavn</span>
+                <Input
+                  className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
+                  type="text"
+                  value={companyName}
+                  onChange={(event) => setCompanyName(event.target.value)}
+                  required={isRegistering}
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Adresse</span>
+                <Input
+                  className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
+                  type="text"
+                  value={address}
+                  onChange={(event) => setAddress(event.target.value)}
+                  required={isRegistering}
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Organisasjonsnummer</span>
+                <Input
+                  className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
+                  type="text"
+                  value={orgNumber}
+                  onChange={(event) => setOrgNumber(event.target.value)}
+                  required={isRegistering}
+                />
+              </label>
+
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-slate-700">Kontonummere</span>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="xs"
+                    onClick={() => setBankAccounts((accounts) => [...accounts, createBankAccountRow()])}
+                  >
+                    Legg til
+                  </Button>
+                </div>
+                <div className="mt-2 space-y-2">
+                  {bankAccounts.map((account, index) => (
+                    <div key={account.localId} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                      <Input
+                        className="rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
+                        type="text"
+                        value={account.account_name}
+                        onChange={(event) =>
+                          setBankAccounts((accounts) =>
+                            accounts.map((nextAccount) =>
+                              nextAccount.localId === account.localId
+                                ? { ...nextAccount, account_name: event.target.value }
+                                : nextAccount
+                            )
+                          )
+                        }
+                        placeholder="Navn"
+                        aria-label={`Kontonavn ${index + 1}`}
+                        required={isRegistering}
+                      />
+                      <Input
+                        className="rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
+                        type="text"
+                        value={account.account_number}
+                        onChange={(event) =>
+                          setBankAccounts((accounts) =>
+                            accounts.map((nextAccount) =>
+                              nextAccount.localId === account.localId
+                                ? { ...nextAccount, account_number: event.target.value }
+                                : nextAccount
+                            )
+                          )
+                        }
+                        placeholder="Kontonummer"
+                        aria-label={`Kontonummer ${index + 1}`}
+                        required={isRegistering}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setBankAccounts((accounts) =>
+                            accounts.length === 1
+                              ? [createBankAccountRow()]
+                              : accounts.filter((nextAccount) => nextAccount.localId !== account.localId)
+                          )
+                        }
+                      >
+                        Fjern
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
 
           <label className="block">
