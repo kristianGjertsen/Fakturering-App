@@ -102,7 +102,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
   const [recipientMode, setRecipientMode] = useState<"company" | "guest">("company");
   const [recipientName, setRecipientName] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
-  const [showUnsavedRecipientDialog, setShowUnsavedRecipientDialog] = useState(false);
+  const [showUnsavedRecipientDialog, setShowUnsavedRecipientDialog] = useState(() => companies.length === 0);
   const [invoiceNumber, setInvoiceNumber] = useState(createInvoiceNumber);
   const [invoiceTitle, setInvoiceTitle] = useState("");
   const [issueDate, setIssueDate] = useState(todayInputValue);

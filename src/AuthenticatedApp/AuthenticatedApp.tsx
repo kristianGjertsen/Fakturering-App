@@ -86,7 +86,7 @@ export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
                 products={data.products}
                 invoices={data.invoices}
                 schedules={data.schedules.filter((schedule) => schedule.schedule_type !== "once")}
-                onCreateInvoice={() => navigate("/invoices")}
+                onCreateInvoice={() => navigate("/invoices?create=true")}
               />
             }
           />
