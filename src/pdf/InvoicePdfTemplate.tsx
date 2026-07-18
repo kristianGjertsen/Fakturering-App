@@ -4,6 +4,8 @@ export type InvoicePdfData = {
   pdf_template?: "classic" | "modern" | "minimal";
   invoice_number: string;
   issue_date: string;
+  delivery_date?: string | null;
+  delivery_place?: string | null;
   due_date: string | null;
   notes?: string | null;
   subtotal: number;
@@ -11,6 +13,8 @@ export type InvoicePdfData = {
   total: number;
   company?: {
     name: string;
+    address?: string | null;
+    postal_address?: string | null;
     org_number?: string | null;
     email?: string | null;
     city?: string | null;
@@ -27,6 +31,26 @@ export type InvoicePdfData = {
   }>;
 };
 
+const fallbackInvoice = {
+  seller: {
+    name: "Kristian Gjertsen ENK",
+    address: "Adresseveien 1",
+    postalAddress: "0001 Oslo",
+    orgNumber: "123 456 789",
+  },
+  customer: {
+    name: "Testfirma Kristian AS",
+    address: "Kundegata 2",
+    postalAddress: "0123 Oslo",
+    orgNumber: "987 654 321",
+  },
+  invoiceNumber: "1001",
+  issueDate: "2026-07-18",
+  deliveryDate: "2026-07-18",
+  deliveryPlace: "Digital levering",
+  dueDate: "2026-08-17",
+};
+
 const colors = {
   navy: "#0f386f",
   text: "#0f172a",
@@ -41,10 +65,12 @@ const styles = StyleSheet.create({
   header: { margin: -42, marginBottom: 34, paddingHorizontal: 42, paddingVertical: 22, backgroundColor: colors.navy, color: colors.white, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   title: { fontSize: 24, fontFamily: "Helvetica-Bold" },
   pageNumber: { fontSize: 9, color: "#dbeafe" },
-  details: { flexDirection: "row", marginBottom: 28 },
-  detail: { width: "33.333%" },
+  details: { flexDirection: "row", flexWrap: "wrap", marginBottom: 22 },
+  detail: { width: "20%", marginBottom: 10 },
   label: { marginBottom: 5, fontSize: 8, color: colors.muted, textTransform: "uppercase" },
   value: { fontSize: 12, fontFamily: "Helvetica-Bold" },
+  parties: { flexDirection: "row", gap: 14, marginBottom: 28 },
+  party: { flexGrow: 1, flexBasis: 0, padding: 14, backgroundColor: colors.pale, borderRadius: 4 },
   customer: { marginBottom: 28, padding: 14, backgroundColor: colors.pale, borderRadius: 4 },
   customerName: { marginBottom: 5, fontSize: 14, fontFamily: "Helvetica-Bold" },
   customerDetails: { color: colors.muted, lineHeight: 1.5 },
@@ -81,15 +107,27 @@ const styles = StyleSheet.create({
 export function InvoicePdfTemplate({ invoice }: { invoice: InvoicePdfData }) {
   const template = invoice.pdf_template ?? "classic";
   const items = [...(invoice.invoice_items ?? [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const invoiceNumber = invoice.invoice_number || fallbackInvoice.invoiceNumber;
+  const issueDate = invoice.issue_date || fallbackInvoice.issueDate;
+  const dueDate = invoice.due_date || fallbackInvoice.dueDate;
+  const deliveryDate = invoice.delivery_date || issueDate || fallbackInvoice.deliveryDate;
+  const deliveryPlace = invoice.delivery_place || fallbackInvoice.deliveryPlace;
+  const customerName = invoice.company?.name || fallbackInvoice.customer.name;
   const customerDetails = [
-    invoice.company?.org_number ? `Org.nr. ${invoice.company.org_number}` : null,
+    invoice.company?.address || fallbackInvoice.customer.address,
+    invoice.company?.postal_address || invoice.company?.city || fallbackInvoice.customer.postalAddress,
+    invoice.company?.org_number ? `Org.nr. ${invoice.company.org_number}` : `Org.nr. ${fallbackInvoice.customer.orgNumber}`,
     invoice.company?.email,
-    invoice.company?.city,
     invoice.company?.country,
-  ].filter(Boolean).join(" · ");
+  ].filter(Boolean);
+  const sellerDetails = [
+    fallbackInvoice.seller.address,
+    fallbackInvoice.seller.postalAddress,
+    `Org.nr. ${fallbackInvoice.seller.orgNumber}`,
+  ];
 
   return (
-    <Document title={`Faktura ${invoice.invoice_number}`}>
+    <Document title={`Faktura ${invoiceNumber}`}>
       <Page size="A4" style={[styles.page, ...(template === "modern" ? [styles.modernPage] : template === "minimal" ? [styles.minimalPage] : [])]} wrap>
         <View style={[styles.header, ...(template === "modern" ? [styles.modernHeader] : template === "minimal" ? [styles.minimalHeader] : [])]} fixed>
           <Text style={[styles.title, ...(template === "minimal" ? [styles.minimalTitle] : [])]}>Faktura</Text>
@@ -97,15 +135,28 @@ export function InvoicePdfTemplate({ invoice }: { invoice: InvoicePdfData }) {
         </View>
 
         <View style={styles.details}>
-          <Detail label="Fakturanummer" value={invoice.invoice_number} />
-          <Detail label="Fakturadato" value={formatDate(invoice.issue_date)} />
-          <Detail label="Forfallsdato" value={formatDate(invoice.due_date)} />
+          <Detail label="Fakturanummer" value={invoiceNumber} />
+          <Detail label="Fakturadato" value={formatDate(issueDate)} />
+          <Detail label="Leveringsdato" value={formatDate(deliveryDate)} />
+          <Detail label="Leveringssted" value={deliveryPlace} />
+          <Detail label="Forfallsdato" value={formatDate(dueDate)} />
         </View>
 
-        <View style={[styles.customer, ...(template === "modern" ? [styles.modernCustomer] : template === "minimal" ? [styles.minimalCustomer] : [])]}>
-          <Text style={styles.label}>Kunde</Text>
-          <Text style={styles.customerName}>{invoice.company?.name ?? "Ukjent kunde"}</Text>
-          {customerDetails && <Text style={styles.customerDetails}>{customerDetails}</Text>}
+        <View style={styles.parties}>
+          <View style={[styles.party, ...(template === "modern" ? [styles.modernCustomer] : template === "minimal" ? [styles.minimalCustomer] : [])]}>
+            <Text style={styles.label}>Selger</Text>
+            <Text style={styles.customerName}>{fallbackInvoice.seller.name}</Text>
+            {sellerDetails.map((detail) => (
+              <Text key={detail} style={styles.customerDetails}>{detail}</Text>
+            ))}
+          </View>
+          <View style={[styles.party, ...(template === "modern" ? [styles.modernCustomer] : template === "minimal" ? [styles.minimalCustomer] : [])]}>
+            <Text style={styles.label}>Kunde</Text>
+            <Text style={styles.customerName}>{customerName}</Text>
+            {customerDetails.map((detail) => (
+              <Text key={detail} style={styles.customerDetails}>{detail}</Text>
+            ))}
+          </View>
         </View>
 
         <View style={styles.table}>
@@ -137,7 +188,7 @@ export function InvoicePdfTemplate({ invoice }: { invoice: InvoicePdfData }) {
 
         <View style={[styles.footer, ...(template === "modern" ? [styles.modernFooter] : template === "minimal" ? [styles.minimalFooter] : [])]} fixed>
           <Text>Generert i AutoFaktura</Text>
-          <Text>{invoice.invoice_number}</Text>
+          <Text>{invoiceNumber}</Text>
         </View>
       </Page>
     </Document>

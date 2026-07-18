@@ -4,12 +4,22 @@ export type PdfInvoice = {
   pdf_template?: PdfTemplate;
   invoice_number: string;
   issue_date: string;
+  delivery_date?: string | null;
+  delivery_place?: string | null;
   due_date: string | null;
   notes?: string | null;
   subtotal: number;
   vat_total: number;
   total: number;
-  company: { name: string; email: string | null } | null;
+  company: {
+    name: string;
+    address?: string | null;
+    postal_address?: string | null;
+    org_number?: string | null;
+    email: string | null;
+    city?: string | null;
+    country?: string | null;
+  } | null;
   invoice_items: Array<{
     description: string;
     quantity: number;
@@ -19,6 +29,26 @@ export type PdfInvoice = {
     line_total: number;
     sort_order?: number;
   }>;
+};
+
+const fallbackInvoice = {
+  seller: {
+    name: "Kristian Gjertsen ENK",
+    address: "Adresseveien 1",
+    postalAddress: "0001 Oslo",
+    orgNumber: "123 456 789",
+  },
+  customer: {
+    name: "Testfirma Kristian AS",
+    address: "Kundegata 2",
+    postalAddress: "0123 Oslo",
+    orgNumber: "987 654 321",
+  },
+  invoiceNumber: "1001",
+  issueDate: "2026-07-18",
+  deliveryDate: "2026-07-18",
+  deliveryPlace: "Digital levering",
+  dueDate: "2026-08-17",
 };
 
 type Theme = {
@@ -67,7 +97,7 @@ export function createInvoicePdfBase64(invoice: PdfInvoice) {
   const items = [...invoice.invoice_items].sort(
     (left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0),
   );
-  const pages = chunk(items, 18);
+  const pages = chunk(items, 16);
   const pageItems = pages.length > 0 ? pages : [[]];
   const template = invoice.pdf_template ?? "classic";
   const streams = pageItems.map((itemsForPage, index) =>
@@ -92,6 +122,15 @@ function createPage(
 ) {
   const theme = themes[template];
   const commands: string[] = [];
+  const invoiceNumber = invoice.invoice_number || fallbackInvoice.invoiceNumber;
+  const issueDate = invoice.issue_date || fallbackInvoice.issueDate;
+  const dueDate = invoice.due_date || fallbackInvoice.dueDate;
+  const deliveryDate = invoice.delivery_date || issueDate || fallbackInvoice.deliveryDate;
+  const deliveryPlace = invoice.delivery_place || fallbackInvoice.deliveryPlace;
+  const customerName = invoice.company?.name || fallbackInvoice.customer.name;
+  const customerAddress = invoice.company?.address || fallbackInvoice.customer.address;
+  const customerPostalAddress = invoice.company?.postal_address || invoice.company?.city || fallbackInvoice.customer.postalAddress;
+  const customerOrgNumber = invoice.company?.org_number || fallbackInvoice.customer.orgNumber;
 
   if (theme.pageBackground) {
     commands.push(`${theme.pageBackground} rg 0 0 595 842 re f`);
@@ -103,43 +142,55 @@ function createPage(
     commands.push(`${theme.accent} RG 1.5 w 45 790 m 550 790 l S`);
   }
 
+  if (template === "modern") {
+    commands.push("0.859 0.918 1 rg 35 592 525 112 re f");
+  } else if (template === "minimal") {
+    commands.push(
+      "0.796 0.835 0.882 RG 0.8 w 45 705 m 550 705 l S",
+      "0.796 0.835 0.882 RG 0.8 w 45 592 m 550 592 l S",
+    );
+  }
+
   commands.push(
     text(45, 812, template === "minimal" ? 20 : 22, "Faktura", theme.headerText),
     text(455, 815, 10, `Side ${page} av ${pageCount}`, template === "minimal" ? theme.muted : theme.headerText),
     text(45, 752, 9, "Fakturanummer", theme.muted),
-    text(45, 733, 16, invoice.invoice_number),
-    text(240, 752, 9, "Fakturadato", theme.muted),
-    text(240, 733, 12, formatDate(invoice.issue_date)),
-    text(400, 752, 9, "Forfallsdato", theme.muted),
-    text(400, 733, 12, formatDate(invoice.due_date)),
-    text(45, 690, 9, "Kunde", theme.muted),
-    text(45, 671, 14, invoice.company?.name ?? "Ukjent kunde"),
-    text(45, 653, 10, invoice.company?.email ?? "", "0.12 0.18 0.28"),
+    text(45, 733, 15, invoiceNumber),
+    text(155, 752, 9, "Fakturadato", theme.muted),
+    text(155, 733, 11, formatDate(issueDate)),
+    text(260, 752, 9, "Leveringsdato", theme.muted),
+    text(260, 733, 11, formatDate(deliveryDate)),
+    text(365, 752, 9, "Leveringssted", theme.muted),
+    text(365, 733, 11, deliveryPlace),
+    text(475, 752, 9, "Forfallsdato", theme.muted),
+    text(475, 733, 11, formatDate(dueDate)),
+    text(45, 690, 9, "Selger", theme.muted),
+    text(45, 671, 13, fallbackInvoice.seller.name),
+    text(45, 653, 10, fallbackInvoice.seller.address, "0.12 0.18 0.28"),
+    text(45, 637, 10, fallbackInvoice.seller.postalAddress, "0.12 0.18 0.28"),
+    text(45, 621, 10, `Org.nr. ${fallbackInvoice.seller.orgNumber}`, "0.12 0.18 0.28"),
+    text(310, 690, 9, "Kunde", theme.muted),
+    text(310, 671, 13, customerName),
+    text(310, 653, 10, customerAddress, "0.12 0.18 0.28"),
+    text(310, 637, 10, customerPostalAddress, "0.12 0.18 0.28"),
+    text(310, 621, 10, `Org.nr. ${customerOrgNumber}`, "0.12 0.18 0.28"),
+    text(310, 605, 10, invoice.company?.email ?? "", "0.12 0.18 0.28"),
   );
 
-  if (template === "modern") {
-    commands.push("0.859 0.918 1 rg 35 635 525 70 re f");
-  } else if (template === "minimal") {
-    commands.push(
-      "0.796 0.835 0.882 RG 0.8 w 45 705 m 550 705 l S",
-      "0.796 0.835 0.882 RG 0.8 w 45 635 m 550 635 l S",
-    );
-  }
-
   if (theme.tableHeaderBackground) {
-    commands.push(`${theme.tableHeaderBackground} rg 45 572 505 28 re f`);
+    commands.push(`${theme.tableHeaderBackground} rg 45 540 505 28 re f`);
   }
 
   commands.push(
-    text(52, 582, 9, "Beskrivelse", theme.tableHeaderText),
-    text(303, 582, 9, "Antall", theme.tableHeaderText),
-    text(370, 582, 9, "Pris", theme.tableHeaderText),
-    text(440, 582, 9, "MVA", theme.tableHeaderText),
-    text(500, 582, 9, "Sum", theme.tableHeaderText),
-    `${theme.accent} RG 0.8 w 45 572 m 550 572 l S`,
+    text(52, 550, 9, "Beskrivelse", theme.tableHeaderText),
+    text(303, 550, 9, "Antall", theme.tableHeaderText),
+    text(370, 550, 9, "Pris", theme.tableHeaderText),
+    text(440, 550, 9, "MVA", theme.tableHeaderText),
+    text(500, 550, 9, "Sum", theme.tableHeaderText),
+    `${theme.accent} RG 0.8 w 45 540 m 550 540 l S`,
   );
 
-  let y = 548;
+  let y = 516;
   for (const item of items) {
     commands.push(
       text(52, y, 9, truncate(item.description, 41)),
@@ -174,7 +225,7 @@ function createPage(
 
   commands.push(
     text(45, 38, 8, "Generert i AutoFaktura", theme.footerText),
-    text(475, 38, 8, invoice.invoice_number, theme.footerText),
+    text(475, 38, 8, invoiceNumber, theme.footerText),
   );
 
   return winAnsi(commands.filter(Boolean).join("\n") + "\n");
