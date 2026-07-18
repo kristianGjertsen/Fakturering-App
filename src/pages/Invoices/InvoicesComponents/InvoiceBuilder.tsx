@@ -5,18 +5,23 @@ import type { InvoiceInput } from "../../../lib/data";
 import { formatCurrency, todayInputValue } from "../../../lib/format";
 import { createInvoiceNumber } from "../../../lib/data";
 import { calculateLine, calculateTotals, toNumber } from "../../../lib/invoiceMath";
-import { EmptyState } from "../../../components/EmptyState";
-import { FormField, inputClass } from "../../../components/FormField";
+import { FormField } from "../../../components/FormField";
+import { Input, inputClass } from "../../../components/Input";
 import { Button } from "../../../components/Button";
+import { Select } from "../../../components/Select";
 import { SectionHeader } from "../../../components/SectionHeader";
+import { Panel } from "../../../components/layout/Panel";
+import { Notice } from "../../../components/layout/Notice";
 import { PdfPreview } from "./PdfPreview";
 import { PdfTemplateSelector } from "./PdfTemplateSelector";
+import { UnsavedRecipientDialog } from "./UnsavedRecipientDialog";
 
 type InvoiceBuilderProps = {
   companies: Company[];
   products: Product[];
   onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<void>;
   onOpenCompanies: () => void;
+  initialCompanyId?: string;
 };
 
 function createEmptyLine(): InvoiceDraftLine {
@@ -93,10 +98,15 @@ function repeatIntervalHelper(frequency: RepeatDraft["frequency"]) {
   return "1 = hver måned, 2 = annenhver måned";
 }
 
-export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCompanies }: InvoiceBuilderProps) {
+export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCompanies, initialCompanyId = "" }: InvoiceBuilderProps) {
   const [invoiceKind, setInvoiceKind] = useState<"single" | "recurring">("single");
-  const [companyId, setCompanyId] = useState("");
-  const [invoiceNumber, setInvoiceNumber] = useState(createInvoiceNumber);
+  const [companyId, setCompanyId] = useState(initialCompanyId);
+  const [recipientMode, setRecipientMode] = useState<"company" | "guest">("company");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [showUnsavedRecipientDialog, setShowUnsavedRecipientDialog] = useState(() => companies.length === 0);
+  const [invoiceNumber] = useState(createInvoiceNumber);
+  const [invoiceTitle, setInvoiceTitle] = useState("");
   const [issueDate, setIssueDate] = useState(todayInputValue);
   const [paymentTermsDays, setPaymentTermsDays] = useState(14);
   const [notes, setNotes] = useState("");
@@ -108,10 +118,10 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (!companyId && companies[0]) {
+    if (recipientMode === "company" && !companyId && companies[0]) {
       setCompanyId(companies[0].id);
     }
-  }, [companies, companyId]);
+  }, [companies, companyId, recipientMode]);
 
   const companyProducts = products.filter((product) => product.company_id === companyId);
   const totals = calculateTotals(lines);
@@ -124,7 +134,12 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
   const previewInvoice: InvoiceWithDetails = {
     id: "preview",
     owner_user_id: "preview",
-    company_id: companyId,
+    company_id: companyId || null,
+    recipient_name: selectedCompany?.name ?? (recipientName.trim() || recipientEmail.trim() || "Engangskunde"),
+    recipient_org_number: selectedCompany?.org_number ?? null,
+    recipient_email: selectedCompany?.email ?? (recipientEmail.trim() || null),
+    recipient_city: selectedCompany?.city ?? null,
+    recipient_country: selectedCompany?.country ?? null,
     schedule_id: null,
     scheduled_for: null,
     invoice_number: invoiceKind === "recurring"
@@ -132,6 +147,11 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
       : scheduleOnce
         ? "Opprettes ved utsending"
         : invoiceNumber || "Fakturanummer",
+    title: invoiceTitle.trim() || (
+      invoiceKind === "recurring" || scheduleOnce
+        ? "Opprettes ved utsending"
+        : invoiceNumber || "Fakturanummer"
+    ),
     issue_date: previewIssueDate,
     due_date: previewDueDate,
     status: "ready",
@@ -143,7 +163,22 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
     total: totals.total,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    company: selectedCompany,
+    company: selectedCompany ?? (
+      recipientMode === "guest"
+        ? {
+          id: "guest",
+          owner_user_id: "preview",
+          name: recipientName.trim() || "Engangskunde",
+          org_number: null,
+          email: recipientEmail.trim() || null,
+          city: null,
+          country: null,
+          private_notes: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+        : null
+    ),
     invoice_items: lines
       .filter((line) => line.description.trim())
       .map((line, index) => {
@@ -167,8 +202,25 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
   };
 
   function handleCompanyChange(nextCompanyId: string) {
+    if (nextCompanyId === "__guest__") {
+      setShowUnsavedRecipientDialog(true);
+      return;
+    }
+
+    setRecipientMode("company");
     setCompanyId(nextCompanyId);
+    setRecipientName("");
+    setRecipientEmail("");
     setLines([createEmptyLine()]);
+  }
+
+  function continueWithoutCompany() {
+    setRecipientMode("guest");
+    setCompanyId("");
+    setInvoiceKind("single");
+    setScheduleOnce(false);
+    setLines([createEmptyLine()]);
+    setShowUnsavedRecipientDialog(false);
   }
 
   function updateLine(localId: string, patch: Partial<InvoiceDraftLine>) {
@@ -214,8 +266,18 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
 
     const validLines = lines.filter((line) => line.description.trim() && line.quantity > 0);
 
-    if (!companyId) {
+    if (recipientMode === "company" && !companyId) {
       setMessage("Velg et selskap før du lagrer fakturaen.");
+      return;
+    }
+
+    if (recipientMode === "guest" && !recipientEmail.trim()) {
+      setMessage("Oppgi e-postadressen til mottakeren.");
+      return;
+    }
+
+    if (recipientMode === "guest" && (invoiceKind === "recurring" || scheduleOnce)) {
+      setMessage("Engangskunder kan bare brukes på fakturaer som lagres nå.");
       return;
     }
 
@@ -233,8 +295,11 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
 
     try {
       await onCreateInvoice({
-        companyId,
+        companyId: companyId || null,
+        recipientName,
+        recipientEmail,
         invoiceNumber,
+        invoiceTitle,
         issueDate,
         dueDate,
         notes,
@@ -253,7 +318,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
             ? "Fakturaen er planlagt og opprettes på fakturadatoen."
             : "Faktura lagret.",
       );
-      setInvoiceNumber(createInvoiceNumber());
+      setInvoiceTitle("");
       setIssueDate(todayInputValue());
       setPaymentTermsDays(14);
       setNotes("");
@@ -269,20 +334,14 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
     }
   }
 
-  if (companies.length === 0) {
-    return (
-      <div className="space-y-6">
-        <SectionHeader title="Ny faktura" description="Du må ha minst ett selskap før du kan lage faktura." />
-        <EmptyState title="Ingen selskaper" description="Registrer et selskap først, og legg deretter til produkter eller manuelle linjer." />
-        <Button onClick={onOpenCompanies}>
-          Gå til selskaper
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
+      <UnsavedRecipientDialog
+        open={showUnsavedRecipientDialog}
+        onCancel={() => setShowUnsavedRecipientDialog(false)}
+        onCreateCompany={onOpenCompanies}
+        onContinue={continueWithoutCompany}
+      />
       <SectionHeader
         title="Ny faktura"
         description="Velg et selskap, fyll inn produkter eller manuelle linjer, og lagre fakturaen i Supabase."
@@ -299,22 +358,23 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         }
       />
 
-      {message && <p className="rounded-md border border-blue-100 bg-white px-4 py-3 text-sm text-blue-900 shadow-sm">{message}</p>}
+      {message && <Notice>{message}</Notice>}
 
-      <section className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+      <Panel>
         <h3 className="text-base font-semibold text-slate-950">Type faktura</h3>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className={`cursor-pointer rounded-lg border p-4 ${invoiceKind === "single" ? "border-blue-500 bg-blue-50" : "border-blue-100"}`}>
-            <input className="mr-3" type="radio" name="invoiceKind" checked={invoiceKind === "single"} onChange={() => setInvoiceKind("single")} />
+            <Input className="mr-3" type="radio" name="invoiceKind" checked={invoiceKind === "single"} onChange={() => setInvoiceKind("single")} />
             <span className="font-semibold text-slate-950">Enkeltfaktura</span>
             <span className="mt-1 block text-sm text-slate-600">Opprettes nå med valgt fakturadato og betalingsfrist.</span>
           </label>
           <label className={`cursor-pointer rounded-lg border p-4 ${invoiceKind === "recurring" ? "border-blue-500 bg-blue-50" : "border-blue-100"}`}>
-            <input
+            <Input
               className="mr-3"
               type="radio"
               name="invoiceKind"
               checked={invoiceKind === "recurring"}
+              disabled={recipientMode === "guest"}
               onChange={() => {
                 setInvoiceKind("recurring");
                 setScheduleOnce(false);
@@ -324,33 +384,65 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
             <span className="mt-1 block text-sm text-slate-600">Lagrer bare planen. Fakturaen opprettes og dateres ved utsending.</span>
           </label>
         </div>
-      </section>
+      </Panel>
 
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-5">
-          <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+          <Panel>
             <h3 className="text-base font-semibold text-slate-950">Fakturainfo</h3>
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <FormField label="Selskap">
-                <select className={inputClass} value={companyId} onChange={(event) => handleCompanyChange(event.target.value)} required>
-                  {companies.map((company) => (
-                    <option key={company.id} value={company.id}>
-                      {company.name}
-                    </option>
-                  ))}
-                </select>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <FormField
+                label="Tittel"
+                helper="Kun til intern oversikt. Vises ikke på PDF-en."
+              >
+                <Input
+                  value={invoiceTitle}
+                  onChange={(event) => setInvoiceTitle(event.target.value)}
+                  placeholder="Bruker fakturanummer hvis tom"
+                />
               </FormField>
-              {invoiceKind === "single" && !scheduleOnce && <FormField label="Fakturanummer">
-                <input className={inputClass} value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} required />
-              </FormField>}
+              <FormField label="Selskap">
+                <Select
+                  ariaLabel="Selskap"
+                  value={recipientMode === "guest" ? "__guest__" : companyId}
+                  options={[
+                    ...(companies.length === 0
+                      ? [{ value: "", label: "Ingen registrerte selskaper" }]
+                      : []),
+                    ...companies.map((company) => ({ value: company.id, label: company.name })),
+                    { value: "__guest__", label: "Ingen selskap (engangskunde)" },
+                  ]}
+                  onChange={handleCompanyChange}
+                />
+              </FormField>
+              {recipientMode === "guest" && (
+                <>
+                  <FormField label="Mottakernavn">
+                    <Input
+                      value={recipientName}
+                      onChange={(event) => setRecipientName(event.target.value)}
+                      placeholder="Valgfritt navn"
+                    />
+                  </FormField>
+                  <FormField label="Mottakers e-post">
+                    <Input
+                      type="email"
+                      value={recipientEmail}
+                      onChange={(event) => setRecipientEmail(event.target.value)}
+                      placeholder="mottaker@eksempel.no"
+                      required
+                    />
+                  </FormField>
+                </>
+              )}
               {invoiceKind === "single" && <FormField label="Fakturadato">
-                <input className={inputClass} type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} required />
+                <Input type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} required />
               </FormField>}
               {invoiceKind === "single" && <FormField label="Betalingsfrist" helper={`Forfallsdato blir ${dueDate.split("-").reverse().join(".")}.`}>
                 <div className="space-y-2">
                   <div className="relative">
-                    <input
-                      className={`${inputClass} pr-16`}
+                    <Input
+                      className="pr-16"
                       min={0}
                       max={365}
                       type="number"
@@ -376,7 +468,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
               </FormField>}
             </div>
 
-            {invoiceKind === "single" && (
+            {invoiceKind === "single" && recipientMode === "company" && (
               <div className={`mt-5 rounded-lg border p-4 ${scheduleOnce ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-slate-50"}`}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
@@ -397,9 +489,9 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
 
               </div>
             )}
-          </div>
+          </Panel>
 
-          <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+          <Panel>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-base font-semibold text-slate-950">Fakturalinjer</h3>
@@ -416,95 +508,96 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
 
                 return (
                   <div key={line.localId} className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-                    <div className="grid min-w-0 gap-3 xl:grid-cols-[160px_minmax(0,1fr)_70px_70px_95px_70px_125px]">
+                    <div className="min-w-0 space-y-3">
                       <FormField label="Produkt">
-                        <select className={inputClass} value={line.productId ?? ""} onChange={(event) => handleProductSelect(line.localId, event.target.value)}>
-                          <option value="">Manuell</option>
-                          {companyProducts.map((product) => (
-                            <option key={product.id} value={product.id}>
-                              {product.name}
-                            </option>
-                          ))}
-                        </select>
+                        <Select
+                          ariaLabel={`Produkt for fakturalinje ${index + 1}`}
+                          value={line.productId ?? ""}
+                          options={[
+                            { value: "", label: "Manuell" },
+                            ...companyProducts.map((product) => ({ value: product.id, label: product.name })),
+                          ]}
+                          onChange={(value) => handleProductSelect(line.localId, value)}
+                        />
                       </FormField>
                       <FormField label="Tekst">
-                        <input
-                          className={inputClass}
+                        <textarea
+                          className={`${inputClass} resize-y`}
+                          rows={2}
                           value={line.description}
                           onChange={(event) => updateLine(line.localId, { description: event.target.value })}
                           placeholder="Beskrivelse på fakturalinjen"
                           required
                         />
                       </FormField>
-                      <FormField label="Antall">
-                        <input
-                          className={inputClass}
-                          inputMode="decimal"
-                          value={line.quantity}
-                          onChange={(event) => updateLine(line.localId, { quantity: toNumber(event.target.value, 1) })}
-                          required
-                        />
-                      </FormField>
-                      <FormField label="Enhet">
-                        <input className={inputClass} value={line.unit} onChange={(event) => updateLine(line.localId, { unit: event.target.value })} />
-                      </FormField>
-                      <FormField label="Pris">
-                        <input
-                          className={inputClass}
-                          inputMode="decimal"
-                          value={line.unitPrice}
-                          onChange={(event) => updateLine(line.localId, { unitPrice: toNumber(event.target.value) })}
-                          required
-                        />
-                      </FormField>
-                      <FormField label="MVA">
-                        <input
-                          className={inputClass}
-                          inputMode="decimal"
-                          value={line.vatRate}
-                          onChange={(event) => updateLine(line.localId, { vatRate: toNumber(event.target.value, 25) })}
-                          required
-                        />
-                      </FormField>
-                      <div className="flex items-end justify-between gap-2">
-                        <div>
-                          <span className="text-sm font-medium text-slate-700">Sum</span>
-                          <p className="mt-3 text-sm font-semibold text-slate-950">{formatCurrency(calculated.line_total)}</p>
+                      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.25fr)_minmax(0,1fr)_minmax(125px,auto)]">
+                        <FormField label="Antall">
+                          <Input
+                            inputMode="decimal"
+                            value={line.quantity}
+                            onChange={(event) => updateLine(line.localId, { quantity: toNumber(event.target.value, 1) })}
+                            required
+                          />
+                        </FormField>
+                        <FormField label="Enhet">
+                          <Input value={line.unit} onChange={(event) => updateLine(line.localId, { unit: event.target.value })} />
+                        </FormField>
+                        <FormField label="Pris">
+                          <Input
+                            inputMode="decimal"
+                            value={line.unitPrice}
+                            onChange={(event) => updateLine(line.localId, { unitPrice: toNumber(event.target.value) })}
+                            required
+                          />
+                        </FormField>
+                        <FormField label="MVA">
+                          <Input
+                            inputMode="decimal"
+                            value={line.vatRate}
+                            onChange={(event) => updateLine(line.localId, { vatRate: toNumber(event.target.value, 25) })}
+                            required
+                          />
+                        </FormField>
+                        <div className="flex items-end justify-between gap-2">
+                          <div>
+                            <span className="text-sm font-medium text-slate-700">Sum</span>
+                            <p className="mt-3 text-sm font-semibold text-slate-950">{formatCurrency(calculated.line_total)}</p>
+                          </div>
+                          <Button
+                            variant="danger"
+                            size="xs"
+                            className="h-9 w-9 shrink-0 rounded-md !bg-red-500 !p-0 !text-black hover:!bg-red-600"
+                            onClick={() => removeLine(line.localId)}
+                            aria-label={`Fjern linje ${index + 1}`}
+                            title="Fjern linje"
+                          >
+                            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" />
+                            </svg>
+                          </Button>
                         </div>
-                        <Button
-                          variant="danger"
-                          size="xs"
-                          className="h-9 w-9 shrink-0 rounded-md !bg-red-500 !p-0 !text-black hover:!bg-red-600"
-                          onClick={() => removeLine(line.localId)}
-                          aria-label={`Fjern linje ${index + 1}`}
-                          title="Fjern linje"
-                        >
-                          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" />
-                          </svg>
-                        </Button>
                       </div>
                     </div>
                   </div>
                 );
               })}
             </div>
-          </div>
+          </Panel>
 
-          <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+          <Panel>
             <FormField label="Notat på faktura">
               <textarea className={`${inputClass} min-h-24 resize-y`} value={notes} onChange={(event) => setNotes(event.target.value)} />
             </FormField>
-          </div>
+          </Panel>
         </div>
 
         <aside className="space-y-5">
-          <div className="space-y-4 rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+          <Panel className="space-y-4">
             <PdfTemplateSelector value={pdfTemplate} onChange={setPdfTemplate} />
             <PdfPreview invoice={previewInvoice} compact />
-          </div>
+          </Panel>
 
-          <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+          <Panel>
             <h3 className="text-base font-semibold text-slate-950">Summer</h3>
             <dl className="mt-4 space-y-3 text-sm">
               <div className="flex justify-between gap-4">
@@ -520,10 +613,10 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                 <dd className="font-semibold text-slate-950">{formatCurrency(totals.total)}</dd>
               </div>
             </dl>
-          </div>
+          </Panel>
 
           {invoiceKind === "recurring" && (
-          <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+          <Panel>
             <div>
               <div>
                 <h3 className="text-base font-semibold text-slate-950">Gjentakelse</h3>
@@ -535,19 +628,19 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                   {repeatIntervalLabel(repeat.frequency, repeat.intervalCount)}
                 </div>
                 <FormField label="Frekvens">
-                  <select
-                    className={inputClass}
+                  <Select
+                    ariaLabel="Frekvens"
                     value={repeat.frequency}
-                    onChange={(event) => setRepeat((value) => ({ ...value, frequency: event.target.value as RepeatDraft["frequency"] }))}
-                  >
-                    <option value="daily">Daglig</option>
-                    <option value="weekly">Ukentlig</option>
-                    <option value="monthly">Månedlig</option>
-                  </select>
+                    options={[
+                      { value: "daily", label: "Daglig" },
+                      { value: "weekly", label: "Ukentlig" },
+                      { value: "monthly", label: "Månedlig" },
+                    ]}
+                    onChange={(frequency) => setRepeat((value) => ({ ...value, frequency: frequency as RepeatDraft["frequency"] }))}
+                  />
                 </FormField>
                 <FormField label="Gjentas hver" helper={repeatIntervalHelper(repeat.frequency)}>
-                  <input
-                    className={inputClass}
+                  <Input
                     min={1}
                     type="number"
                     value={repeat.intervalCount}
@@ -556,25 +649,25 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                 </FormField>
                 {repeat.frequency === "weekly" && (
                   <FormField label="Ukedag">
-                    <select
-                      className={inputClass}
+                    <Select
+                      ariaLabel="Ukedag"
                       value={repeat.dayOfWeek}
-                      onChange={(event) => setRepeat((value) => ({ ...value, dayOfWeek: Number(event.target.value) }))}
-                    >
-                      <option value={1}>Mandag</option>
-                      <option value={2}>Tirsdag</option>
-                      <option value={3}>Onsdag</option>
-                      <option value={4}>Torsdag</option>
-                      <option value={5}>Fredag</option>
-                      <option value={6}>Lørdag</option>
-                      <option value={7}>Søndag</option>
-                    </select>
+                      options={[
+                        { value: 1, label: "Mandag" },
+                        { value: 2, label: "Tirsdag" },
+                        { value: 3, label: "Onsdag" },
+                        { value: 4, label: "Torsdag" },
+                        { value: 5, label: "Fredag" },
+                        { value: 6, label: "Lørdag" },
+                        { value: 7, label: "Søndag" },
+                      ]}
+                      onChange={(dayOfWeek) => setRepeat((value) => ({ ...value, dayOfWeek: Number(dayOfWeek) }))}
+                    />
                   </FormField>
                 )}
                 {repeat.frequency === "monthly" && (
                   <FormField label="Dag i måned">
-                    <input
-                      className={inputClass}
+                    <Input
                       max={31}
                       min={1}
                       type="number"
@@ -584,16 +677,14 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                   </FormField>
                 )}
                 <FormField label="Startdato">
-                  <input
-                    className={inputClass}
+                  <Input
                     type="date"
                     value={repeat.startDate}
                     onChange={(event) => setRepeat((value) => ({ ...value, startDate: event.target.value }))}
                   />
                 </FormField>
                 <FormField label="Forfall etter utsending" helper="Antall dager fra utsending til forfallsdato.">
-                  <input
-                    className={inputClass}
+                  <Input
                     type="number"
                     min={0}
                     max={365}
@@ -603,7 +694,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                 </FormField>
               </div>
             </div>
-          </div>
+          </Panel>
           )}
         </aside>
       </section>

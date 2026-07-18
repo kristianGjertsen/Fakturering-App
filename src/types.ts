@@ -46,10 +46,16 @@ export type InvoiceItem = {
 export type Invoice = {
   id: string;
   owner_user_id: string;
-  company_id: string;
+  company_id: string | null;
+  recipient_name: string;
+  recipient_org_number: string | null;
+  recipient_email: string | null;
+  recipient_city: string | null;
+  recipient_country: string | null;
   schedule_id: string | null;
   scheduled_for: string | null;
   invoice_number: string;
+  title: string;
   issue_date: string;
   due_date: string | null;
   status: InvoiceStatus;
@@ -76,6 +82,7 @@ export type InvoiceSchedule = {
   owner_user_id: string;
   company_id: string;
   title: string;
+  invoice_title: string | null;
   schedule_type: ScheduleType;
   frequency: ScheduleFrequency | null;
   interval_count: number;

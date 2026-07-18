@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
-import { AppLayout } from "../../components/AppLayout";
-import { supabase } from "../../supabaseClient";
+import { AppLayout } from "../components/AppLayout";
+import { PageLayout } from "../components/layout/PageLayout";
+import { supabase } from "../supabaseClient";
 import {
   createCompany,
   createInvoice,
@@ -13,19 +14,20 @@ import {
   type CompanyInput,
   type InvoiceInput,
   type ProductInput,
-} from "../../lib/data";
-import CompaniesPage from "../Companies/CompaniesPage";
-import DashboardPage from "../Dashboard/DashboardPage";
-import InvoicesPage from "../Invoices/InvoicesPage";
-import ProfilePage from "../Profile/ProfilePage";
-import RecurringPage from "../Recurring/RecurringPage";
-import { HomePageError, HomePageLoading } from "./HomeComponents/HomePageFeedback";
+} from "../lib/data";
+import CompaniesPage from "../pages/Companies/CompaniesPage";
+import CompanyPage from "../pages/Company/CompanyPage";
+import DashboardPage from "../pages/Dashboard/DashboardPage";
+import InvoicesPage from "../pages/Invoices/InvoicesPage";
+import ProfilePage from "../pages/Profile/ProfilePage";
+import RecurringPage from "../pages/Recurring/RecurringPage";
+import { AuthenticatedAppError, AuthenticatedAppLoading } from "./AuthenticatedAppFeedback";
 
-type HomePageProps = { session: Session };
+type AuthenticatedAppProps = { session: Session };
 
 const emptyData: AppData = { companies: [], products: [], invoices: [], schedules: [] };
 
-export default function HomePage({ session }: HomePageProps) {
+export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
   const navigate = useNavigate();
   const [data, setData] = useState<AppData>(emptyData);
   const [loading, setLoading] = useState(true);
@@ -70,11 +72,12 @@ export default function HomePage({ session }: HomePageProps) {
 
   return (
     <AppLayout>
-      {error && <HomePageError message={error} />}
+      {error && <AuthenticatedAppError message={error} />}
       {loading ? (
-        <HomePageLoading />
+        <AuthenticatedAppLoading />
       ) : (
-        <Routes>
+        <PageLayout>
+          <Routes>
           <Route
             path="/"
             element={
@@ -83,7 +86,7 @@ export default function HomePage({ session }: HomePageProps) {
                 products={data.products}
                 invoices={data.invoices}
                 schedules={data.schedules.filter((schedule) => schedule.schedule_type !== "once")}
-                onCreateInvoice={() => navigate("/invoices")}
+                onCreateInvoice={() => navigate("/invoices?create=true")}
               />
             }
           />
@@ -92,8 +95,18 @@ export default function HomePage({ session }: HomePageProps) {
             element={
               <CompaniesPage
                 companies={data.companies}
-                products={data.products}
                 onCreateCompany={handleCreateCompany}
+                onOpenCompany={(companyId) => navigate(`/companies/${companyId}`)}
+              />
+            }
+          />
+          <Route
+            path="/companies/:companyId"
+            element={
+              <CompanyPage
+                companies={data.companies}
+                products={data.products}
+                invoices={data.invoices}
                 onCreateProduct={handleCreateProduct}
               />
             }
@@ -123,7 +136,8 @@ export default function HomePage({ session }: HomePageProps) {
             element={<ProfilePage session={session} onSignOut={() => supabase.auth.signOut().then(() => undefined)} />}
           />
           <Route path="*" element={<Navigate replace to="/" />} />
-        </Routes>
+          </Routes>
+        </PageLayout>
       )}
     </AppLayout>
   );

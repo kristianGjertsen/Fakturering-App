@@ -6,10 +6,11 @@ type SummaryCardProps = {
 
 export function SummaryCard({ label, value, description }: SummaryCardProps) {
   return (
-    <article className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+    <Panel as="article">
       <h2 className="text-sm font-medium text-slate-600">{label}</h2>
       <p className="mt-2 text-3xl font-semibold text-slate-950">{value}</p>
       <p className="mt-1 text-sm text-slate-500">{description}</p>
-    </article>
+    </Panel>
   );
 }
+import { Panel } from "./layout/Panel";

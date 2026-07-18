@@ -40,8 +40,11 @@ export type ProductInput = {
 
 export type InvoiceInput = {
   ownerUserId: string;
-  companyId: string;
+  companyId: string | null;
+  recipientName: string;
+  recipientEmail: string;
   invoiceNumber: string;
+  invoiceTitle: string;
   issueDate: string;
   dueDate: string;
   notes: string;
@@ -145,7 +148,17 @@ export async function fetchInvoices() {
     throw error;
   }
 
-  return (data ?? []) as InvoiceWithDetails[];
+  return ((data ?? []) as InvoiceWithDetails[]).map((invoice) => ({
+    ...invoice,
+    company: {
+      id: invoice.company_id ?? `recipient-${invoice.id}`,
+      name: invoice.recipient_name,
+      org_number: invoice.recipient_org_number,
+      email: invoice.recipient_email,
+      city: invoice.recipient_city,
+      country: invoice.recipient_country,
+    },
+  }));
 }
 
 export async function fetchSchedules() {
@@ -196,6 +209,10 @@ export async function createProduct(input: ProductInput) {
 
 export async function createInvoice(input: InvoiceInput) {
   if (input.repeat.enabled || input.scheduleOnce.enabled) {
+    if (!input.companyId) {
+      throw new Error("Planlagte og gjentakende fakturaer krever et registrert selskap.");
+    }
+
     const isRecurring = input.repeat.enabled;
     const recurrenceFields = isRecurring
       ? recurrenceFieldsForFrequency(input.repeat)
@@ -216,6 +233,7 @@ export async function createInvoice(input: InvoiceInput) {
         owner_user_id: input.ownerUserId,
         company_id: input.companyId,
         title: `${isRecurring ? "Gjentakende" : "Planlagt"} faktura - ${company.data.name}`,
+        invoice_title: input.invoiceTitle.trim() || null,
         schedule_type: isRecurring ? "recurring" : "once",
         frequency: isRecurring ? input.repeat.frequency : null,
         interval_count: isRecurring ? input.repeat.intervalCount : 1,
@@ -265,14 +283,34 @@ export async function createInvoice(input: InvoiceInput) {
   }
 
   const totals = calculateTotals(input.lines);
+  const company = input.companyId
+    ? await supabase
+      .from("companies")
+      .select("name,org_number,email,city,country")
+      .eq("id", input.companyId)
+      .single()
+    : null;
+
+  if (company?.error) {
+    throw company.error;
+  }
+
+  const recipientName = company?.data.name ?? (input.recipientName.trim() || input.recipientEmail.trim());
+  const recipientEmail = company?.data.email ?? (input.recipientEmail.trim() || null);
 
   const { data: invoice, error: invoiceError } = await supabase
     .from("invoices")
     .insert({
       owner_user_id: input.ownerUserId,
       company_id: input.companyId,
+      recipient_name: recipientName,
+      recipient_org_number: company?.data.org_number ?? null,
+      recipient_email: recipientEmail,
+      recipient_city: company?.data.city ?? null,
+      recipient_country: company?.data.country ?? null,
       schedule_id: null,
       invoice_number: input.invoiceNumber.trim(),
+      title: input.invoiceTitle.trim() || input.invoiceNumber.trim(),
       issue_date: input.issueDate,
       due_date: input.dueDate || null,
       status: "ready",

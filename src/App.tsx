@@ -3,7 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
 import { ensureProfile } from "./lib/data";
 import LoginPage from "./pages/Login/LoginPage";
-import HomePage from "./pages/Home/HomePage";
+import AuthenticatedApp from "./AuthenticatedApp/AuthenticatedApp";
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -53,5 +53,5 @@ export default function App() {
     );
   }
 
-  return session ? <HomePage session={session} /> : <LoginPage />;
+  return session ? <AuthenticatedApp session={session} /> : <LoginPage />;
 }

@@ -10,14 +10,14 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const baseClass =
-  "inline-flex items-center justify-center rounded-md font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex items-center justify-center rounded-md border font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-blue-700 text-white shadow-sm hover:bg-blue-900",
+  primary: "border-blue-700 bg-blue-700 text-white shadow-sm hover:border-blue-900 hover:bg-blue-900",
   secondary: "border border-blue-200 bg-white text-blue-800 shadow-sm hover:border-blue-300 hover:bg-blue-50",
-  danger: "bg-red-600 text-white shadow-sm hover:bg-red-700",
-  success: "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700",
-  ghost: "bg-transparent text-slate-700 hover:bg-blue-50 hover:text-blue-900",
+  danger: "border-red-600 bg-red-600 text-white shadow-sm hover:border-red-700 hover:bg-red-700",
+  success: "border-emerald-600 bg-emerald-600 text-white shadow-sm hover:border-emerald-700 hover:bg-emerald-700",
+  ghost: "border-transparent bg-transparent text-slate-700 hover:bg-blue-50 hover:text-blue-900",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

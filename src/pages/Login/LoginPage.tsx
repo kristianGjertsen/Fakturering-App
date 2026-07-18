@@ -3,6 +3,7 @@ import { useState } from "react";
 import { supabase } from "../../supabaseClient";
 import SupabaseDebugPanel from "./LoginComponents/SupabaseDebugPanel";
 import { Button } from "../../components/Button";
+import { Input } from "../../components/Input";
 
 export default function LoginPage() {
   const [fullName, setFullName] = useState("");
@@ -69,8 +70,8 @@ export default function LoginPage() {
           {isRegistering && (
             <label className="block">
               <span className="text-sm font-medium text-slate-700">Navn</span>
-              <input
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-slate-900"
+              <Input
+                className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
                 type="text"
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
@@ -81,8 +82,8 @@ export default function LoginPage() {
 
           <label className="block">
             <span className="text-sm font-medium text-slate-700">E-post</span>
-            <input
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-slate-900"
+            <Input
+              className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
@@ -92,8 +93,8 @@ export default function LoginPage() {
 
           <label className="block">
             <span className="text-sm font-medium text-slate-700">Passord</span>
-            <input
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-slate-900"
+            <Input
+              className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
