@@ -1,25 +1,44 @@
+import { Button } from "../../../components/Button";
 import { EmptyState } from "../../../components/EmptyState";
+import { Panel, PanelHeader } from "../../../components/layout/Panel";
 import { formatCurrency } from "../../../lib/format";
 import type { Product } from "../../../types";
 
 type CompanyProductsProps = {
   products: Product[];
+  onAddProduct: () => void;
 };
 
-export function CompanyProducts({ products }: CompanyProductsProps) {
+export function CompanyProducts({ products, onAddProduct }: CompanyProductsProps) {
   return (
-    <section className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h3 className="text-base font-semibold text-slate-950">Produkter og tjenester</h3>
-          <p className="mt-1 text-sm text-slate-600">Produkter som kan brukes på fakturaer til dette selskapet.</p>
-        </div>
-        <span className="text-sm text-slate-500">{products.length} totalt</span>
-      </div>
+    <Panel>
+      <PanelHeader
+        title="Produkter og tjenester"
+        description="Produkter som kan brukes på fakturaer til dette selskapet."
+        action={
+          <Button onClick={onAddProduct}>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 20 20"
+              fill="none"
+              className="h-4 w-4"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            >
+              <path d="M10 4v12M4 10h12" />
+            </svg>
+            Nytt produkt
+          </Button>
+        }
+      />
 
       {products.length === 0 ? (
         <div className="mt-5">
-          <EmptyState title="Ingen produkter" description="Legg inn det første produktet med skjemaet under." />
+          <EmptyState
+            title="Ingen produkter"
+            description="Trykk på «Nytt produkt» for å registrere det første produktet."
+          />
         </div>
       ) : (
         <div className="mt-5 overflow-x-auto">
@@ -41,12 +60,18 @@ export function CompanyProducts({ products }: CompanyProductsProps) {
                     {product.description && <span className="text-sm text-slate-500">{product.description}</span>}
                   </td>
                   <td className="py-3 pr-4 text-slate-600">{product.unit}</td>
-                  <td className="py-3 pr-4 text-right font-medium text-slate-950">{formatCurrency(product.unit_price)}</td>
+                  <td className="py-3 pr-4 text-right font-medium text-slate-950">
+                    {formatCurrency(product.unit_price)}
+                  </td>
                   <td className="py-3 pr-4 text-right text-slate-600">{product.vat_rate}%</td>
                   <td className="py-3 text-right">
-                    <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                      product.is_active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
-                    }`}>
+                    <span
+                      className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                        product.is_active
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
                       {product.is_active ? "Aktiv" : "Inaktiv"}
                     </span>
                   </td>
@@ -56,6 +81,6 @@ export function CompanyProducts({ products }: CompanyProductsProps) {
           </table>
         </div>
       )}
-    </section>
+    </Panel>
   );
 }

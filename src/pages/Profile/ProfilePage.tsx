@@ -3,6 +3,8 @@ import type { Session } from "@supabase/supabase-js";
 import { deleteCurrentUser } from "../../lib/data";
 import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
+import { Panel } from "../../components/layout/Panel";
+import { Notice } from "../../components/layout/Notice";
 
 type ProfileViewProps = {
   session: Session;
@@ -41,16 +43,16 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <>
       <SectionHeader title="Profil" description="Brukerinfo og kontohandlinger." />
 
       {message && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+        <Notice tone="danger">
           {message}
-        </p>
+        </Notice>
       )}
 
-      <section className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+      <Panel>
         <dl className="grid gap-4 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-slate-500">E-post</dt>
@@ -82,7 +84,7 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
             {deleting ? "Sletter..." : "Slett bruker"}
           </Button>
         </div>
-      </section>
-    </div>
+      </Panel>
+    </>
   );
 }

@@ -7,6 +7,8 @@ import { SectionHeader } from "../../components/SectionHeader";
 import { DocumentBrowser, type DocumentBrowserItem } from "../../components/DocumentBrowser";
 import { PdfPreview } from "../Invoices/InvoicesComponents/PdfPreview";
 import { calculateScheduleTotals, scheduleToPreviewInvoice } from "../../lib/schedulePreview";
+import { ContentStack, MasterDetailLayout } from "../../components/layout/PageLayout";
+import { Panel } from "../../components/layout/Panel";
 
 type RecurringViewProps = {
   schedules: InvoiceScheduleWithDetails[];
@@ -57,7 +59,7 @@ export default function RecurringPage({ schedules }: RecurringViewProps) {
   );
 
   return (
-    <div className="space-y-6">
+    <>
       <SectionHeader
         title="Gjentakende fakturaer"
         description="Åpne en bedriftsmappe for å finne planer, eller bytt til alle for en samlet liste. Velg en plan for detaljer og PDF-forhåndsvisning."
@@ -66,7 +68,7 @@ export default function RecurringPage({ schedules }: RecurringViewProps) {
       {schedules.length === 0 ? (
         <EmptyState title="Ingen gjentakelser" description="Når du lager en faktura og slår på gjentakelse, vises planen her." />
       ) : (
-        <section className="grid gap-5 lg:grid-cols-[420px_1fr]">
+        <MasterDetailLayout>
           <DocumentBrowser
             items={browserItems}
             selectedId={selectedSchedule?.id ?? ""}
@@ -76,8 +78,8 @@ export default function RecurringPage({ schedules }: RecurringViewProps) {
           />
 
           {selectedSchedule && previewInvoice && (
-            <div className="min-w-0 space-y-5">
-              <article className="rounded-xl border border-blue-100 bg-white p-5 shadow-sm">
+            <ContentStack>
+              <Panel as="article">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Gjentakende plan</p>
@@ -156,16 +158,16 @@ export default function RecurringPage({ schedules }: RecurringViewProps) {
                     </div>
                   </dl>
                 </div>
-              </article>
+              </Panel>
 
-              <div className="rounded-xl border border-blue-100 bg-white p-5 shadow-sm">
+              <Panel as="div">
                 <PdfPreview invoice={previewInvoice} />
-              </div>
-            </div>
+              </Panel>
+            </ContentStack>
           )}
-        </section>
+        </MasterDetailLayout>
       )}
-    </div>
+    </>
   );
 }
 

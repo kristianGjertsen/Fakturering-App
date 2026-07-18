@@ -1,5 +1,6 @@
 import type { Company } from "../../../types";
 import { formatDate } from "../../../lib/format";
+import { Panel, PanelHeader } from "../../../components/layout/Panel";
 
 type CompanyInfoProps = {
   company: Company;
@@ -7,8 +8,8 @@ type CompanyInfoProps = {
 
 export function CompanyInfo({ company }: CompanyInfoProps) {
   return (
-    <section className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
-      <h3 className="text-base font-semibold text-slate-950">Selskapsinformasjon</h3>
+    <Panel>
+      <PanelHeader title="Selskapsinformasjon" />
 
       <dl className="mt-5 grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
         <InfoItem label="Navn" value={company.name} />
@@ -26,7 +27,7 @@ export function CompanyInfo({ company }: CompanyInfoProps) {
           {company.private_notes || "Ingen internt notat registrert."}
         </p>
       </div>
-    </section>
+    </Panel>
   );
 }
 

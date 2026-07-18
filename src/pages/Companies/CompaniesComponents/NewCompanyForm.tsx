@@ -8,7 +8,6 @@ type NewCompanyFormProps = {
   onMessage: (message: string) => void;
   onCreated?: () => void;
   onCancel?: () => void;
-  embedded?: boolean;
 };
 
 const emptyCompanyForm: CompanyInput = {
@@ -25,7 +24,6 @@ export function NewCompanyForm({
   onMessage,
   onCreated,
   onCancel,
-  embedded = false,
 }: NewCompanyFormProps) {
   const [companyForm, setCompanyForm] = useState<CompanyInput>(emptyCompanyForm);
   const [savingCompany, setSavingCompany] = useState(false);
@@ -48,12 +46,8 @@ export function NewCompanyForm({
   }
 
   return (
-    <form
-      className={embedded ? "" : "rounded-lg border border-blue-100 bg-white p-5 shadow-sm"}
-      onSubmit={handleCreateCompany}
-    >
-      {!embedded && <h3 className="text-base font-semibold text-slate-950">Nytt selskap</h3>}
-      <div className={embedded ? "space-y-4" : "mt-4 space-y-4"}>
+    <form onSubmit={handleCreateCompany}>
+      <div className="space-y-4">
         <FormField label="Navn">
           <input
             className={inputClass}

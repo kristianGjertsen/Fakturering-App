@@ -8,6 +8,8 @@ import { calculateLine, calculateTotals, toNumber } from "../../../lib/invoiceMa
 import { FormField, inputClass } from "../../../components/FormField";
 import { Button } from "../../../components/Button";
 import { SectionHeader } from "../../../components/SectionHeader";
+import { Panel } from "../../../components/layout/Panel";
+import { Notice } from "../../../components/layout/Notice";
 import { PdfPreview } from "./PdfPreview";
 import { PdfTemplateSelector } from "./PdfTemplateSelector";
 import { UnsavedRecipientDialog } from "./UnsavedRecipientDialog";
@@ -347,9 +349,9 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         }
       />
 
-      {message && <p className="rounded-md border border-blue-100 bg-white px-4 py-3 text-sm text-blue-900 shadow-sm">{message}</p>}
+      {message && <Notice>{message}</Notice>}
 
-      <section className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+      <Panel>
         <h3 className="text-base font-semibold text-slate-950">Type faktura</h3>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className={`cursor-pointer rounded-lg border p-4 ${invoiceKind === "single" ? "border-blue-500 bg-blue-50" : "border-blue-100"}`}>
@@ -373,11 +375,11 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
             <span className="mt-1 block text-sm text-slate-600">Lagrer bare planen. Fakturaen opprettes og dateres ved utsending.</span>
           </label>
         </div>
-      </section>
+      </Panel>
 
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-5">
-          <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+          <Panel>
             <h3 className="text-base font-semibold text-slate-950">Fakturainfo</h3>
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <FormField label="Selskap">
@@ -474,9 +476,9 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
 
               </div>
             )}
-          </div>
+          </Panel>
 
-          <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+          <Panel>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-base font-semibold text-slate-950">Fakturalinjer</h3>
@@ -566,22 +568,22 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                 );
               })}
             </div>
-          </div>
+          </Panel>
 
-          <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+          <Panel>
             <FormField label="Notat på faktura">
               <textarea className={`${inputClass} min-h-24 resize-y`} value={notes} onChange={(event) => setNotes(event.target.value)} />
             </FormField>
-          </div>
+          </Panel>
         </div>
 
         <aside className="space-y-5">
-          <div className="space-y-4 rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+          <Panel className="space-y-4">
             <PdfTemplateSelector value={pdfTemplate} onChange={setPdfTemplate} />
             <PdfPreview invoice={previewInvoice} compact />
-          </div>
+          </Panel>
 
-          <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+          <Panel>
             <h3 className="text-base font-semibold text-slate-950">Summer</h3>
             <dl className="mt-4 space-y-3 text-sm">
               <div className="flex justify-between gap-4">
@@ -597,10 +599,10 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                 <dd className="font-semibold text-slate-950">{formatCurrency(totals.total)}</dd>
               </div>
             </dl>
-          </div>
+          </Panel>
 
           {invoiceKind === "recurring" && (
-          <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+          <Panel>
             <div>
               <div>
                 <h3 className="text-base font-semibold text-slate-950">Gjentakelse</h3>
@@ -680,7 +682,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                 </FormField>
               </div>
             </div>
-          </div>
+          </Panel>
           )}
         </aside>
       </section>

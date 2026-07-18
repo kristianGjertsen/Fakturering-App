@@ -8,6 +8,8 @@ export type NewProductFormProps = {
   companyId: string;
   onCreateProduct: (input: ProductInput) => Promise<void>;
   onMessage: (message: string) => void;
+  onCreated?: () => void;
+  onCancel?: () => void;
 };
 
 const emptyProductForm = {
@@ -18,7 +20,13 @@ const emptyProductForm = {
   vat_rate: "25",
 };
 
-export function NewProductForm({ companyId, onCreateProduct, onMessage }: NewProductFormProps) {
+export function NewProductForm({
+  companyId,
+  onCreateProduct,
+  onMessage,
+  onCreated,
+  onCancel,
+}: NewProductFormProps) {
   const [productForm, setProductForm] = useState(emptyProductForm);
   const [savingProduct, setSavingProduct] = useState(false);
 
@@ -38,6 +46,7 @@ export function NewProductForm({ companyId, onCreateProduct, onMessage }: NewPro
       });
       setProductForm(emptyProductForm);
       onMessage("Produkt lagret.");
+      onCreated?.();
     } catch (error) {
       onMessage(error instanceof Error ? error.message : "Kunne ikke lagre produktet.");
     } finally {
@@ -46,9 +55,8 @@ export function NewProductForm({ companyId, onCreateProduct, onMessage }: NewPro
   }
 
   return (
-    <form className="rounded-lg border border-blue-100 bg-blue-50 p-4" onSubmit={handleCreateProduct}>
-      <h4 className="text-sm font-semibold text-slate-950">Nytt produkt</h4>
-      <div className="mt-4 space-y-3">
+    <form onSubmit={handleCreateProduct}>
+      <div className="space-y-4">
         <FormField label="Navn">
           <input
             className={inputClass}
@@ -91,9 +99,16 @@ export function NewProductForm({ companyId, onCreateProduct, onMessage }: NewPro
             />
           </FormField>
         </div>
-        <Button variant="secondary" type="submit" disabled={savingProduct}>
-          {savingProduct ? "Lagrer..." : "Lagre produkt"}
-        </Button>
+        <div className="flex justify-end gap-2">
+          {onCancel && (
+            <Button variant="ghost" onClick={onCancel} disabled={savingProduct}>
+              Avbryt
+            </Button>
+          )}
+          <Button type="submit" disabled={savingProduct}>
+            {savingProduct ? "Lagrer..." : "Lagre produkt"}
+          </Button>
+        </div>
       </div>
     </form>
   );

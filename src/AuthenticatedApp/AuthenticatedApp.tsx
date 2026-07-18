@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { AppLayout } from "../components/AppLayout";
+import { PageLayout } from "../components/layout/PageLayout";
 import { supabase } from "../supabaseClient";
 import {
   createCompany,
@@ -75,7 +76,8 @@ export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
       {loading ? (
         <AuthenticatedAppLoading />
       ) : (
-        <Routes>
+        <PageLayout>
+          <Routes>
           <Route
             path="/"
             element={
@@ -134,7 +136,8 @@ export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
             element={<ProfilePage session={session} onSignOut={() => supabase.auth.signOut().then(() => undefined)} />}
           />
           <Route path="*" element={<Navigate replace to="/" />} />
-        </Routes>
+          </Routes>
+        </PageLayout>
       )}
     </AppLayout>
   );

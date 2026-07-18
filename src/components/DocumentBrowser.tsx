@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "./Button";
 import { formatCurrency, formatDate } from "../lib/format";
+import { Panel } from "./layout/Panel";
 
 export type DocumentBrowserItem = {
   id: string;
@@ -115,7 +116,7 @@ export function DocumentBrowser({
   }
 
   return (
-    <aside className="overflow-hidden rounded-xl border border-blue-100 bg-white shadow-sm">
+    <Panel as="aside" padding="none" className="overflow-hidden">
       <div className="border-b border-blue-100 bg-slate-50/70 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -225,7 +226,7 @@ export function DocumentBrowser({
           </div>
         )}
       </div>
-    </aside>
+    </Panel>
   );
 }
 

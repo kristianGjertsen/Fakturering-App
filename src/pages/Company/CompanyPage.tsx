@@ -3,12 +3,15 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { SectionHeader } from "../../components/SectionHeader";
+import { Panel } from "../../components/layout/Panel";
+import { Notice } from "../../components/layout/Notice";
 import type { ProductInput } from "../../lib/data";
 import type { Company, InvoiceWithDetails, Product } from "../../types";
 import { InvoiceList } from "../Invoices/InvoicesComponents/InvoiceList";
 import { CompanyInfo } from "./CompanyComponents/CompanyInfo";
 import { CompanyProducts } from "./CompanyComponents/CompanyProducts";
-import { NewProductForm } from "./CompanyComponents/NewProductForm";
+import { CompanyStatistics } from "./CompanyComponents/CompanyStatistics";
+import { NewProductDialog } from "./CompanyComponents/NewProductDialog";
 
 type CompanyPageProps = {
   companies: Company[];
@@ -21,14 +24,15 @@ export default function CompanyPage({ companies, products, invoices, onCreatePro
   const { companyId } = useParams();
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
+  const [showNewProduct, setShowNewProduct] = useState(false);
   const company = companies.find((item) => item.id === companyId) ?? null;
 
   if (!company) {
     return (
-      <div className="space-y-5">
+      <>
         <Button variant="secondary" onClick={() => navigate("/companies")}>← Tilbake til selskaper</Button>
         <EmptyState title="Fant ikke selskapet" description="Selskapet finnes ikke, eller du har ikke tilgang til det." />
-      </div>
+      </>
     );
   }
 
@@ -36,23 +40,36 @@ export default function CompanyPage({ companies, products, invoices, onCreatePro
   const companyInvoices = invoices.filter((invoice) => invoice.company_id === company.id);
 
   return (
-    <div className="space-y-6">
+    <>
       <SectionHeader
         title={company.name}
         description="Selskapsinformasjon, produkter og tjenester."
         action={<Button variant="secondary" onClick={() => navigate("/companies")}>← Tilbake</Button>}
       />
 
+      <NewProductDialog
+        open={showNewProduct}
+        companyId={company.id}
+        companyName={company.name}
+        onClose={() => setShowNewProduct(false)}
+        onCreateProduct={onCreateProduct}
+        onMessage={setMessage}
+      />
+
       {message && (
-        <p className="rounded-md border border-blue-100 bg-white px-4 py-3 text-sm text-blue-900 shadow-sm">
+        <Notice>
           {message}
-        </p>
+        </Notice>
       )}
 
+      <CompanyStatistics invoices={companyInvoices} />
       <CompanyInfo company={company} />
-      <CompanyProducts products={companyProducts} />
+      <CompanyProducts
+        products={companyProducts}
+        onAddProduct={() => setShowNewProduct(true)}
+      />
 
-      <section className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+      <Panel>
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-base font-semibold text-slate-950">Fakturaer</h3>
@@ -77,17 +94,7 @@ export default function CompanyPage({ companies, products, invoices, onCreatePro
           compact
           limit={5}
         />
-      </section>
-
-      <section className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
-        <div className="mb-5">
-          <h3 className="text-base font-semibold text-slate-950">Legg til produkt</h3>
-          <p className="mt-1 text-sm text-slate-600">Produktet blir knyttet til {company.name}.</p>
-        </div>
-        <div className="max-w-xl">
-          <NewProductForm companyId={company.id} onCreateProduct={onCreateProduct} onMessage={setMessage} />
-        </div>
-      </section>
-    </div>
+      </Panel>
+    </>
   );
 }

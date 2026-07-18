@@ -3,6 +3,9 @@ import { formatCurrency, formatDate } from "../../lib/format";
 import { EmptyState } from "../../components/EmptyState";
 import { Button } from "../../components/Button";
 import { SummaryCard } from "../../components/SummaryCard";
+import { StatisticsGrid } from "../../components/layout/PageLayout";
+import { Panel } from "../../components/layout/Panel";
+import { SectionHeader } from "../../components/SectionHeader";
 
 type DashboardViewProps = {
   companies: Company[];
@@ -19,16 +22,21 @@ export default function DashboardPage({ companies, products, invoices, schedules
   const nextSchedule = schedules.find((schedule) => schedule.next_run_at);
 
   return (
-    <div className="space-y-6">
-      <section className="grid gap-4 md:grid-cols-4">
+    <>
+      <SectionHeader
+        title="Oversikt"
+        description="Nøkkeltall og de nyeste aktivitetene i faktureringen."
+      />
+
+      <StatisticsGrid>
         <SummaryCard label="Selskaper" value={companies.length} description="Registrerte fakturamottakere" />
         <SummaryCard label="Produkter" value={products.length} description="Aktive produkter og tjenester" />
         <SummaryCard label="Fakturaer" value={invoices.length} description="Lagret i Supabase" />
         <SummaryCard label="Utestående" value={formatCurrency(totalOutstanding)} description="Ikke markert betalt" />
-      </section>
+      </StatisticsGrid>
 
       <section className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+        <Panel as="div">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-slate-950">Siste fakturaer</h2>
@@ -65,9 +73,9 @@ export default function DashboardPage({ companies, products, invoices, schedules
               </table>
             )}
           </div>
-        </div>
+        </Panel>
 
-        <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+        <Panel as="div">
           <h2 className="text-lg font-semibold text-slate-950">Neste gjentakelse</h2>
           {nextSchedule ? (
             <div className="mt-4 space-y-3">
@@ -78,8 +86,8 @@ export default function DashboardPage({ companies, products, invoices, schedules
           ) : (
             <p className="mt-4 text-sm text-slate-600">Ingen aktive gjentakende fakturaer er planlagt.</p>
           )}
-        </div>
+        </Panel>
       </section>
-    </div>
+    </>
   );
 }

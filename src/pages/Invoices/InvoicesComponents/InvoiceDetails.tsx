@@ -4,6 +4,8 @@ import { formatCurrency, formatDate } from "../../../lib/format";
 import type { InvoiceScheduleWithDetails, InvoiceWithDetails } from "../../../types";
 import { invoiceStatusLabels, invoiceStatusTone } from "./InvoiceList";
 import { PdfPreview } from "./PdfPreview";
+import { ContentStack } from "../../../components/layout/PageLayout";
+import { Panel } from "../../../components/layout/Panel";
 
 type InvoiceDetailsProps = {
   invoice: InvoiceWithDetails;
@@ -27,8 +29,8 @@ export function InvoiceDetails({
   onTogglePaid,
 }: InvoiceDetailsProps) {
   return (
-    <div className="min-w-0 space-y-5">
-      <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+    <ContentStack>
+      <Panel as="div">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h3 className="text-lg font-semibold text-slate-950">
@@ -111,12 +113,12 @@ export function InvoiceDetails({
             </tbody>
           </table>
         </div>
-      </div>
+      </Panel>
 
-      <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+      <Panel as="div">
         <PdfPreview invoice={invoice} />
-      </div>
-    </div>
+      </Panel>
+    </ContentStack>
   );
 }
 

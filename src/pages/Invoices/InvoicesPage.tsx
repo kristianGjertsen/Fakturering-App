@@ -7,6 +7,8 @@ import { createInvoicePdfBase64 } from "../../lib/pdf";
 import { EmptyState } from "../../components/EmptyState";
 import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
+import { MasterDetailLayout } from "../../components/layout/PageLayout";
+import { Notice } from "../../components/layout/Notice";
 import { InvoiceBuilder } from "./InvoicesComponents/InvoiceBuilder";
 import { InvoiceDetails } from "./InvoicesComponents/InvoiceDetails";
 import { getVisibleInvoices, InvoiceList } from "./InvoicesComponents/InvoiceList";
@@ -192,7 +194,7 @@ export default function InvoicesPage({
 
   if (showCreateForm) {
     return (
-      <div className="space-y-6">
+      <>
         {header}
         <InvoiceBuilder
           companies={companies}
@@ -204,30 +206,30 @@ export default function InvoicesPage({
           }}
           onOpenCompanies={onOpenCompanies}
         />
-      </div>
+      </>
     );
   }
 
   if (selectableInvoices.length === 0) {
     return (
-      <div className="space-y-6">
+      <>
         {header}
         <EmptyState title="Ingen fakturaer" description="Lag en faktura, eller vent til en planlagt faktura er sendt." />
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <>
       {header}
 
       {sendMessage && (
-        <p className="rounded-md border border-blue-100 bg-white px-4 py-3 text-sm text-blue-900 shadow-sm">
+        <Notice>
           {sendMessage}
-        </p>
+        </Notice>
       )}
 
-      <section className="grid gap-5 lg:grid-cols-[420px_1fr]">
+      <MasterDetailLayout>
         <InvoiceList
           invoices={displayedInvoices}
           schedules={pageSchedules}
@@ -247,7 +249,7 @@ export default function InvoicesPage({
             onTogglePaid={() => void handleTogglePaid()}
           />
         )}
-      </section>
-    </div>
+      </MasterDetailLayout>
+    </>
   );
 }

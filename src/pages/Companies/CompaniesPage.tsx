@@ -4,6 +4,8 @@ import type { CompanyInput } from "../../lib/data";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { SectionHeader } from "../../components/SectionHeader";
+import { Panel } from "../../components/layout/Panel";
+import { Notice } from "../../components/layout/Notice";
 import { NewCompanyDialog } from "./CompaniesComponents/NewCompanyDialog";
 
 type CompaniesPageProps = {
@@ -17,7 +19,7 @@ export default function CompaniesPage({ companies, onCreateCompany, onOpenCompan
   const [showNewCompany, setShowNewCompany] = useState(false);
 
   return (
-    <div className="space-y-6">
+    <>
       <SectionHeader
         title="Selskaper"
         description="Åpne et selskap for å se informasjon, produkter og fakturaer."
@@ -47,13 +49,13 @@ export default function CompaniesPage({ companies, onCreateCompany, onOpenCompan
       />
 
       {message && (
-        <p className="rounded-md border border-blue-100 bg-white px-4 py-3 text-sm text-blue-900 shadow-sm">
+        <Notice>
           {message}
-        </p>
+        </Notice>
       )}
 
       <section>
-        <div className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
+        <Panel as="div">
           <div className="flex items-center justify-between gap-4">
             <div>
               <h3 className="text-base font-semibold text-slate-950">Registrerte selskaper</h3>
@@ -90,8 +92,8 @@ export default function CompaniesPage({ companies, onCreateCompany, onOpenCompan
               ))}
             </div>
           )}
-        </div>
+        </Panel>
       </section>
-    </div>
+    </>
   );
 }
