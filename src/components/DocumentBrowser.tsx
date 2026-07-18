@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "./Button";
+import { Input } from "./Input";
+import { Select } from "./Select";
 import { formatCurrency, formatDate } from "../lib/format";
 import { Panel } from "./layout/Panel";
 
@@ -141,8 +143,8 @@ export function DocumentBrowser({
         <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
           <label className="md:col-span-2 xl:col-span-1">
             <span className="sr-only">Søk</span>
-            <input
-              className={`${controlClass} w-full`}
+            <Input
+              className="h-9 border-blue-200 py-0 text-slate-800"
               type="search"
               value={search}
               placeholder={searchPlaceholder}
@@ -151,28 +153,46 @@ export function DocumentBrowser({
           </label>
           <label>
             <span className="sr-only">Filtrer på bedrift</span>
-            <select className={`${controlClass} w-full`} value={companyFilter} onChange={(event) => setCompanyFilter(event.target.value)}>
-              <option value="all">Alle bedrifter</option>
-              {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
-            </select>
+            <Select
+              ariaLabel="Filtrer på bedrift"
+              className="h-9 py-0"
+              value={companyFilter}
+              options={[
+                { value: "all", label: "Alle bedrifter" },
+                ...companies.map((company) => ({ value: company.id, label: company.name })),
+              ]}
+              onChange={setCompanyFilter}
+            />
           </label>
           <label>
             <span className="sr-only">Filtrer på status</span>
-            <select className={`${controlClass} w-full`} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-              <option value="all">Alle statuser</option>
-              {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
-            </select>
+            <Select
+              ariaLabel="Filtrer på status"
+              className="h-9 py-0"
+              value={statusFilter}
+              options={[
+                { value: "all", label: "Alle statuser" },
+                ...statuses.map((status) => ({ value: status, label: status })),
+              ]}
+              onChange={setStatusFilter}
+            />
           </label>
           <label>
             <span className="sr-only">Sorter</span>
-            <select className={`${controlClass} w-full`} value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
-              <option value="date-desc">Nyeste dato</option>
-              <option value="date-asc">Eldste dato</option>
-              <option value="name-asc">Navn A–Å</option>
-              <option value="name-desc">Navn Å–A</option>
-              <option value="amount-desc">Høyeste pris</option>
-              <option value="amount-asc">Laveste pris</option>
-            </select>
+            <Select
+              ariaLabel="Sorter"
+              className="h-9 py-0"
+              value={sortKey}
+              options={[
+                { value: "date-desc", label: "Nyeste dato" },
+                { value: "date-asc", label: "Eldste dato" },
+                { value: "name-asc", label: "Navn A–Å" },
+                { value: "name-desc", label: "Navn Å–A" },
+                { value: "amount-desc", label: "Høyeste pris" },
+                { value: "amount-asc", label: "Laveste pris" },
+              ]}
+              onChange={(value) => setSortKey(value as SortKey)}
+            />
           </label>
         </div>
       </div>

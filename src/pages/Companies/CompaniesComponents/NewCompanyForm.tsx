@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "../../../components/Button";
-import { FormField, inputClass } from "../../../components/FormField";
+import { FormField } from "../../../components/FormField";
+import { Input, inputClass } from "../../../components/Input";
 import type { CompanyInput } from "../../../lib/data";
 
 type NewCompanyFormProps = {
@@ -49,38 +50,33 @@ export function NewCompanyForm({
     <form onSubmit={handleCreateCompany}>
       <div className="space-y-4">
         <FormField label="Navn">
-          <input
-            className={inputClass}
+          <Input
             value={companyForm.name}
             onChange={(event) => setCompanyForm((form) => ({ ...form, name: event.target.value }))}
             required
           />
         </FormField>
         <FormField label="Org.nr.">
-          <input
-            className={inputClass}
+          <Input
             value={companyForm.org_number}
             onChange={(event) => setCompanyForm((form) => ({ ...form, org_number: event.target.value }))}
           />
         </FormField>
         <FormField label="E-post">
-          <input
-            className={inputClass}
+          <Input
             type="email"
             value={companyForm.email}
             onChange={(event) => setCompanyForm((form) => ({ ...form, email: event.target.value }))}
           />
         </FormField>
         <FormField label="By">
-          <input
-            className={inputClass}
+          <Input
             value={companyForm.city}
             onChange={(event) => setCompanyForm((form) => ({ ...form, city: event.target.value }))}
           />
         </FormField>
         <FormField label="Land">
-          <input
-            className={inputClass}
+          <Input
             value={companyForm.country}
             onChange={(event) => setCompanyForm((form) => ({ ...form, country: event.target.value }))}
           />

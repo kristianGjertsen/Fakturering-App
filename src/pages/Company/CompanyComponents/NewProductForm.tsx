@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "../../../components/Button";
-import { FormField, inputClass } from "../../../components/FormField";
+import { FormField } from "../../../components/FormField";
+import { Input, inputClass } from "../../../components/Input";
 import type { ProductInput } from "../../../lib/data";
 import { toNumber } from "../../../lib/invoiceMath";
 
@@ -58,8 +59,7 @@ export function NewProductForm({
     <form onSubmit={handleCreateProduct}>
       <div className="space-y-4">
         <FormField label="Navn">
-          <input
-            className={inputClass}
+          <Input
             value={productForm.name}
             onChange={(event) => setProductForm((form) => ({ ...form, name: event.target.value }))}
             required
@@ -74,15 +74,13 @@ export function NewProductForm({
         </FormField>
         <div className="grid grid-cols-3 gap-2">
           <FormField label="Enhet">
-            <input
-              className={inputClass}
+            <Input
               value={productForm.unit}
               onChange={(event) => setProductForm((form) => ({ ...form, unit: event.target.value }))}
             />
           </FormField>
           <FormField label="Pris">
-            <input
-              className={inputClass}
+            <Input
               inputMode="decimal"
               value={productForm.unit_price}
               onChange={(event) => setProductForm((form) => ({ ...form, unit_price: event.target.value }))}
@@ -90,8 +88,7 @@ export function NewProductForm({
             />
           </FormField>
           <FormField label="MVA %">
-            <input
-              className={inputClass}
+            <Input
               inputMode="decimal"
               value={productForm.vat_rate}
               onChange={(event) => setProductForm((form) => ({ ...form, vat_rate: event.target.value }))}
