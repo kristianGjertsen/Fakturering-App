@@ -34,8 +34,9 @@ export function InvoiceDetails({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h3 className="text-lg font-semibold text-slate-950">
-              {schedule ? "Planlagt faktura" : invoice.invoice_number}
+              {invoice.title || invoice.invoice_number}
             </h3>
+            <p className="text-sm font-medium text-slate-700">{invoice.invoice_number}</p>
             <p className="text-sm text-slate-600">{invoice.company?.name ?? invoice.recipient_name}</p>
             <p className="text-sm text-slate-600">{invoice.company?.email ?? invoice.recipient_email ?? "!Mangler e-post!"}</p>
           </div>

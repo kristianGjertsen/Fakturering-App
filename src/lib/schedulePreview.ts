@@ -39,6 +39,7 @@ export function scheduleToPreviewInvoice(schedule: InvoiceScheduleWithDetails): 
     schedule_id: schedule.id,
     scheduled_for: schedule.next_run_at,
     invoice_number: "Opprettes ved utsending",
+    title: schedule.invoice_title?.trim() || "Opprettes ved utsending",
     issue_date: issueDate,
     due_date: dueDate,
     status: "ready",

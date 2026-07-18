@@ -74,6 +74,11 @@ export function InvoiceList({
           >
             <span className="min-w-0">
               <span className="block truncate font-semibold text-slate-950">{item.title}</span>
+              {item.subtitle && (
+                <span className="mt-0.5 block truncate text-xs font-medium text-slate-600">
+                  {item.subtitle}
+                </span>
+              )}
               <span className="mt-1 block text-xs font-normal text-slate-500">
                 {formatDate(item.date)} · {item.statusLabel}
               </span>
@@ -107,8 +112,8 @@ function createInvoiceListItems(
         id: preview.id,
         companyId: schedule.company_id,
         companyName: schedule.company?.name ?? "Ukjent bedrift",
-        title: "Planlagt faktura",
-        subtitle: `Sendes ${formatDate(schedule.next_run_at)}`,
+        title: preview.title,
+        subtitle: preview.invoice_number,
         statusLabel: "Planlagt",
         statusTone: "purple" as const,
         amount: Number(preview.total),
@@ -119,8 +124,8 @@ function createInvoiceListItems(
       id: invoice.id,
       companyId: invoice.company_id ?? `guest-${invoice.id}`,
       companyName: invoice.company?.name ?? invoice.recipient_name,
-      title: invoice.invoice_number,
-      subtitle: invoice.schedule_id ? "Gjentakende faktura" : "Enkeltfaktura",
+      title: invoice.title || invoice.invoice_number,
+      subtitle: invoice.invoice_number,
       statusLabel: invoice.paid ? "Betalt" : invoiceStatusLabels[invoice.status] ?? invoice.status,
       statusTone: invoiceStatusTone(invoice.status, invoice.paid),
       amount: Number(invoice.total),

@@ -63,7 +63,14 @@ export default function DashboardPage({ companies, products, invoices, schedules
                 <tbody className="divide-y divide-blue-50">
                   {invoices.slice(0, 6).map((invoice) => (
                     <tr key={invoice.id}>
-                      <td className="py-3 pr-4 font-medium text-slate-950">{invoice.invoice_number}</td>
+                      <td className="py-3 pr-4">
+                        <span className="block font-medium text-slate-950">
+                          {invoice.title || invoice.invoice_number}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-slate-500">
+                          {invoice.invoice_number}
+                        </span>
+                      </td>
                       <td className="py-3 pr-4 text-slate-600">{invoice.company?.name ?? "Ukjent"}</td>
                       <td className="py-3 pr-4 text-slate-600">{invoice.paid ? "Betalt" : invoice.status}</td>
                       <td className="py-3 pr-4 text-right font-medium text-slate-950">{formatCurrency(invoice.total)}</td>

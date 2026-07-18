@@ -104,6 +104,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
   const [recipientEmail, setRecipientEmail] = useState("");
   const [showUnsavedRecipientDialog, setShowUnsavedRecipientDialog] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState(createInvoiceNumber);
+  const [invoiceTitle, setInvoiceTitle] = useState("");
   const [issueDate, setIssueDate] = useState(todayInputValue);
   const [paymentTermsDays, setPaymentTermsDays] = useState(14);
   const [notes, setNotes] = useState("");
@@ -144,6 +145,11 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
       : scheduleOnce
         ? "Opprettes ved utsending"
         : invoiceNumber || "Fakturanummer",
+    title: invoiceTitle.trim() || (
+      invoiceKind === "recurring" || scheduleOnce
+        ? "Opprettes ved utsending"
+        : invoiceNumber || "Fakturanummer"
+    ),
     issue_date: previewIssueDate,
     due_date: previewDueDate,
     status: "ready",
@@ -291,6 +297,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         recipientName,
         recipientEmail,
         invoiceNumber,
+        invoiceTitle,
         issueDate,
         dueDate,
         notes,
@@ -310,6 +317,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
             : "Faktura lagret.",
       );
       setInvoiceNumber(createInvoiceNumber());
+      setInvoiceTitle("");
       setIssueDate(todayInputValue());
       setPaymentTermsDays(14);
       setNotes("");
@@ -382,6 +390,17 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
           <Panel>
             <h3 className="text-base font-semibold text-slate-950">Fakturainfo</h3>
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <FormField
+                label="Tittel"
+                helper="Kun til intern oversikt. Vises ikke på PDF-en."
+              >
+                <input
+                  className={inputClass}
+                  value={invoiceTitle}
+                  onChange={(event) => setInvoiceTitle(event.target.value)}
+                  placeholder="Bruker fakturanummer hvis tom"
+                />
+              </FormField>
               <FormField label="Selskap">
                 <select
                   className={inputClass}

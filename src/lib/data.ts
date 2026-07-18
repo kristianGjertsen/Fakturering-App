@@ -44,6 +44,7 @@ export type InvoiceInput = {
   recipientName: string;
   recipientEmail: string;
   invoiceNumber: string;
+  invoiceTitle: string;
   issueDate: string;
   dueDate: string;
   notes: string;
@@ -232,6 +233,7 @@ export async function createInvoice(input: InvoiceInput) {
         owner_user_id: input.ownerUserId,
         company_id: input.companyId,
         title: `${isRecurring ? "Gjentakende" : "Planlagt"} faktura - ${company.data.name}`,
+        invoice_title: input.invoiceTitle.trim() || null,
         schedule_type: isRecurring ? "recurring" : "once",
         frequency: isRecurring ? input.repeat.frequency : null,
         interval_count: isRecurring ? input.repeat.intervalCount : 1,
@@ -308,6 +310,7 @@ export async function createInvoice(input: InvoiceInput) {
       recipient_country: company?.data.country ?? null,
       schedule_id: null,
       invoice_number: input.invoiceNumber.trim(),
+      title: input.invoiceTitle.trim() || input.invoiceNumber.trim(),
       issue_date: input.issueDate,
       due_date: input.dueDate || null,
       status: "ready",

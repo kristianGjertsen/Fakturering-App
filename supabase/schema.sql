@@ -62,6 +62,7 @@ create table if not exists public.invoice_schedules (
   owner_user_id uuid not null references public.profiles (id) on delete cascade,
   company_id uuid not null references public.companies (id) on delete cascade,
   title text not null,
+  invoice_title text,
   schedule_type text not null default 'recurring' check (schedule_type in ('once', 'recurring')),
   frequency text check (frequency in ('daily', 'weekly', 'monthly')),
   interval_count integer not null default 1 check (interval_count > 0),
@@ -121,6 +122,7 @@ create table if not exists public.invoices (
   schedule_id uuid references public.invoice_schedules (id) on delete set null,
   scheduled_for timestamptz,
   invoice_number text not null,
+  title text not null,
   issue_date date not null default current_date,
   due_date date,
   status text not null default 'draft' check (status in ('draft', 'sending', 'ready', 'sent', 'reminded', 'paid', 'cancelled')),
@@ -292,6 +294,7 @@ as $$
 declare
   v_timezone text;
   v_payment_terms_days integer;
+  v_invoice_title text;
   v_invoice_notes text;
   v_pdf_template text;
   v_recipient_name text;
@@ -301,12 +304,14 @@ declare
   v_recipient_country text;
 begin
   if new.schedule_id is null or new.scheduled_for is null then
+    new.title := coalesce(nullif(btrim(new.title), ''), new.invoice_number);
     return new;
   end if;
 
   select
     schedule.timezone,
     schedule.payment_terms_days,
+    schedule.invoice_title,
     schedule.invoice_notes,
     schedule.pdf_template,
     company.name,
@@ -317,6 +322,7 @@ begin
     into
       v_timezone,
       v_payment_terms_days,
+      v_invoice_title,
       v_invoice_notes,
       v_pdf_template,
       v_recipient_name,
@@ -329,6 +335,7 @@ begin
    where schedule.id = new.schedule_id;
 
   if found then
+    new.title := coalesce(nullif(btrim(v_invoice_title), ''), new.invoice_number);
     new.issue_date := (new.scheduled_for at time zone v_timezone)::date;
     new.due_date := new.issue_date + v_payment_terms_days;
     new.notes := v_invoice_notes;
