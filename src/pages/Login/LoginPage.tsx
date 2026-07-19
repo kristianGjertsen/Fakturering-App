@@ -1,7 +1,6 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { supabase } from "../../supabaseClient";
-import SupabaseDebugPanel from "./LoginComponents/SupabaseDebugPanel";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { Select } from "../../components/Select";
@@ -292,8 +291,6 @@ export default function LoginPage() {
         >
           {isRegistering ? "Har du bruker? Logg inn" : "Ingen bruker? Opprett en"}
         </Button>
-
-        <SupabaseDebugPanel />
       </section>
     </main>
   );

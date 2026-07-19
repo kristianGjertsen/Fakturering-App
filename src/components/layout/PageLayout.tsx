@@ -20,14 +20,6 @@ export function ContentStack({ children, className = "", ...props }: LayoutProps
   );
 }
 
-export function MasterDetailLayout({ children, className = "", ...props }: LayoutProps) {
-  return (
-    <div className={`grid gap-5 lg:grid-cols-[420px_minmax(0,1fr)] ${className}`.trim()} {...props}>
-      {children}
-    </div>
-  );
-}
-
 export function StatisticsGrid({ children, className = "", ...props }: LayoutProps) {
   return (
     <div className={`grid gap-4 sm:grid-cols-2 xl:grid-cols-4 ${className}`.trim()} {...props}>

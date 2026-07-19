@@ -22,18 +22,6 @@ export function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function addDaysInputValue(days: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-export function addMonthsInputValue(months: number) {
-  const date = new Date();
-  date.setMonth(date.getMonth() + months);
-  return date.toISOString().slice(0, 10);
-}
-
 export function frequencyLabel(frequency: string, intervalCount = 1) {
   if (frequency === "daily") {
     if (intervalCount === 1) {

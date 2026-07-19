@@ -31,9 +31,6 @@ type DocumentBrowserProps = {
   itemLabel: string;
 };
 
-const controlClass =
-  "h-9 rounded-md border border-blue-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100";
-
 export function DocumentBrowser({
   items,
   selectedId,
