@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Company } from "../../types";
 import type { CompanyInput } from "../../lib/data";
+import { countryLabel } from "../../lib/countries";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { SectionHeader } from "../../components/SectionHeader";
@@ -83,7 +84,7 @@ export default function CompaniesPage({ companies, onCreateCompany, onOpenCompan
                   <span className="min-w-0">
                     <span className="block truncate font-semibold text-slate-950">{company.name}</span>
                     <span className="mt-1 block truncate text-sm font-normal text-slate-600">
-                      {[company.org_number, company.email, company.address, company.postal_address].filter(Boolean).join(" · ") ||
+                      {[company.org_number, company.email, company.address, company.postal_address, countryLabel(company.country)].filter(Boolean).join(" · ") ||
                         "Ingen detaljer registrert"}
                     </span>
                   </span>

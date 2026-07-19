@@ -2,7 +2,9 @@ import { useState, type FormEvent } from "react";
 import { Button } from "../../../components/Button";
 import { FormField } from "../../../components/FormField";
 import { Input, inputClass } from "../../../components/Input";
+import { Select } from "../../../components/Select";
 import type { CompanyInput } from "../../../lib/data";
+import { countryOptions } from "../../../lib/countries";
 
 type NewCompanyFormProps = {
   onCreateCompany: (input: CompanyInput) => Promise<void>;
@@ -17,7 +19,7 @@ const emptyCompanyForm: CompanyInput = {
   email: "",
   address: "",
   postal_address: "",
-  country: "Norway",
+  country: "NO",
   private_notes: "",
 };
 
@@ -50,14 +52,14 @@ export function NewCompanyForm({
   return (
     <form onSubmit={handleCreateCompany}>
       <div className="space-y-4">
-        <FormField label="Navn">
+        <FormField label="Firmanavn">
           <Input
             value={companyForm.name}
             onChange={(event) => setCompanyForm((form) => ({ ...form, name: event.target.value }))}
             required
           />
         </FormField>
-        <FormField label="Org.nr.">
+        <FormField label="Orginasjonsnummer">
           <Input
             value={companyForm.org_number}
             onChange={(event) => setCompanyForm((form) => ({ ...form, org_number: event.target.value }))}
@@ -83,9 +85,11 @@ export function NewCompanyForm({
           />
         </FormField>
         <FormField label="Land">
-          <Input
+          <Select
             value={companyForm.country}
-            onChange={(event) => setCompanyForm((form) => ({ ...form, country: event.target.value }))}
+            options={countryOptions}
+            onChange={(country) => setCompanyForm((form) => ({ ...form, country }))}
+            ariaLabel="Velg land for selskap"
           />
         </FormField>
         <FormField label="Internt notat">

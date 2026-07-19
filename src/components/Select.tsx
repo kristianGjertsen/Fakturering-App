@@ -9,7 +9,7 @@ export type SelectOption = {
 
 type SelectProps = {
   value: string | number;
-  options: SelectOption[];
+  options: readonly SelectOption[];
   onChange: (value: string) => void;
   ariaLabel: string;
   className?: string;
@@ -149,7 +149,7 @@ export function Select({
   );
 }
 
-function firstEnabledIndex(options: SelectOption[]) {
+function firstEnabledIndex(options: readonly SelectOption[]) {
   const index = options.findIndex((option) => !option.disabled);
   return index >= 0 ? index : 0;
 }

@@ -35,12 +35,14 @@ const fallbackInvoice = {
     name: "Kristian Gjertsen ENK",
     address: "Adresseveien 1",
     postalAddress: "0001 Oslo",
+    country: "NO",
     orgNumber: "123 456 789",
   },
   customer: {
     name: "Testfirma Kristian AS",
     address: "Kundegata 2",
     postalAddress: "0123 Oslo",
+    country: "NO",
     orgNumber: "987 654 321",
   },
   invoiceNumber: "1001",
@@ -129,6 +131,7 @@ function createPage(
   const customerName = invoice.company?.name || fallbackInvoice.customer.name;
   const customerAddress = invoice.company?.address || fallbackInvoice.customer.address;
   const customerPostalAddress = invoice.company?.postal_address || fallbackInvoice.customer.postalAddress;
+  const customerCountry = countryLabel(invoice.company?.country ?? fallbackInvoice.customer.country);
   const customerOrgNumber = invoice.company?.org_number || fallbackInvoice.customer.orgNumber;
 
   if (theme.pageBackground) {
@@ -167,13 +170,15 @@ function createPage(
     text(45, 671, 13, fallbackInvoice.seller.name),
     text(45, 653, 10, fallbackInvoice.seller.address, "0.12 0.18 0.28"),
     text(45, 637, 10, fallbackInvoice.seller.postalAddress, "0.12 0.18 0.28"),
-    text(45, 621, 10, `Org.nr. ${fallbackInvoice.seller.orgNumber}`, "0.12 0.18 0.28"),
+    text(45, 621, 10, countryLabel(fallbackInvoice.seller.country), "0.12 0.18 0.28"),
+    text(45, 605, 10, `Org.nr. ${fallbackInvoice.seller.orgNumber}`, "0.12 0.18 0.28"),
     text(310, 690, 9, "Kunde", theme.muted),
     text(310, 671, 13, customerName),
     text(310, 653, 10, customerAddress, "0.12 0.18 0.28"),
     text(310, 637, 10, customerPostalAddress, "0.12 0.18 0.28"),
-    text(310, 621, 10, `Org.nr. ${customerOrgNumber}`, "0.12 0.18 0.28"),
-    text(310, 605, 10, invoice.company?.email ?? "", "0.12 0.18 0.28"),
+    text(310, 621, 10, customerCountry, "0.12 0.18 0.28"),
+    text(310, 605, 10, `Org.nr. ${customerOrgNumber}`, "0.12 0.18 0.28"),
+    text(310, 589, 10, invoice.company?.email ?? "", "0.12 0.18 0.28"),
   );
 
   if (theme.tableHeaderBackground) {
@@ -321,6 +326,26 @@ function formatCurrency(value: number) {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 2 }).format(Number(value));
+}
+
+function countryLabel(value: string | null | undefined) {
+  const labels: Record<string, string> = {
+    NO: "Norge",
+    SE: "Sverige",
+    DK: "Danmark",
+    FI: "Finland",
+    IS: "Island",
+    DE: "Tyskland",
+    NL: "Nederland",
+    GB: "Storbritannia",
+    US: "USA",
+    FR: "Frankrike",
+    ES: "Spania",
+    IT: "Italia",
+    PL: "Polen",
+  };
+
+  return value ? labels[value] ?? value : "";
 }
 
 function truncate(value: string, length: number) {

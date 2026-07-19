@@ -1,31 +1,25 @@
-create extension if not exists pgcrypto;
-
 alter table public.profiles
-  add column if not exists company_name text,
-  add column if not exists address text,
-  add column if not exists postal_address text,
-  add column if not exists country text not null default 'NO',
-  add column if not exists org_number text,
-  add column if not exists updated_at timestamptz not null default now();
+  add column if not exists country text not null default 'NO';
 
-create table if not exists public.profile_bank_accounts (
-  id uuid primary key default gen_random_uuid(),
-  profile_id uuid not null references public.profiles (id) on delete cascade,
-  account_name text not null,
-  account_number text not null,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+alter table public.companies
+  add column if not exists country text not null default 'NO';
 
-create or replace function public.set_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
+update public.profiles
+   set country = case
+     when country is null or btrim(country) = '' then 'NO'
+     when upper(country) = 'NORWAY' or lower(country) = 'norge' then 'NO'
+     else upper(country)
+   end;
+
+update public.companies
+   set country = case
+     when country is null or btrim(country) = '' then 'NO'
+     when upper(country) = 'NORWAY' or lower(country) = 'norge' then 'NO'
+     else upper(country)
+   end;
+
+drop function if exists public.save_profile_details(text, text, text, text, jsonb);
+drop function if exists public.save_profile_details(text, text, text, text, text, jsonb);
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -72,25 +66,6 @@ begin
   return new;
 end;
 $$;
-
-drop trigger if exists profiles_set_updated_at on public.profiles;
-create trigger profiles_set_updated_at
-  before update on public.profiles
-  for each row execute procedure public.set_updated_at();
-
-drop trigger if exists profile_bank_accounts_set_updated_at on public.profile_bank_accounts;
-create trigger profile_bank_accounts_set_updated_at
-  before update on public.profile_bank_accounts
-  for each row execute procedure public.set_updated_at();
-
-alter table public.profile_bank_accounts enable row level security;
-
-drop policy if exists "profile_bank_accounts_owner_access" on public.profile_bank_accounts;
-create policy "profile_bank_accounts_owner_access"
-  on public.profile_bank_accounts
-  for all
-  using (auth.uid() = profile_id)
-  with check (auth.uid() = profile_id);
 
 create or replace function public.save_profile_details(
   p_full_name text,

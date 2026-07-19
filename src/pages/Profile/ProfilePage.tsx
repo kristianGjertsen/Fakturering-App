@@ -5,9 +5,11 @@ import { deleteCurrentUser, fetchProfileDetails, saveProfileDetails } from "../.
 import { Button } from "../../components/Button";
 import { FormField } from "../../components/FormField";
 import { Input } from "../../components/Input";
+import { Select } from "../../components/Select";
 import { SectionHeader } from "../../components/SectionHeader";
 import { Panel, PanelHeader } from "../../components/layout/Panel";
 import { Notice } from "../../components/layout/Notice";
+import { countryOptions } from "../../lib/countries";
 
 type ProfileViewProps = {
   session: Session;
@@ -36,6 +38,7 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
   const [companyName, setCompanyName] = useState("");
   const [address, setAddress] = useState("");
   const [postalAddress, setPostalAddress] = useState("");
+  const [country, setCountry] = useState("NO");
   const [orgNumber, setOrgNumber] = useState("");
   const [bankAccounts, setBankAccounts] = useState<BankAccountFormRow[]>([createBankAccountRow()]);
 
@@ -57,6 +60,7 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
         setCompanyName(profile.company_name ?? "");
         setAddress(profile.address ?? "");
         setPostalAddress(profile.postal_address ?? "");
+        setCountry(profile.country ?? "NO");
         setOrgNumber(profile.org_number ?? "");
         setBankAccounts(
           nextBankAccounts.length > 0
@@ -118,6 +122,7 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
         company_name: companyName,
         address,
         postal_address: postalAddress,
+        country,
         org_number: orgNumber,
         bank_accounts: normalizedBankAccounts,
       });
@@ -221,6 +226,15 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
                 onChange={(event) => setPostalAddress(event.target.value)}
                 disabled={loading}
                 required
+              />
+            </FormField>
+            <FormField label="Land">
+              <Select
+                value={country}
+                options={countryOptions}
+                onChange={setCountry}
+                ariaLabel="Velg land for egen virksomhet"
+                disabled={loading}
               />
             </FormField>
           </div>

@@ -28,6 +28,7 @@ export type Profile = {
   company_name: string | null;
   address: string | null;
   postal_address: string | null;
+  country: string;
   org_number: string | null;
   created_at: string;
   updated_at: string;

@@ -7,6 +7,7 @@ create table if not exists public.profiles (
   company_name text,
   address text,
   postal_address text,
+  country text not null default 'NO',
   org_number text,
   updated_at timestamptz not null default now(),
   created_at timestamptz not null default now()
@@ -28,7 +29,7 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, full_name, company_name, address, postal_address, org_number)
+  insert into public.profiles (id, email, full_name, company_name, address, postal_address, country, org_number)
   values (
     new.id,
     new.email,
@@ -36,6 +37,7 @@ begin
     new.raw_user_meta_data ->> 'company_name',
     new.raw_user_meta_data ->> 'address',
     new.raw_user_meta_data ->> 'postal_address',
+    coalesce(nullif(new.raw_user_meta_data ->> 'country', ''), 'NO'),
     new.raw_user_meta_data ->> 'org_number'
   )
   on conflict (id) do update
@@ -44,6 +46,7 @@ begin
         company_name = coalesce(excluded.company_name, public.profiles.company_name),
         address = coalesce(excluded.address, public.profiles.address),
         postal_address = coalesce(excluded.postal_address, public.profiles.postal_address),
+        country = coalesce(excluded.country, public.profiles.country),
         org_number = coalesce(excluded.org_number, public.profiles.org_number);
 
   insert into public.profile_bank_accounts (profile_id, account_name, account_number)
@@ -79,7 +82,7 @@ create table if not exists public.companies (
   email text,
   address text,
   postal_address text,
-  country text default 'Norway',
+  country text not null default 'NO',
   
   private_notes text,
   created_at timestamptz not null default now(),
@@ -446,6 +449,7 @@ create or replace function public.save_profile_details(
   p_company_name text,
   p_address text,
   p_postal_address text,
+  p_country text,
   p_org_number text,
   p_bank_accounts jsonb
 )
@@ -460,6 +464,7 @@ begin
          company_name = nullif(btrim(p_company_name), ''),
          address = nullif(btrim(p_address), ''),
          postal_address = nullif(btrim(p_postal_address), ''),
+         country = coalesce(nullif(btrim(p_country), ''), 'NO'),
          org_number = nullif(btrim(p_org_number), '')
    where id = auth.uid();
 
@@ -482,7 +487,7 @@ begin
 end;
 $$;
 
-grant execute on function public.save_profile_details(text, text, text, text, text, jsonb)
+grant execute on function public.save_profile_details(text, text, text, text, text, text, jsonb)
   to authenticated;
 
 drop policy if exists "companies_owner_access" on public.companies;

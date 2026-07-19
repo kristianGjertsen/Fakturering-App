@@ -1,5 +1,6 @@
 import { Button } from "../../../components/Button";
 import { statusToneClasses } from "../../../components/DocumentBrowser";
+import { countryLabel } from "../../../lib/countries";
 import { formatCurrency, formatDate } from "../../../lib/format";
 import type { InvoiceScheduleWithDetails, InvoiceWithDetails } from "../../../types";
 import { invoiceStatusLabels, invoiceStatusTone } from "./InvoiceList";
@@ -44,6 +45,9 @@ export function InvoiceDetails({
             )}
             {(invoice.company?.org_number ?? invoice.recipient_org_number) && (
               <p className="text-sm text-slate-600">Org.nr. {invoice.company?.org_number ?? invoice.recipient_org_number}</p>
+            )}
+            {(invoice.company?.country ?? invoice.recipient_country) && (
+              <p className="text-sm text-slate-600">{countryLabel(invoice.company?.country ?? invoice.recipient_country)}</p>
             )}
             <p className="text-sm text-slate-600">{invoice.company?.email ?? invoice.recipient_email ?? "!Mangler e-post!"}</p>
           </div>

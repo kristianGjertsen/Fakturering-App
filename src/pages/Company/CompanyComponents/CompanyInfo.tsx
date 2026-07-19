@@ -1,5 +1,6 @@
 import type { Company } from "../../../types";
 import { formatDate } from "../../../lib/format";
+import { countryLabel } from "../../../lib/countries";
 import { Panel, PanelHeader } from "../../../components/layout/Panel";
 
 type CompanyInfoProps = {
@@ -17,7 +18,7 @@ export function CompanyInfo({ company }: CompanyInfoProps) {
         <InfoItem label="E-post" value={company.email} />
         <InfoItem label="Adresse" value={company.address} />
         <InfoItem label="Postadresse" value={company.postal_address} />
-        <InfoItem label="Land" value={company.country} />
+        <InfoItem label="Land" value={countryLabel(company.country)} />
         <InfoItem label="Opprettet" value={formatDate(company.created_at)} />
         <InfoItem label="Sist oppdatert" value={formatDate(company.updated_at)} />
       </dl>

@@ -1,4 +1,5 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { countryLabel } from "../lib/countries";
 
 export type InvoicePdfData = {
   pdf_template?: "classic" | "modern" | "minimal";
@@ -35,12 +36,14 @@ const fallbackInvoice = {
     name: "Kristian Gjertsen ENK",
     address: "Adresseveien 1",
     postalAddress: "0001 Oslo",
+    country: "NO",
     orgNumber: "123 456 789",
   },
   customer: {
     name: "Testfirma Kristian AS",
     address: "Kundegata 2",
     postalAddress: "0123 Oslo",
+    country: "NO",
     orgNumber: "987 654 321",
   },
   invoiceNumber: "1001",
@@ -117,11 +120,12 @@ export function InvoicePdfTemplate({ invoice }: { invoice: InvoicePdfData }) {
     invoice.company?.postal_address || fallbackInvoice.customer.postalAddress,
     invoice.company?.org_number ? `Org.nr. ${invoice.company.org_number}` : `Org.nr. ${fallbackInvoice.customer.orgNumber}`,
     invoice.company?.email,
-    invoice.company?.country,
+    countryLabel(invoice.company?.country ?? fallbackInvoice.customer.country),
   ].filter(Boolean);
   const sellerDetails = [
     fallbackInvoice.seller.address,
     fallbackInvoice.seller.postalAddress,
+    countryLabel(fallbackInvoice.seller.country),
     `Org.nr. ${fallbackInvoice.seller.orgNumber}`,
   ];
 

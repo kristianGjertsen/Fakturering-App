@@ -1,7 +1,14 @@
 alter table public.companies
   add column if not exists address text,
   add column if not exists postal_address text,
-  add column if not exists country text default 'Norway';
+  add column if not exists country text not null default 'NO';
+
+update public.companies
+   set country = case
+     when country is null or btrim(country) = '' then 'NO'
+     when upper(country) = 'NORWAY' or lower(country) = 'norge' then 'NO'
+     else upper(country)
+   end;
 
 alter table public.companies
   drop column if exists city;

@@ -46,6 +46,7 @@ export type ProfileDetailsInput = {
   company_name: string;
   address: string;
   postal_address: string;
+  country: string;
   org_number: string;
   bank_accounts: Array<{
     account_name: string;
@@ -155,6 +156,7 @@ export async function saveProfileDetails(input: ProfileDetailsInput) {
     p_company_name: input.company_name,
     p_address: input.address,
     p_postal_address: input.postal_address,
+    p_country: input.country,
     p_org_number: input.org_number,
     p_bank_accounts: normalizedAccounts,
   });
@@ -255,7 +257,7 @@ export async function createCompany(ownerUserId: string, input: CompanyInput) {
     email: input.email.trim() || null,
     address: input.address.trim() || null,
     postal_address: input.postal_address.trim() || null,
-    country: input.country.trim() || "Norway",
+    country: input.country.trim() || "NO",
     private_notes: input.private_notes.trim() || null,
   });
 
