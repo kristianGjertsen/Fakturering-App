@@ -34,7 +34,7 @@ import { UnsavedRecipientDialog } from "./UnsavedRecipientDialog";
 type InvoiceBuilderProps = {
   companies: Company[];
   products: Product[];
-  onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<void>;
+  onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<string>;
   onOpenCompanies: () => void;
   initialCompanyId?: string;
 };

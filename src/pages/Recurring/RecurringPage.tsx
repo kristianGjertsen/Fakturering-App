@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { DetailModal } from "../../components/layout/DetailModal";
 import { DocumentBrowser, type DocumentBrowserItem } from "../../components/DocumentBrowser";
 import { EmptyState } from "../../components/EmptyState";
@@ -13,7 +14,9 @@ type RecurringViewProps = {
 };
 
 export default function RecurringPage({ schedules }: RecurringViewProps) {
-  const [selectedScheduleId, setSelectedScheduleId] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedScheduleId = searchParams.get("scheduleId") ?? "";
+  const [selectedScheduleId, setSelectedScheduleId] = useState(requestedScheduleId);
 
   const browserItems = useMemo<DocumentBrowserItem[]>(() => schedules.map((schedule) => ({
     id: schedule.id,
@@ -29,12 +32,47 @@ export default function RecurringPage({ schedules }: RecurringViewProps) {
   })), [schedules]);
 
   useEffect(() => {
-    if (selectedScheduleId && !schedules.some((schedule) => schedule.id === selectedScheduleId)) {
+    if (
+      requestedScheduleId &&
+      requestedScheduleId !== selectedScheduleId &&
+      schedules.some((schedule) => schedule.id === requestedScheduleId)
+    ) {
+      setSelectedScheduleId(requestedScheduleId);
+      return;
+    }
+
+    if (
+      selectedScheduleId &&
+      !schedules.some((schedule) => schedule.id === selectedScheduleId)
+    ) {
       setSelectedScheduleId("");
     }
-  }, [schedules, selectedScheduleId]);
+  }, [requestedScheduleId, schedules, selectedScheduleId]);
 
   const selectedSchedule = schedules.find((schedule) => schedule.id === selectedScheduleId) ?? null;
+
+  function selectSchedule(scheduleId: string) {
+    const nextScheduleId = selectedScheduleId === scheduleId ? "" : scheduleId;
+    setSelectedScheduleId(nextScheduleId);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (nextScheduleId) {
+        next.set("scheduleId", nextScheduleId);
+      } else {
+        next.delete("scheduleId");
+      }
+      return next;
+    }, { replace: true });
+  }
+
+  function closeScheduleDetails() {
+    setSelectedScheduleId("");
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete("scheduleId");
+      return next;
+    }, { replace: true });
+  }
 
   return (
     <>
@@ -52,9 +90,7 @@ export default function RecurringPage({ schedules }: RecurringViewProps) {
         <DocumentBrowser
           items={browserItems}
           selectedId={selectedScheduleId}
-          onSelect={(scheduleId) => {
-            setSelectedScheduleId((current) => current === scheduleId ? "" : scheduleId);
-          }}
+          onSelect={selectSchedule}
           searchPlaceholder="Søk etter plan eller bedrift"
           itemLabel="planer"
         />
@@ -62,7 +98,7 @@ export default function RecurringPage({ schedules }: RecurringViewProps) {
 
       <DetailModal
         open={Boolean(selectedSchedule)}
-        onClose={() => setSelectedScheduleId("")}
+        onClose={closeScheduleDetails}
         ariaLabel={selectedSchedule
           ? `Detaljer for ${displayScheduleTitle(selectedSchedule)}`
           : "Detaljer for gjentakende plan"}

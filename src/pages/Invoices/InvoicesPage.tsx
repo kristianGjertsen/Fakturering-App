@@ -20,7 +20,7 @@ type InvoicesPageProps = {
   invoices: InvoiceWithDetails[];
   schedules: InvoiceScheduleWithDetails[];
   currentUserEmail: string | null | undefined;
-  onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<void>;
+  onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<string>;
   onOpenCompanies: () => void;
   onRefreshInvoices: () => Promise<void>;
   onDeleteInvoice: (invoiceId: string) => Promise<void>;
@@ -39,6 +39,7 @@ export default function InvoicesPage({
 }: InvoicesPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const companyFilterId = searchParams.get("companyId") ?? "";
+  const requestedInvoiceId = searchParams.get("invoiceId") ?? "";
   const [selectedInvoiceId, setSelectedInvoiceId] = useState(searchParams.get("invoiceId") ?? "");
   const [deletingInvoiceId, setDeletingInvoiceId] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(searchParams.get("create") === "true");
@@ -69,10 +70,22 @@ export default function InvoicesPage({
   );
 
   useEffect(() => {
-    if (selectedInvoiceId && !selectableInvoices.some((invoice) => invoice.id === selectedInvoiceId)) {
+    if (
+      requestedInvoiceId &&
+      requestedInvoiceId !== selectedInvoiceId &&
+      selectableInvoices.some((invoice) => invoice.id === requestedInvoiceId)
+    ) {
+      setSelectedInvoiceId(requestedInvoiceId);
+      return;
+    }
+
+    if (
+      selectedInvoiceId &&
+      !selectableInvoices.some((invoice) => invoice.id === selectedInvoiceId)
+    ) {
       setSelectedInvoiceId("");
     }
-  }, [selectableInvoices, selectedInvoiceId]);
+  }, [requestedInvoiceId, selectableInvoices, selectedInvoiceId]);
 
   const selectedInvoice = selectableInvoices.find((invoice) => invoice.id === selectedInvoiceId) ?? null;
   const selectedSchedule = selectedInvoice
@@ -230,8 +243,9 @@ export default function InvoicesPage({
           products={products}
           initialCompanyId={companyFilterId}
           onCreateInvoice={async (input) => {
-            await onCreateInvoice(input);
+            const createdId = await onCreateInvoice(input);
             setShowCreateForm(false);
+            return createdId;
           }}
           onOpenCompanies={onOpenCompanies}
         />

@@ -60,9 +60,18 @@ export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
   }
 
   async function handleCreateInvoice(input: Omit<InvoiceInput, "ownerUserId">) {
-    await createInvoice({ ...input, ownerUserId: session.user.id });
+    const createdId = await createInvoice({ ...input, ownerUserId: session.user.id });
     await loadData();
-    navigate(input.repeat.enabled ? "/recurring" : "/invoices");
+
+    if (input.repeat.enabled) {
+      navigate(`/recurring?scheduleId=${createdId}`);
+    } else if (input.scheduleOnce.enabled) {
+      navigate(`/invoices?invoiceId=schedule-preview-${createdId}`);
+    } else {
+      navigate(`/invoices?invoiceId=${createdId}`);
+    }
+
+    return createdId;
   }
 
   async function handleDeleteInvoice(invoiceId: string) {
