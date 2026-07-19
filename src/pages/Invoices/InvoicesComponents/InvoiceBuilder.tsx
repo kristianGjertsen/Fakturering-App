@@ -1,7 +1,22 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import type { Company, InvoiceDraftLine, InvoiceWithDetails, PdfTemplate, Product, RepeatDraft } from "../../../types";
+import type {
+  Company,
+  InvoiceDraftAttachment,
+  InvoiceDraftLine,
+  InvoiceWithDetails,
+  PdfTemplate,
+  Product,
+  RepeatDraft,
+} from "../../../types";
 import type { InvoiceInput } from "../../../lib/data";
+import {
+  ATTACHMENT_ACCEPT,
+  attachmentFileName,
+  attachmentReference,
+  formatFileSize,
+  validateAttachmentFiles,
+} from "../../../lib/attachments";
 import { formatCurrency, todayInputValue } from "../../../lib/format";
 import { createInvoiceNumber } from "../../../lib/data";
 import { calculateLine, calculateTotals, toNumber } from "../../../lib/invoiceMath";
@@ -33,6 +48,14 @@ function createEmptyLine(): InvoiceDraftLine {
     unit: "stk",
     unitPrice: 0,
     vatRate: 25,
+    attachments: [],
+  };
+}
+
+function createDraftAttachment(file: File): InvoiceDraftAttachment {
+  return {
+    localId: crypto.randomUUID(),
+    file,
   };
 }
 
@@ -199,6 +222,18 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
           created_at: new Date().toISOString(),
         };
       }),
+    invoice_attachments: lines.flatMap((line) =>
+      line.attachments.map((attachment) => ({
+        id: `preview-attachment-${attachment.localId}`,
+        invoice_id: "preview",
+        invoice_item_id: `preview-${line.localId}`,
+        storage_path: "",
+        original_name: attachment.file.name,
+        mime_type: attachment.file.type,
+        size_bytes: attachment.file.size,
+        created_at: new Date().toISOString(),
+      }))
+    ),
   };
 
   function handleCompanyChange(nextCompanyId: string) {
@@ -252,6 +287,80 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
 
   function addManualLine() {
     setLines((currentLines) => [...currentLines, createEmptyLine()]);
+  }
+
+  function addLineWithAttachments(fileList: FileList | null) {
+    const files = Array.from(fileList ?? []);
+
+    if (files.length === 0) {
+      return;
+    }
+
+    const validationError = validateAttachmentFiles(files, attachmentBytes(lines));
+
+    if (validationError) {
+      setMessage(validationError);
+      return;
+    }
+
+    const attachments = files.map(createDraftAttachment);
+    setLines((currentLines) => {
+      const lastLine = currentLines[currentLines.length - 1];
+
+      if (
+        lastLine &&
+        !lastLine.productId &&
+        !lastLine.description.trim() &&
+        lastLine.attachments.length === 0
+      ) {
+        return currentLines.map((line) =>
+          line.localId === lastLine.localId ? { ...line, attachments } : line
+        );
+      }
+
+      const line = createEmptyLine();
+      line.attachments = attachments;
+      return [...currentLines, line];
+    });
+    setMessage("");
+  }
+
+  function addAttachmentsToLine(localId: string, fileList: FileList | null) {
+    const files = Array.from(fileList ?? []);
+
+    if (files.length === 0) {
+      return;
+    }
+
+    const validationError = validateAttachmentFiles(files, attachmentBytes(lines));
+
+    if (validationError) {
+      setMessage(validationError);
+      return;
+    }
+
+    const attachments = files.map(createDraftAttachment);
+    setLines((currentLines) =>
+      currentLines.map((line) =>
+        line.localId === localId
+          ? { ...line, attachments: [...line.attachments, ...attachments] }
+          : line
+      )
+    );
+    setMessage("");
+  }
+
+  function removeAttachment(lineId: string, attachmentId: string) {
+    setLines((currentLines) =>
+      currentLines.map((line) =>
+        line.localId === lineId
+          ? {
+              ...line,
+              attachments: line.attachments.filter((attachment) => attachment.localId !== attachmentId),
+            }
+          : line
+      )
+    );
   }
 
   function removeLine(localId: string) {
@@ -497,9 +606,28 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                 <h3 className="text-base font-semibold text-slate-950">Fakturalinjer</h3>
                 <p className="text-sm text-slate-600">Velg lagrede produkter eller skriv inn manuelle linjer.</p>
               </div>
-              <Button variant="secondary" onClick={addManualLine}>
-                Legg til linje
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={addManualLine}>
+                  Legg til linje
+                </Button>
+                <input
+                  id="new-line-attachments"
+                  className="sr-only"
+                  type="file"
+                  accept={ATTACHMENT_ACCEPT}
+                  multiple
+                  onChange={(event) => {
+                    addLineWithAttachments(event.currentTarget.files);
+                    event.currentTarget.value = "";
+                  }}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => document.getElementById("new-line-attachments")?.click()}
+                >
+                  Legg til linje med vedlegg
+                </Button>
+              </div>
             </div>
 
             <div className="mt-5 space-y-4">
@@ -576,6 +704,72 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
                             </svg>
                           </Button>
                         </div>
+                      </div>
+                      <div className="border-t border-blue-100 pt-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-medium text-slate-700">
+                              Vedlegg{line.attachments.length > 0 ? ` x${line.attachments.length}` : ""}
+                            </p>
+                            <p className="text-xs text-slate-500">PDF, JPG eller PNG. Maks 10 MB per fil.</p>
+                          </div>
+                          <input
+                            id={`line-attachments-${line.localId}`}
+                            className="sr-only"
+                            type="file"
+                            accept={ATTACHMENT_ACCEPT}
+                            multiple
+                            onChange={(event) => {
+                              addAttachmentsToLine(line.localId, event.currentTarget.files);
+                              event.currentTarget.value = "";
+                            }}
+                          />
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => document.getElementById(`line-attachments-${line.localId}`)?.click()}
+                          >
+                            Legg til vedlegg
+                          </Button>
+                        </div>
+
+                        {line.attachments.length > 0 && (
+                          <ul className="mt-3 divide-y divide-blue-100 rounded-md border border-blue-100 bg-white px-3">
+                            {line.attachments.map((attachment, attachmentIndex) => (
+                              <li
+                                key={attachment.localId}
+                                className="flex min-w-0 items-center justify-between gap-3 py-2"
+                              >
+                                <span className="min-w-0">
+                                  <span className="block truncate text-sm text-slate-800">
+                                    {attachmentFileName(
+                                      attachment.file.name,
+                                      attachmentReference(
+                                        lines
+                                          .slice(0, index)
+                                          .filter(
+                                            (draftLine) =>
+                                              draftLine.description.trim() &&
+                                              draftLine.quantity > 0,
+                                          ).length,
+                                        attachmentIndex,
+                                      ),
+                                    )}
+                                  </span>
+                                  <span className="block text-xs text-slate-500">{formatFileSize(attachment.file.size)}</span>
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="xs"
+                                  onClick={() => removeAttachment(line.localId, attachment.localId)}
+                                  aria-label={`Fjern ${attachment.file.name}`}
+                                >
+                                  Fjern
+                                </Button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -699,5 +893,13 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         </aside>
       </section>
     </form>
+  );
+}
+
+function attachmentBytes(lines: InvoiceDraftLine[]) {
+  return lines.reduce(
+    (total, line) =>
+      total + line.attachments.reduce((lineTotal, attachment) => lineTotal + attachment.file.size, 0),
+    0,
   );
 }

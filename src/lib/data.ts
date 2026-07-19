@@ -1,7 +1,9 @@
 import { supabase } from "../supabaseClient";
 import type {
   Company,
+  InvoiceAttachment,
   InvoiceDraftLine,
+  InvoiceItem,
   InvoiceStatus,
   InvoiceScheduleWithDetails,
   InvoiceWithDetails,
@@ -12,6 +14,12 @@ import type {
   RepeatDraft,
   SingleScheduleDraft,
 } from "../types";
+import {
+  ATTACHMENT_BUCKET,
+  attachmentFileName,
+  referenceInvoiceAttachments,
+  validateAttachmentFiles,
+} from "./attachments";
 import { calculateLine, calculateTotals } from "./invoiceMath";
 import { calculateNextRunAt, calculateScheduledRunAt, recurrenceFieldsForFrequency, SCHEDULE_RUN_TIME } from "./recurrence";
 
@@ -214,7 +222,7 @@ export async function fetchProducts() {
 export async function fetchInvoices() {
   const { data, error } = await supabase
     .from("invoices")
-    .select("*, company:companies(id,name,org_number,email,address,postal_address,country), invoice_items(*)")
+    .select("*, company:companies(id,name,org_number,email,address,postal_address,country), invoice_items(*), invoice_attachments(*)")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -238,7 +246,7 @@ export async function fetchInvoices() {
 export async function fetchSchedules() {
   const { data, error } = await supabase
     .from("invoice_schedules")
-    .select("*, company:companies(id,name,org_number,email,address,postal_address,country), invoice_schedule_lines(*)")
+    .select("*, company:companies(id,name,org_number,email,address,postal_address,country), invoice_schedule_lines(*), invoice_schedule_attachments(*)")
     .eq("is_active", true)
     .order("next_run_at", { ascending: true });
 
@@ -345,13 +353,27 @@ export async function createInvoice(input: InvoiceInput) {
       sort_order: index,
     }));
 
-    const { error: scheduleLinesError } = await supabase
+    const { data: createdScheduleLines, error: scheduleLinesError } = await supabase
       .from("invoice_schedule_lines")
-      .insert(scheduleLines);
+      .insert(scheduleLines)
+      .select("id,sort_order");
 
-    if (scheduleLinesError) {
+    if (scheduleLinesError || !createdScheduleLines) {
       await supabase.from("invoice_schedules").delete().eq("id", schedule.id);
-      throw scheduleLinesError;
+      throw scheduleLinesError ?? new Error("Kunne ikke hente de opprettede fakturalinjene.");
+    }
+
+    try {
+      await persistLineAttachments({
+        ownerUserId: input.ownerUserId,
+        scope: "schedules",
+        parentId: schedule.id,
+        lines: input.lines,
+        persistedLines: createdScheduleLines,
+      });
+    } catch (error) {
+      await supabase.from("invoice_schedules").delete().eq("id", schedule.id);
+      throw error;
     }
 
     return schedule.id as string;
@@ -420,20 +442,50 @@ export async function createInvoice(input: InvoiceInput) {
     };
   });
 
-  const { error: itemsError } = await supabase.from("invoice_items").insert(invoiceItems);
+  const { data: createdInvoiceItems, error: itemsError } = await supabase
+    .from("invoice_items")
+    .insert(invoiceItems)
+    .select("id,sort_order");
 
-  if (itemsError) {
-    throw itemsError;
+  if (itemsError || !createdInvoiceItems) {
+    await supabase.from("invoices").delete().eq("id", invoiceId);
+    throw itemsError ?? new Error("Kunne ikke hente de opprettede fakturalinjene.");
+  }
+
+  try {
+    await persistLineAttachments({
+      ownerUserId: input.ownerUserId,
+      scope: "invoices",
+      parentId: invoiceId,
+      lines: input.lines,
+      persistedLines: createdInvoiceItems,
+    });
+  } catch (error) {
+    await supabase.from("invoices").delete().eq("id", invoiceId);
+    throw error;
   }
 
   return invoiceId;
 }
 
 export async function deleteInvoice(invoiceId: string) {
+  const { data: attachments } = await supabase
+    .from("invoice_attachments")
+    .select("storage_path")
+    .eq("invoice_id", invoiceId);
+
   const { error } = await supabase.from("invoices").delete().eq("id", invoiceId);
 
   if (error) {
     throw error;
+  }
+
+  const invoicePaths = (attachments ?? [])
+    .map((attachment) => attachment.storage_path as string)
+    .filter((path) => path.includes(`/invoices/${invoiceId}/`));
+
+  if (invoicePaths.length > 0) {
+    await supabase.storage.from(ATTACHMENT_BUCKET).remove(invoicePaths);
   }
 }
 
@@ -445,12 +497,16 @@ export async function updateInvoicePaid(invoiceId: string, paid: boolean) {
   }
 }
 
+export type EmailAttachment = {
+  filename: string;
+  content: string;
+};
+
 type SendInvoiceEmailInput = {
   recipientEmail: string;
   subject: string;
   html: string;
-  attachmentFilename: string;
-  attachmentContent: string;
+  attachments: EmailAttachment[];
   markStatus?: {
     invoiceId: string;
     status: Extract<InvoiceStatus, "sent" | "reminded">;
@@ -463,8 +519,7 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
       to: input.recipientEmail,
       subject: input.subject,
       html: input.html,
-      attachmentFilename: input.attachmentFilename,
-      attachmentContent: input.attachmentContent,
+      attachments: input.attachments,
     },
   });
 
@@ -486,6 +541,50 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
   return data;
 }
 
+export async function loadInvoiceEmailAttachments(
+  attachments: InvoiceAttachment[],
+  lines: InvoiceItem[],
+): Promise<EmailAttachment[]> {
+  const referencedAttachments = referenceInvoiceAttachments(lines, attachments);
+
+  return Promise.all(
+    referencedAttachments.map(async ({ attachment, reference }) => {
+      const { data, error } = await supabase.storage
+        .from(ATTACHMENT_BUCKET)
+        .download(attachment.storage_path);
+
+      if (error) {
+        throw new Error(`Kunne ikke hente vedlegget ${attachment.original_name}: ${error.message}`);
+      }
+
+      return {
+        filename: attachmentFileName(attachment.original_name, reference),
+        content: await blobToBase64(data),
+      };
+    }),
+  );
+}
+
+export async function downloadInvoiceAttachment(
+  attachment: InvoiceAttachment,
+  reference: string,
+) {
+  const { data, error } = await supabase.storage
+    .from(ATTACHMENT_BUCKET)
+    .download(attachment.storage_path);
+
+  if (error) {
+    throw error;
+  }
+
+  const url = URL.createObjectURL(data);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = attachmentFileName(attachment.original_name, reference);
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export async function deleteCurrentUser() {
   const { error } = await supabase.functions.invoke("delete-user", {
     body: {},
@@ -503,6 +602,103 @@ export function createInvoiceNumber() {
   const day = String(date.getDate()).padStart(2, "0");
   const suffix = String(Date.now()).slice(-5);
   return `F-${year}${month}${day}-${suffix}`;
+}
+
+type PersistLineAttachmentsInput = {
+  ownerUserId: string;
+  scope: "invoices" | "schedules";
+  parentId: string;
+  lines: InvoiceDraftLine[];
+  persistedLines: Array<{ id: string; sort_order: number }>;
+};
+
+async function persistLineAttachments({
+  ownerUserId,
+  scope,
+  parentId,
+  lines,
+  persistedLines,
+}: PersistLineAttachmentsInput) {
+  const allFiles = lines.flatMap((line) => line.attachments.map((attachment) => attachment.file));
+  const validationError = validateAttachmentFiles(allFiles);
+
+  if (validationError) {
+    throw new Error(validationError);
+  }
+
+  if (allFiles.length === 0) {
+    return;
+  }
+
+  const uploadedPaths: string[] = [];
+  const metadataRows: Array<Record<string, string | number>> = [];
+
+  try {
+    for (const [sortOrder, line] of lines.entries()) {
+      const persistedLine = persistedLines.find((item) => item.sort_order === sortOrder);
+
+      if (!persistedLine && line.attachments.length > 0) {
+        throw new Error("Kunne ikke koble vedlegget til fakturalinjen.");
+      }
+
+      for (const attachment of line.attachments) {
+        const attachmentId = crypto.randomUUID();
+        const storagePath = `${ownerUserId}/${scope}/${parentId}/${attachmentId}${fileExtension(attachment.file)}`;
+        const { error } = await supabase.storage
+          .from(ATTACHMENT_BUCKET)
+          .upload(storagePath, attachment.file, {
+            contentType: attachment.file.type,
+            upsert: false,
+          });
+
+        if (error) {
+          throw new Error(`Kunne ikke laste opp ${attachment.file.name}: ${error.message}`);
+        }
+
+        uploadedPaths.push(storagePath);
+        metadataRows.push({
+          id: attachmentId,
+          [scope === "invoices" ? "invoice_id" : "schedule_id"]: parentId,
+          [scope === "invoices" ? "invoice_item_id" : "schedule_line_id"]: persistedLine!.id,
+          storage_path: storagePath,
+          original_name: attachment.file.name,
+          mime_type: attachment.file.type,
+          size_bytes: attachment.file.size,
+        });
+      }
+    }
+
+    const table = scope === "invoices" ? "invoice_attachments" : "invoice_schedule_attachments";
+    const { error } = await supabase.from(table).insert(metadataRows);
+
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    if (uploadedPaths.length > 0) {
+      await supabase.storage.from(ATTACHMENT_BUCKET).remove(uploadedPaths);
+    }
+
+    throw error;
+  }
+}
+
+function fileExtension(file: File) {
+  if (file.type === "application/pdf") return ".pdf";
+  if (file.type === "image/jpeg") return ".jpg";
+  if (file.type === "image/png") return ".png";
+  return "";
+}
+
+async function blobToBase64(blob: Blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+
+  return btoa(binary);
 }
 
 function daysBetween(startValue: string, endValue: string) {

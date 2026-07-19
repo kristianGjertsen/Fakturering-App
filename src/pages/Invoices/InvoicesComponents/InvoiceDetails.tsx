@@ -1,6 +1,13 @@
+import { useState } from "react";
 import { Button } from "../../../components/Button";
 import { statusToneClasses } from "../../../components/DocumentBrowser";
+import {
+  attachmentFileName,
+  formatFileSize,
+  referenceInvoiceAttachments,
+} from "../../../lib/attachments";
 import { countryLabel } from "../../../lib/countries";
+import { downloadInvoiceAttachment } from "../../../lib/data";
 import { formatCurrency, formatDate } from "../../../lib/format";
 import type { InvoiceScheduleWithDetails, InvoiceWithDetails } from "../../../types";
 import { invoiceStatusLabels, invoiceStatusTone } from "./InvoiceList";
@@ -28,6 +35,27 @@ export function InvoiceDetails({
   onSend,
   onTogglePaid,
 }: InvoiceDetailsProps) {
+  const [attachmentMessage, setAttachmentMessage] = useState("");
+  const attachments = referenceInvoiceAttachments(
+    invoice.invoice_items ?? [],
+    invoice.invoice_attachments ?? [],
+  );
+
+  async function handleDownload(
+    attachment: NonNullable<InvoiceWithDetails["invoice_attachments"]>[number],
+    reference: string,
+  ) {
+    setAttachmentMessage("");
+
+    try {
+      await downloadInvoiceAttachment(attachment, reference);
+    } catch (error) {
+      setAttachmentMessage(
+        error instanceof Error ? error.message : `Kunne ikke laste ned ${attachment.original_name}.`
+      );
+    }
+  }
+
   return (
     <div className="grid min-w-0 gap-5 lg:grid-cols-2 lg:items-start">
       <Panel as="div">
@@ -104,6 +132,7 @@ export function InvoiceDetails({
             <thead className="border-b border-blue-100 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="py-3 pr-4 font-semibold">Tekst</th>
+                <th className="py-3 pr-4 text-center font-semibold">Vedlegg</th>
                 <th className="py-3 pr-4 text-right font-semibold">Antall</th>
                 <th className="py-3 pr-4 text-right font-semibold">Pris</th>
                 <th className="py-3 pr-4 text-right font-semibold">MVA</th>
@@ -113,18 +142,53 @@ export function InvoiceDetails({
             <tbody className="divide-y divide-blue-50">
               {[...(invoice.invoice_items ?? [])]
                 .sort((left, right) => left.sort_order - right.sort_order)
-                .map((item) => (
-                  <tr key={item.id}>
-                    <td className="py-3 pr-4 font-medium text-slate-950">{item.description}</td>
-                    <td className="py-3 pr-4 text-right text-slate-600">{item.quantity} {item.unit}</td>
-                    <td className="py-3 pr-4 text-right text-slate-600">{formatCurrency(item.unit_price)}</td>
-                    <td className="py-3 pr-4 text-right text-slate-600">{item.vat_rate}%</td>
-                    <td className="py-3 pr-4 text-right font-medium text-slate-950">{formatCurrency(item.line_total)}</td>
-                  </tr>
-                ))}
+                .map((item) => {
+                  const references = attachments
+                    .filter(({ attachment }) => attachment.invoice_item_id === item.id)
+                    .map(({ reference }) => reference);
+
+                  return (
+                    <tr key={item.id}>
+                      <td className="py-3 pr-4 font-medium text-slate-950">
+                        {item.description}
+                      </td>
+                      <td className="py-3 pr-4 text-center text-slate-600">
+                        {references.length > 0 ? references.join(", ") : "NEI"}
+                      </td>
+                      <td className="py-3 pr-4 text-right text-slate-600">{item.quantity} {item.unit}</td>
+                      <td className="py-3 pr-4 text-right text-slate-600">{formatCurrency(item.unit_price)}</td>
+                      <td className="py-3 pr-4 text-right text-slate-600">{item.vat_rate}%</td>
+                      <td className="py-3 pr-4 text-right font-medium text-slate-950">{formatCurrency(item.line_total)}</td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
+
+        {attachments.length > 0 && (
+          <div className="mt-5 border-t border-blue-100 pt-4">
+            <h4 className="text-sm font-semibold text-slate-950">
+              Vedlegg x{attachments.length}
+            </h4>
+            <ul className="mt-2 divide-y divide-blue-100 rounded-md border border-blue-100">
+              {attachments.map(({ attachment, reference }) => (
+                <li key={attachment.id} className="flex min-w-0 items-center justify-between gap-3 px-3 py-2">
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm text-slate-800">
+                      {attachmentFileName(attachment.original_name, reference)}
+                    </span>
+                    <span className="block text-xs text-slate-500">{formatFileSize(attachment.size_bytes)}</span>
+                  </span>
+                  <Button variant="secondary" size="xs" onClick={() => void handleDownload(attachment, reference)}>
+                    Last ned
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            {attachmentMessage && <p className="mt-2 text-sm text-red-700">{attachmentMessage}</p>}
+          </div>
+        )}
       </Panel>
 
       <PdfPreviewPanel invoice={invoice} className="lg:sticky lg:top-12" />

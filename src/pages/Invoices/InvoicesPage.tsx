@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { Company, InvoiceScheduleWithDetails, InvoiceWithDetails, Product } from "../../types";
 import type { InvoiceInput } from "../../lib/data";
-import { sendInvoiceEmail, updateInvoicePaid } from "../../lib/data";
+import { loadInvoiceEmailAttachments, sendInvoiceEmail, updateInvoicePaid } from "../../lib/data";
 import { createInvoicePdfBase64 } from "../../lib/pdf";
 import { EmptyState } from "../../components/EmptyState";
 import { Button } from "../../components/Button";
@@ -141,15 +141,28 @@ export default function InvoicesPage({
 
     try {
       const attachmentContent = await createInvoicePdfBase64(selectedInvoice);
+      const storedAttachments = await loadInvoiceEmailAttachments(
+        selectedInvoice.invoice_attachments ?? [],
+        selectedInvoice.invoice_items ?? [],
+      );
+      const attachments = [
+        {
+          filename: `faktura-${selectedInvoice.invoice_number}.pdf`,
+          content: attachmentContent,
+        },
+        ...storedAttachments,
+      ];
       const subject = `Faktura ${selectedInvoice.invoice_number}`;
-      const html = `<p>Hei${recipientName ? ` ${recipientName}` : ""}, vedlagt ligger faktura ${selectedInvoice.invoice_number}.</p>`;
+      const receiptText = storedAttachments.length > 0
+        ? ` og ${storedAttachments.length} vedlegg`
+        : "";
+      const html = `<p>Hei${recipientName ? ` ${recipientName}` : ""}, vedlagt ligger faktura ${selectedInvoice.invoice_number}${receiptText}.</p>`;
 
       await sendInvoiceEmail({
         recipientEmail,
         subject,
         html,
-        attachmentFilename: `faktura-${selectedInvoice.invoice_number}.pdf`,
-        attachmentContent,
+        attachments,
         markStatus: {
           invoiceId: selectedInvoice.id,
           status: action === "send" ? "sent" : "reminded",
@@ -161,8 +174,7 @@ export default function InvoicesPage({
           recipientEmail: currentUserEmail,
           subject: `Copy: ${subject}`,
           html: `<p>Copy av sendt faktura til ${recipientEmail}.</p>${html}`,
-          attachmentFilename: `faktura-${selectedInvoice.invoice_number}.pdf`,
-          attachmentContent,
+          attachments,
         });
       }
 

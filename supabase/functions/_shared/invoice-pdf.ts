@@ -20,6 +20,7 @@ export type PdfInvoice = {
     country?: string | null;
   } | null;
   invoice_items: Array<{
+    id?: string;
     description: string;
     quantity: number;
     unit: string;
@@ -27,6 +28,9 @@ export type PdfInvoice = {
     vat_rate: number;
     line_total: number;
     sort_order?: number;
+  }>;
+  invoice_attachments?: Array<{
+    invoice_item_id: string;
   }>;
 };
 
@@ -98,11 +102,18 @@ export function createInvoicePdfBase64(invoice: PdfInvoice) {
   const items = [...invoice.invoice_items].sort(
     (left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0),
   );
-  const pages = chunk(items, 16);
-  const pageItems = pages.length > 0 ? pages : [[]];
+  const pages = paginateItems(items, invoice);
+  const pageItems = pages.length > 0 ? pages : [{ items: [], lineOffset: 0 }];
   const template = invoice.pdf_template ?? "classic";
-  const streams = pageItems.map((itemsForPage, index) =>
-    createPage(invoice, itemsForPage, index + 1, pageItems.length, template),
+  const streams = pageItems.map((page, index) =>
+    createPage(
+      invoice,
+      page.items,
+      index + 1,
+      pageItems.length,
+      template,
+      page.lineOffset,
+    ),
   );
   const bytes = buildPdf(streams);
   let binary = "";
@@ -120,6 +131,7 @@ function createPage(
   page: number,
   pageCount: number,
   template: PdfTemplate,
+  lineOffset: number,
 ) {
   const theme = themes[template];
   const commands: string[] = [];
@@ -187,24 +199,45 @@ function createPage(
 
   commands.push(
     text(52, 550, 9, "Beskrivelse", theme.tableHeaderText),
-    text(303, 550, 9, "Antall", theme.tableHeaderText),
-    text(370, 550, 9, "Pris", theme.tableHeaderText),
-    text(440, 550, 9, "MVA", theme.tableHeaderText),
-    text(500, 550, 9, "Sum", theme.tableHeaderText),
+    text(247, 550, 9, "Vedlegg", theme.tableHeaderText),
+    text(325, 550, 9, "Antall", theme.tableHeaderText),
+    text(390, 550, 9, "Pris", theme.tableHeaderText),
+    text(450, 550, 9, "MVA", theme.tableHeaderText),
+    text(510, 550, 9, "Sum", theme.tableHeaderText),
     `${theme.accent} RG 0.8 w 45 540 m 550 540 l S`,
   );
 
   let y = 516;
-  for (const item of items) {
-    commands.push(
-      text(52, y, 9, truncate(item.description, 41)),
-      text(303, y, 9, `${formatNumber(item.quantity)} ${item.unit}`, "0.12 0.18 0.28"),
-      text(370, y, 9, formatCurrency(item.unit_price), "0.12 0.18 0.28"),
-      text(440, y, 9, `${formatNumber(item.vat_rate)}%`, "0.12 0.18 0.28"),
-      text(500, y, 9, formatCurrency(item.line_total)),
-      "0.89 0.91 0.94 RG 0.4 w 45 " + (y - 9) + " m 550 " + (y - 9) + " l S",
+  for (const [itemIndex, item] of items.entries()) {
+    const attachmentCount = item.id
+      ? (invoice.invoice_attachments ?? []).filter(
+        (attachment) => attachment.invoice_item_id === item.id
+      ).length
+      : 0;
+    const attachmentReferences = attachmentCount > 0
+      ? Array.from(
+        { length: attachmentCount },
+        (_, attachmentIndex) =>
+          attachmentReference(lineOffset + itemIndex, attachmentIndex),
+      )
+      : ["NEI"];
+    const referenceLines = chunk(attachmentReferences, 3).map(
+      (references) => references.join(", "),
     );
-    y -= 25;
+    const rowHeight = invoiceRowHeight(attachmentCount);
+
+    commands.push(
+      text(52, y, 9, truncate(item.description, 31)),
+      text(325, y, 9, `${formatNumber(item.quantity)} ${item.unit}`, "0.12 0.18 0.28"),
+      text(390, y, 9, formatCurrency(item.unit_price), "0.12 0.18 0.28"),
+      text(450, y, 9, `${formatNumber(item.vat_rate)}%`, "0.12 0.18 0.28"),
+      text(510, y, 9, formatCurrency(item.line_total)),
+      ...referenceLines.map((line, index) =>
+        text(260, y - index * 10, 9, line, "0.12 0.18 0.28")
+      ),
+      "0.89 0.91 0.94 RG 0.4 w 45 " + (y - rowHeight + 16) + " m 550 " + (y - rowHeight + 16) + " l S",
+    );
+    y -= rowHeight;
   }
 
   if (page === pageCount) {
@@ -314,6 +347,45 @@ function chunk<T>(values: T[], size: number) {
   );
 }
 
+function paginateItems(items: PdfInvoice["invoice_items"], invoice: PdfInvoice) {
+  const pages: Array<{
+    items: PdfInvoice["invoice_items"];
+    lineOffset: number;
+  }> = [];
+  let currentItems: PdfInvoice["invoice_items"] = [];
+  let currentHeight = 0;
+  let lineOffset = 0;
+
+  items.forEach((item, index) => {
+    const attachmentCount = item.id
+      ? (invoice.invoice_attachments ?? []).filter(
+        (attachment) => attachment.invoice_item_id === item.id
+      ).length
+      : 0;
+    const rowHeight = invoiceRowHeight(attachmentCount);
+
+    if (currentItems.length > 0 && currentHeight + rowHeight > 350) {
+      pages.push({ items: currentItems, lineOffset });
+      currentItems = [];
+      currentHeight = 0;
+      lineOffset = index;
+    }
+
+    currentItems.push(item);
+    currentHeight += rowHeight;
+  });
+
+  if (currentItems.length > 0) {
+    pages.push({ items: currentItems, lineOffset });
+  }
+
+  return pages;
+}
+
+function invoiceRowHeight(attachmentCount: number) {
+  return 25 + Math.max(0, Math.ceil(attachmentCount / 3) - 1) * 10;
+}
+
 function formatDate(value: string | null) {
   if (!value) return "-";
   const [year, month, day] = value.slice(0, 10).split("-");
@@ -326,6 +398,23 @@ function formatCurrency(value: number) {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 2 }).format(Number(value));
+}
+
+function attachmentReference(lineIndex: number, attachmentIndex: number) {
+  return `${lineLetter(lineIndex)}${attachmentIndex + 1}`;
+}
+
+function lineLetter(index: number) {
+  let value = index + 1;
+  let result = "";
+
+  while (value > 0) {
+    value -= 1;
+    result = String.fromCharCode(65 + (value % 26)) + result;
+    value = Math.floor(value / 26);
+  }
+
+  return result;
 }
 
 function countryLabel(value: string | null | undefined) {

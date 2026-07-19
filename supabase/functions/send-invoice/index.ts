@@ -11,8 +11,10 @@ type SendInvoiceEmailPayload = {
   replyTo?: string;
   cc?: string | string[];
   bcc?: string | string[];
-  attachmentFilename?: string;
-  attachmentContent?: string;
+  attachments?: Array<{
+    filename: string;
+    content: string;
+  }>;
 };
 
 const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -66,15 +68,23 @@ serve(async (request) => {
       );
     }
 
-    const attachments =
-      payload.attachmentFilename && payload.attachmentContent
-        ? [
-            {
-              filename: payload.attachmentFilename,
-              content: payload.attachmentContent,
-            },
-          ]
-        : undefined;
+    const attachments = Array.isArray(payload.attachments)
+      ? payload.attachments.filter(
+        (attachment) =>
+          typeof attachment?.filename === "string" &&
+          attachment.filename.trim() &&
+          typeof attachment.content === "string" &&
+          attachment.content,
+      )
+      : [];
+    const attachmentBytes = attachments.reduce(
+      (total, attachment) => total + attachment.content.length,
+      0,
+    );
+
+    if (attachmentBytes > 40 * 1024 * 1024) {
+      return jsonResponse({ error: "Attachments exceed the 40 MB email limit." }, 413);
+    }
 
     const result = await resend.emails.send({
       from: payload.from ?? defaultFrom,
@@ -85,7 +95,7 @@ serve(async (request) => {
       replyTo: payload.replyTo,
       cc: payload.cc,
       bcc: payload.bcc,
-      attachments,
+      attachments: attachments?.length ? attachments : undefined,
     });
 
     if (result.error) {

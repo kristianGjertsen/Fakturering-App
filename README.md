@@ -47,7 +47,11 @@ Tabellene er satt opp slik:
 - `products`: produkter/tjenester som tilhorer en bedrift
 - `invoice_schedules`: faste faktureringsplaner per bedrift, for eksempel daglig, ukentlig eller manedlig
 - `invoice_schedule_lines`: fakturalinjer som skal brukes nar en plan gjentas
+- `invoice_schedule_attachments`: vedleggsmetadata for linjer i faktureringsplaner
 - `invoices`: fakturaer som er opprettet
 - `invoice_items`: fakturalinjer for hver faktura
+- `invoice_attachments`: vedleggsmetadata for fakturalinjer
+
+Selve filene lagres privat i Storage-bucketen `invoice-attachments`.
 
 Row Level Security er aktivert slik at hver bruker bare kan lese og endre sine egne data.

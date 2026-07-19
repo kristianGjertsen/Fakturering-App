@@ -1,4 +1,5 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { attachmentReference } from "../lib/attachments";
 import { countryLabel } from "../lib/countries";
 
 export type InvoicePdfData = {
@@ -21,6 +22,7 @@ export type InvoicePdfData = {
     country?: string | null;
   } | null;
   invoice_items?: Array<{
+    id?: string;
     description: string;
     quantity: number;
     unit: string;
@@ -28,6 +30,9 @@ export type InvoicePdfData = {
     vat_rate: number;
     line_total: number;
     sort_order?: number;
+  }>;
+  invoice_attachments?: Array<{
+    invoice_item_id: string;
   }>;
 };
 
@@ -79,11 +84,12 @@ const styles = StyleSheet.create({
   table: { width: "100%" },
   row: { flexDirection: "row", minHeight: 28, alignItems: "center", borderBottomWidth: 1, borderBottomColor: colors.border },
   tableHeader: { minHeight: 26, backgroundColor: colors.pale, fontSize: 8, fontFamily: "Helvetica-Bold", color: colors.muted, textTransform: "uppercase" },
-  description: { width: "44%", paddingHorizontal: 7 },
-  quantity: { width: "14%", paddingHorizontal: 5, textAlign: "right" },
-  price: { width: "17%", paddingHorizontal: 5, textAlign: "right" },
-  vat: { width: "10%", paddingHorizontal: 5, textAlign: "right" },
-  sum: { width: "15%", paddingHorizontal: 7, textAlign: "right" },
+  description: { width: "38%", paddingHorizontal: 7 },
+  attachment: { width: "12%", paddingHorizontal: 4, textAlign: "center" },
+  quantity: { width: "13%", paddingHorizontal: 5, textAlign: "right" },
+  price: { width: "16%", paddingHorizontal: 5, textAlign: "right" },
+  vat: { width: "9%", paddingHorizontal: 4, textAlign: "right" },
+  sum: { width: "12%", paddingHorizontal: 7, textAlign: "right" },
   totals: { marginTop: 20, marginLeft: "55%", width: "45%" },
   totalRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
   grandTotal: { marginTop: 5, paddingTop: 9, borderTopWidth: 1, borderTopColor: colors.navy, fontSize: 14, fontFamily: "Helvetica-Bold" },
@@ -163,17 +169,42 @@ export function InvoicePdfTemplate({ invoice }: { invoice: InvoicePdfData }) {
         </View>
 
         <View style={styles.table}>
-          <InvoiceRow template={template} header description="Beskrivelse" quantity="Antall" price="Pris" vat="MVA" sum="Sum" />
-          {items.map((item, index) => (
-            <InvoiceRow
-              key={`${item.description}-${index}`}
-              description={item.description}
-              quantity={`${formatNumber(item.quantity)} ${item.unit}`}
-              price={formatCurrency(item.unit_price)}
-              vat={`${formatNumber(item.vat_rate)} %`}
-              sum={formatCurrency(item.line_total)}
-            />
-          ))}
+          <InvoiceRow
+            template={template}
+            header
+            description="Beskrivelse"
+            attachment="Vedlegg"
+            quantity="Antall"
+            price="Pris"
+            vat="MVA"
+            sum="Sum"
+          />
+          {items.map((item, index) => {
+            const attachmentCount = item.id
+              ? (invoice.invoice_attachments ?? []).filter(
+                  (attachment) => attachment.invoice_item_id === item.id
+                ).length
+              : 0;
+
+            return (
+              <InvoiceRow
+                key={`${item.description}-${index}`}
+                description={item.description}
+                attachment={
+                  attachmentCount > 0
+                    ? Array.from(
+                        { length: attachmentCount },
+                        (_, attachmentIndex) => attachmentReference(index, attachmentIndex),
+                      ).join(", ")
+                    : "NEI"
+                }
+                quantity={`${formatNumber(item.quantity)} ${item.unit}`}
+                price={formatCurrency(item.unit_price)}
+                vat={`${formatNumber(item.vat_rate)} %`}
+                sum={formatCurrency(item.line_total)}
+              />
+            );
+          })}
         </View>
 
         <View style={styles.totals} wrap={false}>
@@ -202,9 +233,9 @@ function Detail({ label, value }: { label: string; value: string }) {
   return <View style={styles.detail}><Text style={styles.label}>{label}</Text><Text style={styles.value}>{value}</Text></View>;
 }
 
-function InvoiceRow({ template = "classic", header = false, description, quantity, price, vat, sum }: { template?: "classic" | "modern" | "minimal"; header?: boolean; description: string; quantity: string; price: string; vat: string; sum: string }) {
+function InvoiceRow({ template = "classic", header = false, description, attachment, quantity, price, vat, sum }: { template?: "classic" | "modern" | "minimal"; header?: boolean; description: string; attachment: string; quantity: string; price: string; vat: string; sum: string }) {
   const headerStyles = header ? [styles.tableHeader, ...(template === "modern" ? [styles.modernTableHeader] : template === "minimal" ? [styles.minimalTableHeader] : [])] : [];
-  return <View style={[styles.row, ...headerStyles]} wrap={false}><Text style={styles.description}>{description}</Text><Text style={styles.quantity}>{quantity}</Text><Text style={styles.price}>{price}</Text><Text style={styles.vat}>{vat}</Text><Text style={styles.sum}>{sum}</Text></View>;
+  return <View style={[styles.row, ...headerStyles]} wrap={false}><Text style={styles.description}>{description}</Text><Text style={styles.attachment}>{attachment}</Text><Text style={styles.quantity}>{quantity}</Text><Text style={styles.price}>{price}</Text><Text style={styles.vat}>{vat}</Text><Text style={styles.sum}>{sum}</Text></View>;
 }
 
 function TotalRow({ template = "classic", label, value, grand = false }: { template?: "classic" | "modern" | "minimal"; label: string; value: string; grand?: boolean }) {

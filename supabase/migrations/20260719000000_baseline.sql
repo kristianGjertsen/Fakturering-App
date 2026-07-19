@@ -184,7 +184,8 @@ create table if not exists public.invoice_items (
   line_vat numeric(12, 2) not null default 0 check (line_vat >= 0),
   line_total numeric(12, 2) not null default 0 check (line_total >= 0),
   sort_order integer not null default 0,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  unique (invoice_id, sort_order)
 );
 
 create table if not exists public.invoice_schedule_lines (
@@ -197,8 +198,47 @@ create table if not exists public.invoice_schedule_lines (
   unit_price numeric(12, 2) not null default 0 check (unit_price >= 0),
   vat_rate numeric(5, 2) not null default 25 check (vat_rate >= 0),
   sort_order integer not null default 0,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  unique (schedule_id, sort_order)
 );
+
+create table if not exists public.invoice_attachments (
+  id uuid primary key default gen_random_uuid(),
+  invoice_id uuid not null references public.invoices (id) on delete cascade,
+  invoice_item_id uuid not null references public.invoice_items (id) on delete cascade,
+  storage_path text not null,
+  original_name text not null,
+  mime_type text not null check (mime_type in ('application/pdf', 'image/jpeg', 'image/png')),
+  size_bytes bigint not null check (size_bytes > 0 and size_bytes <= 10485760),
+  created_at timestamptz not null default now(),
+  unique (invoice_id, storage_path)
+);
+
+create table if not exists public.invoice_schedule_attachments (
+  id uuid primary key default gen_random_uuid(),
+  schedule_id uuid not null references public.invoice_schedules (id) on delete cascade,
+  schedule_line_id uuid not null references public.invoice_schedule_lines (id) on delete cascade,
+  storage_path text not null,
+  original_name text not null,
+  mime_type text not null check (mime_type in ('application/pdf', 'image/jpeg', 'image/png')),
+  size_bytes bigint not null check (size_bytes > 0 and size_bytes <= 10485760),
+  created_at timestamptz not null default now(),
+  unique (schedule_id, storage_path)
+);
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'invoice-attachments',
+  'invoice-attachments',
+  false,
+  10485760,
+  array['application/pdf', 'image/jpeg', 'image/png']
+)
+on conflict (id) do update
+set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 create table if not exists public.invoice_cron_runs (
   id uuid primary key default gen_random_uuid(),
@@ -414,6 +454,7 @@ declare
   v_total numeric(12, 2);
   v_company jsonb;
   v_items jsonb;
+  v_attachments jsonb;
 begin
   select *
     into v_schedule
@@ -524,6 +565,29 @@ begin
     from public.invoice_schedule_lines line
     where line.schedule_id = p_schedule_id;
 
+    insert into public.invoice_attachments (
+      invoice_id,
+      invoice_item_id,
+      storage_path,
+      original_name,
+      mime_type,
+      size_bytes
+    )
+    select
+      v_invoice.id,
+      item.id,
+      attachment.storage_path,
+      attachment.original_name,
+      attachment.mime_type,
+      attachment.size_bytes
+    from public.invoice_schedule_attachments attachment
+    join public.invoice_schedule_lines line
+      on line.id = attachment.schedule_line_id
+    join public.invoice_items item
+      on item.invoice_id = v_invoice.id
+     and item.sort_order = line.sort_order
+    where attachment.schedule_id = p_schedule_id;
+
     update public.invoices
        set status = 'sending'
      where id = v_invoice.id
@@ -551,8 +615,20 @@ begin
     from public.invoice_items item
    where item.invoice_id = v_invoice.id;
 
+  select coalesce(
+    jsonb_agg(to_jsonb(attachment) order by attachment.created_at),
+    '[]'::jsonb
+  )
+    into v_attachments
+    from public.invoice_attachments attachment
+   where attachment.invoice_id = v_invoice.id;
+
   return to_jsonb(v_invoice)
-    || jsonb_build_object('company', v_company, 'invoice_items', v_items);
+    || jsonb_build_object(
+      'company', v_company,
+      'invoice_items', v_items,
+      'invoice_attachments', v_attachments
+    );
 end;
 $$;
 
@@ -667,6 +743,8 @@ alter table public.invoice_schedules enable row level security;
 alter table public.invoices enable row level security;
 alter table public.invoice_items enable row level security;
 alter table public.invoice_schedule_lines enable row level security;
+alter table public.invoice_attachments enable row level security;
+alter table public.invoice_schedule_attachments enable row level security;
 alter table public.invoice_cron_runs enable row level security;
 alter table public.invoice_cron_run_items enable row level security;
 alter table public.invoice_cron_run_reports enable row level security;
@@ -793,12 +871,14 @@ create policy "invoices_owner_access"
   for all
   using (auth.uid() = owner_user_id)
   with check (
-    auth.uid() = owner_user_id and
-    exists (
-      select 1
-      from public.companies c
-      where c.id = company_id
-        and c.owner_user_id = auth.uid()
+    auth.uid() = owner_user_id and (
+      company_id is null or
+      exists (
+        select 1
+        from public.companies c
+        where c.id = company_id
+          and c.owner_user_id = auth.uid()
+      )
     )
   );
 
@@ -856,6 +936,100 @@ create policy "invoice_schedule_lines_owner_access"
     )
   );
 
+drop policy if exists "invoice_attachments_owner_access" on public.invoice_attachments;
+create policy "invoice_attachments_owner_access"
+  on public.invoice_attachments
+  for all
+  using (
+    exists (
+      select 1
+      from public.invoices invoice
+      join public.invoice_items item
+        on item.id = invoice_attachments.invoice_item_id
+       and item.invoice_id = invoice.id
+      where invoice.id = invoice_attachments.invoice_id
+        and invoice.owner_user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.invoices invoice
+      join public.invoice_items item
+        on item.id = invoice_attachments.invoice_item_id
+       and item.invoice_id = invoice.id
+      where invoice.id = invoice_attachments.invoice_id
+        and invoice.owner_user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "invoice_schedule_attachments_owner_access" on public.invoice_schedule_attachments;
+create policy "invoice_schedule_attachments_owner_access"
+  on public.invoice_schedule_attachments
+  for all
+  using (
+    exists (
+      select 1
+      from public.invoice_schedules schedule
+      join public.invoice_schedule_lines line
+        on line.id = invoice_schedule_attachments.schedule_line_id
+       and line.schedule_id = schedule.id
+      where schedule.id = invoice_schedule_attachments.schedule_id
+        and schedule.owner_user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.invoice_schedules schedule
+      join public.invoice_schedule_lines line
+        on line.id = invoice_schedule_attachments.schedule_line_id
+       and line.schedule_id = schedule.id
+      where schedule.id = invoice_schedule_attachments.schedule_id
+        and schedule.owner_user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "invoice_attachments_storage_select" on storage.objects;
+create policy "invoice_attachments_storage_select"
+  on storage.objects
+  for select
+  using (
+    bucket_id = 'invoice-attachments'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "invoice_attachments_storage_insert" on storage.objects;
+create policy "invoice_attachments_storage_insert"
+  on storage.objects
+  for insert
+  with check (
+    bucket_id = 'invoice-attachments'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "invoice_attachments_storage_update" on storage.objects;
+create policy "invoice_attachments_storage_update"
+  on storage.objects
+  for update
+  using (
+    bucket_id = 'invoice-attachments'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  )
+  with check (
+    bucket_id = 'invoice-attachments'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "invoice_attachments_storage_delete" on storage.objects;
+create policy "invoice_attachments_storage_delete"
+  on storage.objects
+  for delete
+  using (
+    bucket_id = 'invoice-attachments'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
 drop policy if exists "invoice_cron_run_items_select_own" on public.invoice_cron_run_items;
 create policy "invoice_cron_run_items_select_own"
   on public.invoice_cron_run_items
@@ -881,6 +1055,10 @@ create unique index if not exists invoices_schedule_occurrence_idx
   where schedule_id is not null and scheduled_for is not null;
 create index if not exists invoice_items_invoice_id_idx on public.invoice_items (invoice_id);
 create index if not exists invoice_schedule_lines_schedule_id_idx on public.invoice_schedule_lines (schedule_id);
+create index if not exists invoice_attachments_invoice_id_idx on public.invoice_attachments (invoice_id);
+create index if not exists invoice_attachments_invoice_item_id_idx on public.invoice_attachments (invoice_item_id);
+create index if not exists invoice_schedule_attachments_schedule_id_idx on public.invoice_schedule_attachments (schedule_id);
+create index if not exists invoice_schedule_attachments_schedule_line_id_idx on public.invoice_schedule_attachments (schedule_line_id);
 create index if not exists invoice_cron_runs_status_started_at_idx on public.invoice_cron_runs (status, started_at);
 create index if not exists invoice_cron_run_items_run_id_idx on public.invoice_cron_run_items (run_id);
 create index if not exists invoice_cron_run_items_owner_user_id_idx on public.invoice_cron_run_items (owner_user_id);

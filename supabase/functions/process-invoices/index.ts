@@ -12,12 +12,22 @@ type Schedule = {
 };
 
 type InvoiceItem = {
+  id: string;
   description: string;
   quantity: number;
   unit: string;
   unit_price: number;
   vat_rate: number;
   line_total: number;
+  sort_order?: number;
+};
+
+type StoredAttachment = {
+  id: string;
+  invoice_item_id: string;
+  storage_path: string;
+  original_name: string;
+  created_at: string;
 };
 
 type ClaimedInvoice = {
@@ -34,6 +44,7 @@ type ClaimedInvoice = {
     email: string | null;
   } | null;
   invoice_items: InvoiceItem[];
+  invoice_attachments: StoredAttachment[];
 };
 
 type Failure = {
@@ -170,13 +181,26 @@ Deno.serve(async (request) => {
         }
 
         const attachmentContent = createInvoicePdfBase64(invoice);
+        const storedAttachments = await loadStoredAttachments(
+          supabase,
+          invoice.invoice_attachments ?? [],
+          invoice.invoice_items,
+        );
+        const receiptText = storedAttachments.length > 0
+          ? ` og ${storedAttachments.length} vedlegg`
+          : "";
         const { data: sendResult, error: sendError } = await supabase.functions.invoke("send-invoice", {
           body: {
             to: invoice.company.email,
             subject: `Faktura ${invoice.invoice_number}`,
-            html: `<p>Hei ${escapeHtml(invoice.company.name)}, vedlagt ligger faktura ${escapeHtml(invoice.invoice_number)}.</p>`,
-            attachmentFilename: `faktura-${invoice.invoice_number}.pdf`,
-            attachmentContent,
+            html: `<p>Hei ${escapeHtml(invoice.company.name)}, vedlagt ligger faktura ${escapeHtml(invoice.invoice_number)}${receiptText}.</p>`,
+            attachments: [
+              {
+                filename: `faktura-${invoice.invoice_number}.pdf`,
+                content: attachmentContent,
+              },
+              ...storedAttachments,
+            ],
           },
         });
 
@@ -593,6 +617,85 @@ async function markReportFailed(
   if (error) {
     console.error(`Failed to record cron report error for ${runId}`, error);
   }
+}
+
+async function loadStoredAttachments(
+  supabase: SupabaseClient,
+  attachments: StoredAttachment[],
+  lines: InvoiceItem[],
+) {
+  const sortedLines = [...lines].sort(
+    (left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0),
+  );
+  const lineIndexes = new Map(sortedLines.map((line, index) => [line.id, index]));
+  const attachmentIndexes = new Map<string, number>();
+  const referencedAttachments = [...attachments]
+    .sort((left, right) => {
+      const lineDifference =
+        (lineIndexes.get(left.invoice_item_id) ?? Number.MAX_SAFE_INTEGER) -
+        (lineIndexes.get(right.invoice_item_id) ?? Number.MAX_SAFE_INTEGER);
+
+      return (
+        lineDifference ||
+        left.created_at.localeCompare(right.created_at) ||
+        left.id.localeCompare(right.id)
+      );
+    })
+    .map((attachment) => {
+      const lineIndex = lineIndexes.get(attachment.invoice_item_id) ?? 0;
+      const attachmentIndex = attachmentIndexes.get(attachment.invoice_item_id) ?? 0;
+      attachmentIndexes.set(attachment.invoice_item_id, attachmentIndex + 1);
+
+      return {
+        attachment,
+        reference: attachmentReference(lineIndex, attachmentIndex),
+      };
+    });
+
+  return Promise.all(
+    referencedAttachments.map(async ({ attachment, reference }) => {
+      const { data, error } = await supabase.storage
+        .from("invoice-attachments")
+        .download(attachment.storage_path);
+
+      if (error) {
+        throw new Error(`Kunne ikke hente vedlegget ${attachment.original_name}: ${error.message}`);
+      }
+
+      return {
+        filename: `${reference} - ${attachment.original_name}`,
+        content: await blobToBase64(data),
+      };
+    }),
+  );
+}
+
+function attachmentReference(lineIndex: number, attachmentIndex: number) {
+  return `${lineLetter(lineIndex)}${attachmentIndex + 1}`;
+}
+
+function lineLetter(index: number) {
+  let value = index + 1;
+  let result = "";
+
+  while (value > 0) {
+    value -= 1;
+    result = String.fromCharCode(65 + (value % 26)) + result;
+    value = Math.floor(value / 26);
+  }
+
+  return result;
+}
+
+async function blobToBase64(blob: Blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+
+  return btoa(binary);
 }
 
 function statusLabel(status: string) {

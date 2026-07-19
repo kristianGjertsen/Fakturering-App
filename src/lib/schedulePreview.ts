@@ -73,6 +73,16 @@ export function scheduleToPreviewInvoice(schedule: InvoiceScheduleWithDetails): 
         created_at: line.created_at,
       };
     }),
+    invoice_attachments: (schedule.invoice_schedule_attachments ?? []).map((attachment) => ({
+      id: `schedule-attachment-preview-${attachment.id}`,
+      invoice_id: `schedule-preview-${schedule.id}`,
+      invoice_item_id: `schedule-line-preview-${attachment.schedule_line_id}`,
+      storage_path: attachment.storage_path,
+      original_name: attachment.original_name,
+      mime_type: attachment.mime_type,
+      size_bytes: attachment.size_bytes,
+      created_at: attachment.created_at,
+    })),
   };
 }
 
