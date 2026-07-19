@@ -196,7 +196,7 @@ Deno.serve(async (request) => {
             html: `<p>Hei ${escapeHtml(invoice.company.name)}, vedlagt ligger faktura ${escapeHtml(invoice.invoice_number)}${receiptText}.</p>`,
             attachments: [
               {
-                filename: `faktura-${invoice.invoice_number}.pdf`,
+                filename: `00_Faktura.nr:${invoice.invoice_number}.pdf`,
                 content: attachmentContent,
               },
               ...storedAttachments,

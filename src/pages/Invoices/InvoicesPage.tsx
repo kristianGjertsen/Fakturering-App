@@ -160,7 +160,7 @@ export default function InvoicesPage({
       );
       const attachments = [
         {
-          filename: `faktura-${selectedInvoice.invoice_number}.pdf`,
+          filename: `00_Faktura.nr:${selectedInvoice.invoice_number}.pdf`,
           content: attachmentContent,
         },
         ...storedAttachments,
