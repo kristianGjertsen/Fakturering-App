@@ -30,6 +30,8 @@ export type Profile = {
   postal_address: string | null;
   country: string;
   org_number: string | null;
+  has_sent_invoices_before: boolean;
+  last_invoice_number: number;
   created_at: string;
   updated_at: string;
 };
@@ -87,11 +89,14 @@ export type Invoice = {
   recipient_country: string | null;
   schedule_id: string | null;
   scheduled_for: string | null;
-  invoice_number: string;
+  invoice_number: string | null;
   title: string;
   issue_date: string;
   due_date: string | null;
   status: InvoiceStatus;
+  finalized_at: string | null;
+  pdf_storage_path: string | null;
+  pdf_locked_at: string | null;
   paid: boolean;
   pdf_template: PdfTemplate;
   notes: string | null;

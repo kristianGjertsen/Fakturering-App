@@ -62,9 +62,11 @@ export function InvoiceDetails({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h3 className="text-lg font-semibold text-slate-950">
-              {invoice.title || invoice.invoice_number}
+              {invoice.title || invoice.invoice_number || "Utkast"}
             </h3>
-            <p className="text-sm font-medium text-slate-700">{invoice.invoice_number}</p>
+            <p className="text-sm font-medium text-slate-700">
+              {invoice.invoice_number ?? "Fakturanummer tildeles ved ferdigstilling"}
+            </p>
             <p className="text-sm text-slate-600">{invoice.company?.name ?? invoice.recipient_name}</p>
             {(invoice.company?.address || invoice.company?.postal_address) && (
               <p className="text-sm text-slate-600">
@@ -108,7 +110,7 @@ export function InvoiceDetails({
                   {sending ? "Sender..." : "Purre"}
                 </Button>
               )}
-              {!schedule && (
+              {!schedule && invoice.status === "draft" && (
                 <Button variant="danger" onClick={onDelete} disabled={deleting}>
                   {deleting ? "Sletter..." : "Slett faktura"}
                 </Button>

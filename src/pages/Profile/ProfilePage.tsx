@@ -40,6 +40,7 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
   const [postalAddress, setPostalAddress] = useState("");
   const [country, setCountry] = useState("NO");
   const [orgNumber, setOrgNumber] = useState("");
+  const [lastInvoiceNumber, setLastInvoiceNumber] = useState(9999);
   const [bankAccounts, setBankAccounts] = useState<BankAccountFormRow[]>([createBankAccountRow()]);
 
   useEffect(() => {
@@ -62,6 +63,7 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
         setPostalAddress(profile.postal_address ?? "");
         setCountry(profile.country ?? "NO");
         setOrgNumber(profile.org_number ?? "");
+        setLastInvoiceNumber(profile.last_invoice_number);
         setBankAccounts(
           nextBankAccounts.length > 0
             ? nextBankAccounts.map((account) => ({
@@ -310,6 +312,11 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="rounded-md border border-blue-100 bg-blue-50 p-4">
+            <h3 className="text-sm font-semibold text-slate-900">Fakturanummerserie</h3>
+            <p className="mt-1 text-sm text-slate-700">Neste nummer: {lastInvoiceNumber + 1}</p>
           </div>
 
           <div className="flex flex-wrap gap-2">

@@ -32,8 +32,10 @@ type StoredAttachment = {
 
 type ClaimedInvoice = {
   id: string;
+  owner_user_id: string;
   pdf_template?: PdfTemplate;
   invoice_number: string;
+  pdf_storage_path?: string | null;
   issue_date: string;
   due_date: string | null;
   subtotal: number;
@@ -180,7 +182,32 @@ Deno.serve(async (request) => {
           throw new Error("Kunden mangler e-postadresse.");
         }
 
-        const attachmentContent = createInvoicePdfBase64(invoice);
+        let attachmentContent: string;
+        if (invoice.pdf_storage_path) {
+          const { data: storedPdf, error: pdfDownloadError } = await supabase.storage
+            .from("invoice-pdfs")
+            .download(invoice.pdf_storage_path);
+          if (pdfDownloadError) throw pdfDownloadError;
+          attachmentContent = bytesToBase64(new Uint8Array(await storedPdf.arrayBuffer()));
+        } else {
+          attachmentContent = createInvoicePdfBase64(invoice);
+          const pdfPath = `${invoice.owner_user_id}/${invoice.id}.pdf`;
+          const { error: pdfUploadError } = await supabase.storage
+            .from("invoice-pdfs")
+            .upload(pdfPath, base64ToBytes(attachmentContent), {
+              contentType: "application/pdf",
+              upsert: false,
+            });
+          if (pdfUploadError) throw pdfUploadError;
+
+          const { error: pdfLockError } = await supabase
+            .from("invoices")
+            .update({ pdf_storage_path: pdfPath, pdf_locked_at: new Date().toISOString() })
+            .eq("id", invoice.id)
+            .is("pdf_storage_path", null);
+          if (pdfLockError) throw pdfLockError;
+          invoice.pdf_storage_path = pdfPath;
+        }
         const storedAttachments = await loadStoredAttachments(
           supabase,
           invoice.invoice_attachments ?? [],
@@ -310,6 +337,21 @@ Deno.serve(async (request) => {
     return jsonResponse({ runId, error: message }, 500);
   }
 });
+
+function base64ToBytes(value: string) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary);
+}
 
 async function fetchDueSchedules(supabase: SupabaseClient, cutoffAt: string) {
   const schedules: Schedule[] = [];

@@ -67,7 +67,6 @@ export type InvoiceInput = {
   companyId: string | null;
   recipientName: string;
   recipientEmail: string;
-  invoiceNumber: string;
   invoiceTitle: string;
   issueDate: string;
   dueDate: string;
@@ -405,11 +404,11 @@ export async function createInvoice(input: InvoiceInput) {
       recipient_email: recipientEmail,
       recipient_country: company?.data.country ?? null,
       schedule_id: null,
-      invoice_number: input.invoiceNumber.trim(),
-      title: input.invoiceTitle.trim() || input.invoiceNumber.trim(),
+      invoice_number: null,
+      title: input.invoiceTitle.trim() || "Utkast",
       issue_date: input.issueDate,
       due_date: input.dueDate || null,
-      status: "ready",
+      status: "draft",
       pdf_template: input.pdfTemplate,
       notes: input.notes.trim() || null,
       subtotal: totals.subtotal,
@@ -487,6 +486,30 @@ export async function deleteInvoice(invoiceId: string) {
   if (invoicePaths.length > 0) {
     await supabase.storage.from(ATTACHMENT_BUCKET).remove(invoicePaths);
   }
+}
+
+export async function finalizeInvoice(invoiceId: string) {
+  const { data, error } = await supabase.rpc("finalize_invoice", { p_invoice_id: invoiceId });
+  if (error) throw error;
+  return data as string;
+}
+
+export async function lockInvoicePdf(invoiceId: string, ownerUserId: string, pdf: Blob) {
+  const storagePath = `${ownerUserId}/${invoiceId}.pdf`;
+  const { error: uploadError } = await supabase.storage
+    .from("invoice-pdfs")
+    .upload(storagePath, pdf, { contentType: "application/pdf", upsert: false });
+
+  if (uploadError && !uploadError.message.toLowerCase().includes("already exists")) {
+    throw uploadError;
+  }
+
+  const { error } = await supabase.rpc("lock_invoice_pdf", {
+    p_invoice_id: invoiceId,
+    p_storage_path: storagePath,
+  });
+  if (error && !error.message.toLowerCase().includes("already locked")) throw error;
+  return storagePath;
 }
 
 export async function updateInvoicePaid(invoiceId: string, paid: boolean) {
@@ -593,15 +616,6 @@ export async function deleteCurrentUser() {
   if (error) {
     throw error;
   }
-}
-
-export function createInvoiceNumber() {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const suffix = String(Date.now()).slice(-5);
-  return `F-${year}${month}${day}-${suffix}`;
 }
 
 type PersistLineAttachmentsInput = {

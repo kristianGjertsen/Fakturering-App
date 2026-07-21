@@ -4,7 +4,7 @@ import { countryLabel } from "../lib/countries";
 
 export type InvoicePdfData = {
   pdf_template?: "classic" | "modern" | "minimal";
-  invoice_number: string;
+  invoice_number: string | null;
   issue_date: string;
   delivery_date?: string | null;
   delivery_place?: string | null;
