@@ -25,7 +25,7 @@ export const invoiceStatusLabels: Record<string, string> = {
 
 export function getVisibleInvoices(invoices: InvoiceWithDetails[]) {
   return invoices.filter((invoice) => {
-    if (invoice.status === "draft" || invoice.status === "sending") {
+    if (invoice.status === "sending") {
       return false;
     }
 
@@ -113,7 +113,7 @@ function createInvoiceListItems(
         companyId: schedule.company_id,
         companyName: schedule.company?.name ?? "Ukjent bedrift",
         title: preview.title,
-        subtitle: preview.invoice_number,
+        subtitle: preview.invoice_number ?? "Opprettes ved utsending",
         statusLabel: "Planlagt",
         statusTone: "purple" as const,
         amount: Number(preview.total),
@@ -124,8 +124,8 @@ function createInvoiceListItems(
       id: invoice.id,
       companyId: invoice.company_id ?? `guest-${invoice.id}`,
       companyName: invoice.company?.name ?? invoice.recipient_name,
-      title: invoice.title || invoice.invoice_number,
-      subtitle: invoice.invoice_number,
+      title: invoice.title || invoice.invoice_number || "Utkast",
+      subtitle: invoice.invoice_number ?? "Fakturanummer tildeles ved ferdigstilling",
       statusLabel: invoice.paid ? "Betalt" : invoiceStatusLabels[invoice.status] ?? invoice.status,
       statusTone: invoiceStatusTone(invoice.status, invoice.paid),
       amount: Number(invoice.total),

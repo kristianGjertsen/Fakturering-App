@@ -387,7 +387,7 @@ declare
   v_recipient_country text;
 begin
   if new.schedule_id is null or new.scheduled_for is null then
-    new.title := coalesce(nullif(btrim(new.title), ''), new.invoice_number);
+    new.title := coalesce(nullif(btrim(new.title), ''), new.invoice_number, 'Faktura');
     return new;
   end if;
 
@@ -416,7 +416,7 @@ begin
    where schedule.id = new.schedule_id;
 
   if found then
-    new.title := coalesce(nullif(btrim(v_invoice_title), ''), new.invoice_number);
+    new.title := coalesce(nullif(btrim(v_invoice_title), ''), new.invoice_number, 'Faktura');
     new.issue_date := (new.scheduled_for at time zone v_timezone)::date;
     new.due_date := new.issue_date + v_payment_terms_days;
     new.notes := v_invoice_notes;
@@ -526,7 +526,7 @@ begin
       v_schedule.company_id,
       v_schedule.id,
       p_scheduled_for,
-      'F-' || to_char(p_scheduled_for at time zone v_schedule.timezone, 'YYYYMMDD') || '-' || upper(substr(v_invoice_id::text, 1, 8)),
+      null,
       (p_scheduled_for at time zone v_schedule.timezone)::date,
       (p_scheduled_for at time zone v_schedule.timezone)::date + v_schedule.payment_terms_days,
       'draft',

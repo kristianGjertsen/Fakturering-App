@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { Company, InvoiceScheduleWithDetails, InvoiceWithDetails, Product } from "../../types";
 import type { InvoiceInput } from "../../lib/data";
-import { loadInvoiceEmailAttachments, sendInvoiceEmail, updateInvoicePaid } from "../../lib/data";
-import { createInvoicePdfBase64 } from "../../lib/pdf";
+import { fetchInvoices, finalizeInvoice, loadInvoiceEmailAttachments, lockInvoicePdf, sendInvoiceEmail, updateInvoicePaid } from "../../lib/data";
+import { createInvoicePdfBlob } from "../../lib/pdf";
 import { EmptyState } from "../../components/EmptyState";
 import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
@@ -13,6 +13,7 @@ import { InvoiceBuilder } from "./InvoicesComponents/InvoiceBuilder";
 import { InvoiceDetails } from "./InvoicesComponents/InvoiceDetails";
 import { getVisibleInvoices, InvoiceList } from "./InvoicesComponents/InvoiceList";
 import { scheduleToPreviewInvoice } from "../../lib/schedulePreview";
+import { supabase } from "../../supabaseClient";
 
 type InvoicesPageProps = {
   companies: Company[];
@@ -117,7 +118,7 @@ export default function InvoicesPage({
 
   async function handleDeleteSelectedInvoice() {
     if (!selectedInvoice || selectedSchedule) return;
-    if (!window.confirm(`Slette faktura ${selectedInvoice.invoice_number}?`)) return;
+    if (!window.confirm(`Slette ${selectedInvoice.invoice_number ? `faktura ${selectedInvoice.invoice_number}` : "utkastet"}?`)) return;
 
     setDeletingInvoiceId(selectedInvoice.id);
     try {
@@ -153,23 +154,44 @@ export default function InvoicesPage({
     setSendMessage("");
 
     try {
-      const attachmentContent = await createInvoicePdfBase64(selectedInvoice);
+      let invoiceToSend = selectedInvoice;
+      if (action === "send" && selectedInvoice.status === "draft") {
+        await finalizeInvoice(selectedInvoice.id);
+        const finalized = (await fetchInvoices()).find((invoice) => invoice.id === selectedInvoice.id);
+        if (!finalized?.invoice_number) throw new Error("Fakturaen ble ikke ferdigstilt korrekt.");
+        invoiceToSend = finalized;
+      }
+
+      if (!invoiceToSend.invoice_number) throw new Error("Fakturaen mangler fakturanummer.");
+
+      let pdfBlob: Blob;
+      if (invoiceToSend.pdf_storage_path) {
+        const { data, error } = await supabase.storage
+          .from("invoice-pdfs")
+          .download(invoiceToSend.pdf_storage_path);
+        if (error) throw error;
+        pdfBlob = data;
+      } else {
+        pdfBlob = await createInvoicePdfBlob(invoiceToSend);
+        await lockInvoicePdf(invoiceToSend.id, invoiceToSend.owner_user_id, pdfBlob);
+      }
+      const attachmentContent = await blobToBase64(pdfBlob);
       const storedAttachments = await loadInvoiceEmailAttachments(
-        selectedInvoice.invoice_attachments ?? [],
-        selectedInvoice.invoice_items ?? [],
+        invoiceToSend.invoice_attachments ?? [],
+        invoiceToSend.invoice_items ?? [],
       );
       const attachments = [
         {
-          filename: `00_Faktura.nr:${selectedInvoice.invoice_number}.pdf`,
+          filename: `00_Faktura.nr:${invoiceToSend.invoice_number}.pdf`,
           content: attachmentContent,
         },
         ...storedAttachments,
       ];
-      const subject = `Faktura ${selectedInvoice.invoice_number}`;
+      const subject = `Faktura ${invoiceToSend.invoice_number}`;
       const receiptText = storedAttachments.length > 0
         ? ` og ${storedAttachments.length} vedlegg`
         : "";
-      const html = `<p>Hei${recipientName ? ` ${recipientName}` : ""}, vedlagt ligger faktura ${selectedInvoice.invoice_number}${receiptText}.</p>`;
+      const html = `<p>Hei${recipientName ? ` ${recipientName}` : ""}, vedlagt ligger faktura ${invoiceToSend.invoice_number}${receiptText}.</p>`;
 
       await sendInvoiceEmail({
         recipientEmail,
@@ -302,4 +324,13 @@ export default function InvoicesPage({
       </DetailModal>
     </>
   );
+}
+
+async function blobToBase64(blob: Blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary);
 }

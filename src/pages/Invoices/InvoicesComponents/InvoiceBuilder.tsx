@@ -18,7 +18,6 @@ import {
   validateAttachmentFiles,
 } from "../../../lib/attachments";
 import { formatCurrency, todayInputValue } from "../../../lib/format";
-import { createInvoiceNumber } from "../../../lib/data";
 import { calculateLine, calculateTotals, toNumber } from "../../../lib/invoiceMath";
 import { FormField } from "../../../components/FormField";
 import { Input, inputClass } from "../../../components/Input";
@@ -128,7 +127,6 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
   const [recipientName, setRecipientName] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
   const [showUnsavedRecipientDialog, setShowUnsavedRecipientDialog] = useState(() => companies.length === 0);
-  const [invoiceNumber] = useState(createInvoiceNumber);
   const [invoiceTitle, setInvoiceTitle] = useState("");
   const [issueDate, setIssueDate] = useState(todayInputValue);
   const [paymentTermsDays, setPaymentTermsDays] = useState(14);
@@ -164,19 +162,20 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
     recipient_country: selectedCompany?.country ?? null,
     schedule_id: null,
     scheduled_for: null,
-    invoice_number: invoiceKind === "recurring"
-      ? "Neste faktura"
-      : scheduleOnce
-        ? "Opprettes ved utsending"
-        : invoiceNumber || "Fakturanummer",
+    invoice_number: invoiceKind === "recurring" || scheduleOnce
+      ? "Opprettes ved utsending"
+      : "Tildeles ved ferdigstilling",
     title: invoiceTitle.trim() || (
       invoiceKind === "recurring" || scheduleOnce
         ? "Opprettes ved utsending"
-        : invoiceNumber || "Fakturanummer"
+        : "Utkast"
     ),
     issue_date: previewIssueDate,
     due_date: previewDueDate,
-    status: "ready",
+    status: "draft",
+    finalized_at: null,
+    pdf_storage_path: null,
+    pdf_locked_at: null,
     paid: false,
     pdf_template: pdfTemplate,
     notes: notes || null,
@@ -407,7 +406,6 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         companyId: companyId || null,
         recipientName,
         recipientEmail,
-        invoiceNumber,
         invoiceTitle,
         issueDate,
         dueDate,
