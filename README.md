@@ -1,6 +1,6 @@
-# Invoice Auth App
+# AutoFaktura
 
-Vite + React + TypeScript + Tailwind + Supabase Auth.
+En faktureringsapp bygget med Vite, React, TypeScript, Tailwind og Supabase.
 
 ## Start
 
@@ -18,15 +18,15 @@ VITE_SUPABASE_ANON_KEY=...
 
 ## Supabase
 
-Ga til Supabase dashboard:
+Gå til Supabase-dashboardet:
 
 - Authentication -> Providers -> Email
-- Aktiver email/password login
-- Kopier Project URL og anon public key til `.env`
+- Aktiver innlogging med e-post og passord
+- Kopier prosjekt-URL og offentlig anon-nøkkel til `.env`
 
 ### Databaseoppsett
 
-Databaseskjemaet ligger i den ene baseline-migrasjonen under `supabase/migrations`.
+Databaseskjemaet og senere skjemaendringer ligger under `supabase/migrations`.
 
 For lokal Supabase:
 
@@ -44,9 +44,9 @@ Tabellene er satt opp slik:
 
 - `profiles`: en rad per innlogget bruker fra `auth.users`
 - `companies`: bedrifter/kunder som eies av en bruker
-- `products`: produkter/tjenester som tilhorer en bedrift
-- `invoice_schedules`: faste faktureringsplaner per bedrift, for eksempel daglig, ukentlig eller manedlig
-- `invoice_schedule_lines`: fakturalinjer som skal brukes nar en plan gjentas
+- `products`: produkter/tjenester som tilhører en bedrift
+- `invoice_schedules`: faktureringsplaner per bedrift, enten én gang, daglig, ukentlig eller månedlig
+- `invoice_schedule_lines`: fakturalinjer som skal brukes når en plan gjentas
 - `invoice_schedule_attachments`: vedleggsmetadata for linjer i faktureringsplaner
 - `invoices`: fakturaer som er opprettet
 - `invoice_items`: fakturalinjer for hver faktura

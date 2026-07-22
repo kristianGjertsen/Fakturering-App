@@ -1,12 +1,12 @@
 import type { InvoiceDraftLine } from "../types";
 
-export type CalculatedLine = {
+type CalculatedLine = {
   line_subtotal: number;
   line_vat: number;
   line_total: number;
 };
 
-export type CalculatedTotals = {
+type CalculatedTotals = {
   subtotal: number;
   vatTotal: number;
   total: number;

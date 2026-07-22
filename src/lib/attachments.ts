@@ -1,12 +1,12 @@
 export const ATTACHMENT_BUCKET = "invoice-attachments";
 export const ATTACHMENT_ACCEPT = "application/pdf,image/jpeg,image/png";
-export const MAX_ATTACHMENT_FILE_BYTES = 10 * 1024 * 1024;
-export const MAX_INVOICE_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+const MAX_ATTACHMENT_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_INVOICE_ATTACHMENT_BYTES = 20 * 1024 * 1024;
 
-const allowedAttachmentTypes = new Set(ATTACHMENT_ACCEPT.split(","));
+const ALLOWED_ATTACHMENT_TYPES = new Set(ATTACHMENT_ACCEPT.split(","));
 
 export function validateAttachmentFiles(files: File[], existingBytes = 0) {
-  const unsupportedFile = files.find((file) => !allowedAttachmentTypes.has(file.type));
+  const unsupportedFile = files.find((file) => !ALLOWED_ATTACHMENT_TYPES.has(file.type));
 
   if (unsupportedFile) {
     return `${unsupportedFile.name} har et filformat som ikke støttes. Bruk PDF, JPG eller PNG.`;

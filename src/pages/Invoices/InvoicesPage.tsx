@@ -2,18 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { Company, InvoiceScheduleWithDetails, InvoiceWithDetails, Product } from "../../types";
 import type { InvoiceInput } from "../../lib/data";
-import { fetchInvoices, finalizeInvoice, loadInvoiceEmailAttachments, lockInvoicePdf, sendInvoiceEmail, updateInvoicePaid } from "../../lib/data";
-import { createInvoicePdfBlob } from "../../lib/pdf";
+import { sendInvoiceEmail, updateInvoicePaid } from "../../lib/data";
 import { EmptyState } from "../../components/EmptyState";
 import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
 import { Notice } from "../../components/layout/Notice";
 import { DetailModal } from "../../components/layout/DetailModal";
-import { InvoiceBuilder } from "./InvoicesComponents/InvoiceBuilder";
-import { InvoiceDetails } from "./InvoicesComponents/InvoiceDetails";
-import { getVisibleInvoices, InvoiceList } from "./InvoicesComponents/InvoiceList";
+import { InvoiceBuilder } from "./components/InvoiceBuilder";
+import { InvoiceDetails } from "./components/InvoiceDetails";
+import { InvoiceList } from "./components/InvoiceList";
 import { scheduleToPreviewInvoice } from "../../lib/schedulePreview";
-import { supabase } from "../../supabaseClient";
+import {
+  prepareInvoiceEmailDelivery,
+  type InvoiceDeliveryAction,
+} from "./invoiceDelivery";
+import { getVisibleInvoices } from "./invoicePresentation";
 
 type InvoicesPageProps = {
   companies: Company[];
@@ -46,35 +49,35 @@ export default function InvoicesPage({
   const [showCreateForm, setShowCreateForm] = useState(searchParams.get("create") === "true");
   const [sendingInvoiceId, setSendingInvoiceId] = useState("");
   const [updatingPaidInvoiceId, setUpdatingPaidInvoiceId] = useState("");
-  const [sendMessage, setSendMessage] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
 
-  const pageInvoices = useMemo(
+  const filteredInvoices = useMemo(
     () => companyFilterId ? invoices.filter((invoice) => invoice.company_id === companyFilterId) : invoices,
     [companyFilterId, invoices],
   );
-  const pageSchedules = useMemo(
+  const filteredSchedules = useMemo(
     () => companyFilterId ? schedules.filter((schedule) => schedule.company_id === companyFilterId) : schedules,
     [companyFilterId, schedules],
   );
-  const displayedInvoices = useMemo(() => getVisibleInvoices(pageInvoices), [pageInvoices]);
+  const visibleInvoices = useMemo(() => getVisibleInvoices(filteredInvoices), [filteredInvoices]);
   const scheduledPreviews = useMemo(
-    () => pageSchedules.map((schedule) => scheduleToPreviewInvoice(schedule)),
-    [pageSchedules],
+    () => filteredSchedules.map((schedule) => scheduleToPreviewInvoice(schedule)),
+    [filteredSchedules],
   );
-  const selectableInvoices = useMemo(
-    () => [...scheduledPreviews, ...displayedInvoices].sort(
+  const availableInvoices = useMemo(
+    () => [...scheduledPreviews, ...visibleInvoices].sort(
       (left, right) =>
         new Date(right.scheduled_for ?? right.issue_date).getTime()
         - new Date(left.scheduled_for ?? left.issue_date).getTime(),
     ),
-    [scheduledPreviews, displayedInvoices],
+    [scheduledPreviews, visibleInvoices],
   );
 
   useEffect(() => {
     if (
       requestedInvoiceId &&
       requestedInvoiceId !== selectedInvoiceId &&
-      selectableInvoices.some((invoice) => invoice.id === requestedInvoiceId)
+      availableInvoices.some((invoice) => invoice.id === requestedInvoiceId)
     ) {
       setSelectedInvoiceId(requestedInvoiceId);
       return;
@@ -82,24 +85,32 @@ export default function InvoicesPage({
 
     if (
       selectedInvoiceId &&
-      !selectableInvoices.some((invoice) => invoice.id === selectedInvoiceId)
+      !availableInvoices.some((invoice) => invoice.id === selectedInvoiceId)
     ) {
       setSelectedInvoiceId("");
     }
-  }, [requestedInvoiceId, selectableInvoices, selectedInvoiceId]);
+  }, [availableInvoices, requestedInvoiceId, selectedInvoiceId]);
 
-  const selectedInvoice = selectableInvoices.find((invoice) => invoice.id === selectedInvoiceId) ?? null;
-  const selectedSchedule = selectedInvoice
-    ? pageSchedules.find((schedule) => `schedule-preview-${schedule.id}` === selectedInvoice.id) ?? null
+  const selectedInvoice = availableInvoices.find((invoice) => invoice.id === selectedInvoiceId) ?? null;
+  const selectedInvoiceSchedule = selectedInvoice
+    ? filteredSchedules.find((schedule) => `schedule-preview-${schedule.id}` === selectedInvoice.id) ?? null
     : null;
 
   function selectInvoice(invoiceId: string) {
     const nextInvoiceId = selectedInvoiceId === invoiceId ? "" : invoiceId;
-    setSelectedInvoiceId(nextInvoiceId);
+    updateInvoiceSelection(nextInvoiceId);
+  }
+
+  function closeInvoiceDetails() {
+    updateInvoiceSelection("");
+  }
+
+  function updateInvoiceSelection(invoiceId: string) {
+    setSelectedInvoiceId(invoiceId);
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      if (nextInvoiceId) {
-        next.set("invoiceId", nextInvoiceId);
+      if (invoiceId) {
+        next.set("invoiceId", invoiceId);
       } else {
         next.delete("invoiceId");
       }
@@ -107,17 +118,8 @@ export default function InvoicesPage({
     }, { replace: true });
   }
 
-  function closeInvoiceDetails() {
-    setSelectedInvoiceId("");
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.delete("invoiceId");
-      return next;
-    }, { replace: true });
-  }
-
   async function handleDeleteSelectedInvoice() {
-    if (!selectedInvoice || selectedSchedule) return;
+    if (!selectedInvoice || selectedInvoiceSchedule) return;
     if (!window.confirm(`Slette ${selectedInvoice.invoice_number ? `faktura ${selectedInvoice.invoice_number}` : "utkastet"}?`)) return;
 
     setDeletingInvoiceId(selectedInvoice.id);
@@ -129,16 +131,16 @@ export default function InvoicesPage({
     }
   }
 
-  async function handleSendSelectedInvoice(action: "send" | "remind") {
-    if (!selectedInvoice || selectedSchedule) return;
+  async function handleSendSelectedInvoice(action: InvoiceDeliveryAction) {
+    if (!selectedInvoice || selectedInvoiceSchedule) return;
 
     if (action === "send" && !["draft", "ready"].includes(selectedInvoice.status)) {
-      setSendMessage("Fakturaen er allerede sendt.");
+      setActionMessage("Fakturaen er allerede sendt.");
       return;
     }
 
     if (action === "remind" && selectedInvoice.status !== "sent") {
-      setSendMessage("Fakturaen kan ikke purres flere ganger.");
+      setActionMessage("Fakturaen kan ikke purres flere ganger.");
       return;
     }
 
@@ -146,52 +148,19 @@ export default function InvoicesPage({
     const recipientName = selectedInvoice.recipient_name || selectedInvoice.company?.name || "";
 
     if (!recipientEmail) {
-      setSendMessage("Fakturaen mangler mottakerens e-postadresse.");
+      setActionMessage("Fakturaen mangler mottakerens e-postadresse.");
       return;
     }
 
     setSendingInvoiceId(selectedInvoice.id);
-    setSendMessage("");
+    setActionMessage("");
 
     try {
-      let invoiceToSend = selectedInvoice;
-      if (action === "send" && selectedInvoice.status === "draft") {
-        await finalizeInvoice(selectedInvoice.id);
-        const finalized = (await fetchInvoices()).find((invoice) => invoice.id === selectedInvoice.id);
-        if (!finalized?.invoice_number) throw new Error("Fakturaen ble ikke ferdigstilt korrekt.");
-        invoiceToSend = finalized;
-      }
-
-      if (!invoiceToSend.invoice_number) throw new Error("Fakturaen mangler fakturanummer.");
-
-      let pdfBlob: Blob;
-      if (invoiceToSend.pdf_storage_path) {
-        const { data, error } = await supabase.storage
-          .from("invoice-pdfs")
-          .download(invoiceToSend.pdf_storage_path);
-        if (error) throw error;
-        pdfBlob = data;
-      } else {
-        pdfBlob = await createInvoicePdfBlob(invoiceToSend);
-        await lockInvoicePdf(invoiceToSend.id, invoiceToSend.owner_user_id, pdfBlob);
-      }
-      const attachmentContent = await blobToBase64(pdfBlob);
-      const storedAttachments = await loadInvoiceEmailAttachments(
-        invoiceToSend.invoice_attachments ?? [],
-        invoiceToSend.invoice_items ?? [],
+      const { attachments, html, subject } = await prepareInvoiceEmailDelivery(
+        selectedInvoice,
+        action,
+        recipientName,
       );
-      const attachments = [
-        {
-          filename: `00_Faktura.nr:${invoiceToSend.invoice_number}.pdf`,
-          content: attachmentContent,
-        },
-        ...storedAttachments,
-      ];
-      const subject = `Faktura ${invoiceToSend.invoice_number}`;
-      const receiptText = storedAttachments.length > 0
-        ? ` og ${storedAttachments.length} vedlegg`
-        : "";
-      const html = `<p>Hei${recipientName ? ` ${recipientName}` : ""}, vedlagt ligger faktura ${invoiceToSend.invoice_number}${receiptText}.</p>`;
 
       await sendInvoiceEmail({
         recipientEmail,
@@ -214,35 +183,35 @@ export default function InvoicesPage({
       }
 
       await onRefreshInvoices();
-      setSendMessage(
+      setActionMessage(
         currentUserEmail
           ? `${action === "send" ? "Faktura sendt" : "Purring sendt"} til ${recipientEmail}, og kopi sendt til ${currentUserEmail}.`
           : `${action === "send" ? "Faktura sendt" : "Purring sendt"} til ${recipientEmail}.`,
       );
     } catch (error) {
-      setSendMessage(error instanceof Error ? error.message : "Kunne ikke sende fakturaen.");
+      setActionMessage(error instanceof Error ? error.message : "Kunne ikke sende fakturaen.");
     } finally {
       setSendingInvoiceId("");
     }
   }
 
   async function handleTogglePaid() {
-    if (!selectedInvoice || selectedSchedule) return;
+    if (!selectedInvoice || selectedInvoiceSchedule) return;
 
     setUpdatingPaidInvoiceId(selectedInvoice.id);
-    setSendMessage("");
+    setActionMessage("");
     try {
       await updateInvoicePaid(selectedInvoice.id, !selectedInvoice.paid);
       await onRefreshInvoices();
-      setSendMessage(selectedInvoice.paid ? "Fakturaen er markert som ubetalt." : "Fakturaen er markert som betalt.");
+      setActionMessage(selectedInvoice.paid ? "Fakturaen er markert som ubetalt." : "Fakturaen er markert som betalt.");
     } catch (error) {
-      setSendMessage(error instanceof Error ? error.message : "Kunne ikke oppdatere betalingsstatus.");
+      setActionMessage(error instanceof Error ? error.message : "Kunne ikke oppdatere betalingsstatus.");
     } finally {
       setUpdatingPaidInvoiceId("");
     }
   }
 
-  const header = (
+  const pageHeader = (
     <SectionHeader
       title="Fakturaer"
       description={companyFilterId
@@ -259,7 +228,7 @@ export default function InvoicesPage({
   if (showCreateForm) {
     return (
       <>
-        {header}
+        {pageHeader}
         <InvoiceBuilder
           companies={companies}
           products={products}
@@ -275,10 +244,10 @@ export default function InvoicesPage({
     );
   }
 
-  if (selectableInvoices.length === 0) {
+  if (availableInvoices.length === 0) {
     return (
       <>
-        {header}
+        {pageHeader}
         <EmptyState title="Ingen fakturaer" description="Lag en faktura, eller vent til en planlagt faktura er sendt." />
       </>
     );
@@ -286,17 +255,17 @@ export default function InvoicesPage({
 
   return (
     <>
-      {header}
+      {pageHeader}
 
-      {sendMessage && !selectedInvoice && (
+      {actionMessage && !selectedInvoice && (
         <Notice>
-          {sendMessage}
+          {actionMessage}
         </Notice>
       )}
 
       <InvoiceList
-        invoices={displayedInvoices}
-        schedules={pageSchedules}
+        invoices={visibleInvoices}
+        schedules={filteredSchedules}
         selectedId={selectedInvoiceId}
         onSelect={selectInvoice}
       />
@@ -308,11 +277,11 @@ export default function InvoicesPage({
           ? `Fakturadetaljer for ${selectedInvoice.title || selectedInvoice.invoice_number}`
           : "Fakturadetaljer"}
       >
-        {sendMessage && <Notice className="mb-5">{sendMessage}</Notice>}
+        {actionMessage && <Notice className="mb-5">{actionMessage}</Notice>}
         {selectedInvoice && (
           <InvoiceDetails
             invoice={selectedInvoice}
-            schedule={selectedSchedule}
+            schedule={selectedInvoiceSchedule}
             deleting={deletingInvoiceId === selectedInvoice.id}
             sending={sendingInvoiceId === selectedInvoice.id}
             updatingPaid={updatingPaidInvoiceId === selectedInvoice.id}
@@ -324,13 +293,4 @@ export default function InvoicesPage({
       </DetailModal>
     </>
   );
-}
-
-async function blobToBase64(blob: Blob) {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let binary = "";
-  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
-  }
-  return btoa(binary);
 }

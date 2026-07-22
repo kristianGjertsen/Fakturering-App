@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-export type ButtonVariant = "primary" | "secondary" | "danger" | "success" | "ghost";
-export type ButtonSize = "xs" | "sm" | "md" | "lg";
+type ButtonVariant = "primary" | "secondary" | "danger" | "success" | "ghost";
+type ButtonSize = "xs" | "sm" | "md" | "lg";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
@@ -27,9 +27,20 @@ const sizeClasses: Record<ButtonSize, string> = {
   lg: "gap-2 px-5 py-3 text-base",
 };
 
-export function Button({ children, className = "", variant = "primary", size = "md", type = "button", ...props }: ButtonProps) {
+export function Button({
+  children,
+  className = "",
+  variant = "primary",
+  size = "md",
+  type = "button",
+  ...props
+}: ButtonProps) {
   return (
-    <button className={`${baseClass} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`.trim()} type={type} {...props}>
+    <button
+      className={`${baseClass} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`.trim()}
+      type={type}
+      {...props}
+    >
       {children}
     </button>
   );

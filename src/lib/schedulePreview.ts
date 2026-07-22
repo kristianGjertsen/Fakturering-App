@@ -1,4 +1,5 @@
 import type { InvoiceScheduleWithDetails, InvoiceWithDetails } from "../types";
+import { roundMoney } from "./invoiceMath";
 
 export function calculateScheduleTotals(schedule: InvoiceScheduleWithDetails) {
   const totals = (schedule.invoice_schedule_lines ?? []).reduce(
@@ -14,9 +15,9 @@ export function calculateScheduleTotals(schedule: InvoiceScheduleWithDetails) {
   );
 
   return {
-    subtotal: roundCurrency(totals.subtotal),
-    vatTotal: roundCurrency(totals.vatTotal),
-    total: roundCurrency(totals.total),
+    subtotal: roundMoney(totals.subtotal),
+    vatTotal: roundMoney(totals.vatTotal),
+    total: roundMoney(totals.total),
   };
 }
 
@@ -69,9 +70,9 @@ export function scheduleToPreviewInvoice(schedule: InvoiceScheduleWithDetails): 
         unit: line.unit,
         unit_price: Number(line.unit_price),
         vat_rate: Number(line.vat_rate),
-        line_subtotal: roundCurrency(subtotal),
-        line_vat: roundCurrency(vat),
-        line_total: roundCurrency(subtotal + vat),
+        line_subtotal: roundMoney(subtotal),
+        line_vat: roundMoney(vat),
+        line_total: roundMoney(subtotal + vat),
         sort_order: line.sort_order,
         created_at: line.created_at,
       };
@@ -107,8 +108,4 @@ function dateInTimeZone(value: string, timeZone: string) {
   const day = parts.find((part) => part.type === "day")?.value;
 
   return year && month && day ? `${year}-${month}-${day}` : value.slice(0, 10);
-}
-
-function roundCurrency(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
