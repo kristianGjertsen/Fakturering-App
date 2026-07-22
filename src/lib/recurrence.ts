@@ -1,16 +1,22 @@
 import type { RepeatDraft, ScheduleFrequency } from "../types";
 
-const dayMs = 24 * 60 * 60 * 1000;
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+const WEEKDAY_NAMES: Record<number, string> = {
+  1: "mandag",
+  2: "tirsdag",
+  3: "onsdag",
+  4: "torsdag",
+  5: "fredag",
+  6: "lørdag",
+  7: "søndag",
+};
+
 export const SCHEDULE_RUN_TIME = "03:00";
 
 function parseDateAndTime(dateValue: string, timeValue: string) {
   const [year, month, day] = dateValue.split("-").map(Number);
   const [hour, minute] = timeValue.split(":").map(Number);
   return new Date(year, month - 1, day, hour || 0, minute || 0, 0, 0);
-}
-
-function isoDate(date: Date) {
-  return date.toISOString();
 }
 
 export function calculateNextRunAt(repeat: RepeatDraft) {
@@ -20,23 +26,25 @@ export function calculateNextRunAt(repeat: RepeatDraft) {
 
   if (repeat.frequency === "daily") {
     while (next <= now) {
-      next = new Date(next.getTime() + repeat.intervalCount * dayMs);
+      next = new Date(next.getTime() + repeat.intervalCount * MILLISECONDS_PER_DAY);
     }
 
-    return isoDate(next);
+    return next.toISOString();
   }
 
   if (repeat.frequency === "weekly") {
     const targetDay = repeat.dayOfWeek === 7 ? 0 : repeat.dayOfWeek;
     const currentDay = next.getDay();
     const daysUntilTarget = (targetDay - currentDay + 7) % 7;
-    next = new Date(next.getTime() + daysUntilTarget * dayMs);
+    next = new Date(next.getTime() + daysUntilTarget * MILLISECONDS_PER_DAY);
 
     while (next <= now) {
-      next = new Date(next.getTime() + repeat.intervalCount * 7 * dayMs);
+      next = new Date(
+        next.getTime() + repeat.intervalCount * 7 * MILLISECONDS_PER_DAY,
+      );
     }
 
-    return isoDate(next);
+    return next.toISOString();
   }
 
   next.setDate(Math.min(repeat.dayOfMonth, daysInMonth(next)));
@@ -46,7 +54,7 @@ export function calculateNextRunAt(repeat: RepeatDraft) {
     next.setDate(Math.min(repeat.dayOfMonth, daysInMonth(next)));
   }
 
-  return isoDate(next);
+  return next.toISOString();
 }
 
 export function calculateScheduledRunAt(dateValue: string, timeZone = "Europe/Oslo") {
@@ -86,16 +94,7 @@ export function describeRecurrence(frequency: ScheduleFrequency, dayOfWeek: numb
   }
 
   if (frequency === "weekly") {
-    const names: Record<number, string> = {
-      1: "mandag",
-      2: "tirsdag",
-      3: "onsdag",
-      4: "torsdag",
-      5: "fredag",
-      6: "lørdag",
-      7: "søndag",
-    };
-    return `Hver ${names[dayOfWeek ?? 1]}`;
+    return `Hver ${WEEKDAY_NAMES[dayOfWeek ?? 1]}`;
   }
 
   return `Hver måned den ${dayOfMonth ?? 1}.`;

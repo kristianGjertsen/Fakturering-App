@@ -1,4 +1,5 @@
 import type { InvoiceScheduleWithDetails, InvoiceWithDetails } from "../types";
+import { roundMoney } from "./invoiceMath";
 
 export function calculateScheduleTotals(schedule: InvoiceScheduleWithDetails) {
   const totals = (schedule.invoice_schedule_lines ?? []).reduce(
@@ -14,9 +15,9 @@ export function calculateScheduleTotals(schedule: InvoiceScheduleWithDetails) {
   );
 
   return {
-    subtotal: roundCurrency(totals.subtotal),
-    vatTotal: roundCurrency(totals.vatTotal),
-    total: roundCurrency(totals.total),
+    subtotal: roundMoney(totals.subtotal),
+    vatTotal: roundMoney(totals.vatTotal),
+    total: roundMoney(totals.total),
   };
 }
 
@@ -34,7 +35,6 @@ export function scheduleToPreviewInvoice(schedule: InvoiceScheduleWithDetails): 
     recipient_name: schedule.company?.name ?? "Ukjent mottaker",
     recipient_org_number: schedule.company?.org_number ?? null,
     recipient_email: schedule.company?.email ?? null,
-    recipient_city: null,
     recipient_country: null,
     schedule_id: schedule.id,
     scheduled_for: schedule.next_run_at,
@@ -43,6 +43,9 @@ export function scheduleToPreviewInvoice(schedule: InvoiceScheduleWithDetails): 
     issue_date: issueDate,
     due_date: dueDate,
     status: "ready",
+    finalized_at: null,
+    pdf_storage_path: null,
+    pdf_locked_at: null,
     paid: false,
     pdf_template: schedule.pdf_template,
     notes: schedule.invoice_notes,
@@ -53,8 +56,6 @@ export function scheduleToPreviewInvoice(schedule: InvoiceScheduleWithDetails): 
     updated_at: schedule.updated_at,
     company: schedule.company ? {
       ...schedule.company,
-      city: null,
-      country: null,
     } : null,
     invoice_items: (schedule.invoice_schedule_lines ?? []).map((line) => {
       const subtotal = Number(line.quantity) * Number(line.unit_price);
@@ -69,13 +70,23 @@ export function scheduleToPreviewInvoice(schedule: InvoiceScheduleWithDetails): 
         unit: line.unit,
         unit_price: Number(line.unit_price),
         vat_rate: Number(line.vat_rate),
-        line_subtotal: roundCurrency(subtotal),
-        line_vat: roundCurrency(vat),
-        line_total: roundCurrency(subtotal + vat),
+        line_subtotal: roundMoney(subtotal),
+        line_vat: roundMoney(vat),
+        line_total: roundMoney(subtotal + vat),
         sort_order: line.sort_order,
         created_at: line.created_at,
       };
     }),
+    invoice_attachments: (schedule.invoice_schedule_attachments ?? []).map((attachment) => ({
+      id: `schedule-attachment-preview-${attachment.id}`,
+      invoice_id: `schedule-preview-${schedule.id}`,
+      invoice_item_id: `schedule-line-preview-${attachment.schedule_line_id}`,
+      storage_path: attachment.storage_path,
+      original_name: attachment.original_name,
+      mime_type: attachment.mime_type,
+      size_bytes: attachment.size_bytes,
+      created_at: attachment.created_at,
+    })),
   };
 }
 
@@ -97,8 +108,4 @@ function dateInTimeZone(value: string, timeZone: string) {
   const day = parts.find((part) => part.type === "day")?.value;
 
   return year && month && day ? `${year}-${month}-${day}` : value.slice(0, 10);
-}
-
-function roundCurrency(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
 }

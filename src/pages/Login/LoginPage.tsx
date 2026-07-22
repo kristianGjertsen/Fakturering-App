@@ -1,12 +1,17 @@
-import type { FormEvent } from "react";
-import { useState } from "react";
-import { supabase } from "../../supabaseClient";
-import SupabaseDebugPanel from "./LoginComponents/SupabaseDebugPanel";
+import { useState, type FormEvent } from "react";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
+import { supabase } from "../../supabaseClient";
+import {
+  createRegistrationFormState,
+  RegistrationFields,
+} from "./components/RegistrationFields";
+
+const authInputClassName =
+  "mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0";
 
 export default function LoginPage() {
-  const [fullName, setFullName] = useState("");
+  const [registrationForm, setRegistrationForm] = useState(createRegistrationFormState);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
@@ -23,13 +28,49 @@ export default function LoginPage() {
     setMessage("");
 
     try {
+      const normalizedBankAccounts = registrationForm.bankAccounts
+        .map((account) => ({
+          account_name: account.account_name.trim(),
+          account_number: account.account_number.trim(),
+        }))
+        .filter((account) => account.account_name || account.account_number);
+
+      if (
+        isRegistering &&
+        (normalizedBankAccounts.length === 0 ||
+          normalizedBankAccounts.some((account) => !account.account_name || !account.account_number))
+      ) {
+        setMessage("Legg inn navn og kontonummer for minst en konto.");
+        return;
+      }
+
+      const normalizedLastInvoiceNumber = Number(registrationForm.lastInvoiceNumber);
+      if (
+        isRegistering &&
+        registrationForm.hasSentInvoicesBefore &&
+        (!Number.isSafeInteger(normalizedLastInvoiceNumber) || normalizedLastInvoiceNumber < 0)
+      ) {
+        setMessage("Oppgi siste brukte fakturanummer som et heltall.");
+        return;
+      }
+
       const response = isRegistering
         ? await supabase.auth.signUp({
             email,
             password,
             options: {
               data: {
-                full_name: fullName.trim(),
+                full_name: registrationForm.fullName.trim(),
+                company_name: registrationForm.companyName.trim(),
+                address: registrationForm.address.trim(),
+                postal_address: registrationForm.postalAddress.trim(),
+                country: registrationForm.country,
+                org_number: registrationForm.orgNumber.trim(),
+                bank_accounts: normalizedBankAccounts,
+                has_sent_invoices_before: registrationForm.hasSentInvoicesBefore,
+                last_invoice_number: registrationForm.hasSentInvoicesBefore
+                  ? normalizedLastInvoiceNumber
+                  : 9999,
               },
             },
           })
@@ -42,16 +83,15 @@ export default function LoginPage() {
 
         setMessage(
           isRateLimited
-            ? "For mange forsok pa kort tid. Vent litt og prov igjen."
-            : response.error.message
+            ? "For mange forsøk på kort tid. Vent litt og prøv igjen."
+            : response.error.message,
         );
       } else if (isRegistering) {
         setMessage("Bruker opprettet. Sjekk e-post hvis bekreftelse er aktivert.");
       } else {
         window.location.href = "/";
       }
-    }
-    finally {
+    } finally {
       setLoading(false);
     }
   }
@@ -63,53 +103,31 @@ export default function LoginPage() {
           {isRegistering ? "Opprett bruker" : "Logg inn"}
         </h1>
         <p className="mt-2 text-sm text-slate-500">
-          Logg inn for a administrere kunder og fakturaer.
+          Logg inn for å administrere kunder og fakturaer.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           {isRegistering && (
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">Navn</span>
-              <Input
-                className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
-                type="text"
-                value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
-                required={isRegistering}
-              />
-            </label>
+            <RegistrationFields value={registrationForm} onChange={setRegistrationForm} />
           )}
 
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">E-post</span>
-            <Input
-              className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">Passord</span>
-            <Input
-              className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              minLength={6}
-            />
-          </label>
+          <AuthField
+            label="E-post"
+            type="email"
+            value={email}
+            onChange={setEmail}
+          />
+          <AuthField
+            label="Passord"
+            type="password"
+            value={password}
+            onChange={setPassword}
+            minLength={6}
+          />
 
           {message && <p className="text-sm text-slate-600">{message}</p>}
 
-          <Button
-            className="w-full"
-            type="submit"
-            disabled={loading}
-          >
+          <Button className="w-full" type="submit" disabled={loading}>
             {loading ? "Vent..." : isRegistering ? "Opprett bruker" : "Logg inn"}
           </Button>
         </form>
@@ -125,9 +143,31 @@ export default function LoginPage() {
         >
           {isRegistering ? "Har du bruker? Logg inn" : "Ingen bruker? Opprett en"}
         </Button>
-
-        <SupabaseDebugPanel />
       </section>
     </main>
+  );
+}
+
+type AuthFieldProps = {
+  label: string;
+  type: "email" | "password";
+  value: string;
+  onChange: (value: string) => void;
+  minLength?: number;
+};
+
+function AuthField({ label, type, value, onChange, minLength }: AuthFieldProps) {
+  return (
+    <label className="block">
+      <span className="text-sm font-medium text-slate-700">{label}</span>
+      <Input
+        className={authInputClassName}
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required
+        minLength={minLength}
+      />
+    </label>
   );
 }

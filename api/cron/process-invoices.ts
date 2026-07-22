@@ -9,8 +9,6 @@ type VercelRequest = {
   };
 };
 
-
-
 type VercelResponse = {
   status(code: number): VercelResponse;
   json(body: unknown): VercelResponse;

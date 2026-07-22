@@ -1,25 +1,11 @@
-# Invoice Auth App
+# AutoFaktura
 
-Vite + React + TypeScript + Tailwind + Supabase Auth.
-
-## PDF-mal
-
-Fakturadesignet ligger samlet i `src/pdf/InvoicePdfTemplate.tsx`. Nettleseren bruker malen til forhåndsvisning og manuell utsending. Automatiske fakturaer sender fakturadata til Vercel-funksjonen `api/generate-invoice-pdf.ts`, som renderer den samme malen.
-
-Supabase-funksjonen `process-invoices` trenger følgende secrets:
-
-```env
-PDF_GENERATOR_URL=https://ditt-domene.no/api/generate-invoice-pdf
-PDF_GENERATOR_SECRET=...
-```
-
-Samme `PDF_GENERATOR_SECRET` må settes i Vercel. Hvis den mangler der, brukes `CRON_SECRET` som fallback.
+En faktureringsapp bygget med Vite, React, TypeScript, Tailwind og Supabase.
 
 ## Start
 
 ```bash
 npm install
-copy .env.example .env
 npm run dev
 ```
 
@@ -32,25 +18,40 @@ VITE_SUPABASE_ANON_KEY=...
 
 ## Supabase
 
-Ga til Supabase dashboard:
+Gå til Supabase-dashboardet:
 
 - Authentication -> Providers -> Email
-- Aktiver email/password login
-- Kopier Project URL og anon public key til `.env`
+- Aktiver innlogging med e-post og passord
+- Kopier prosjekt-URL og offentlig anon-nøkkel til `.env`
 
 ### Databaseoppsett
 
-Kjor eller kjor pa nytt SQL-en i `supabase/schema.sql` i `Supabase -> SQL Editor`.
+Databaseskjemaet og senere skjemaendringer ligger under `supabase/migrations`.
+
+For lokal Supabase:
+
+```bash
+npx supabase db reset
+```
+
+For et koblet prosjekt:
+
+```bash
+npx supabase db push
+```
 
 Tabellene er satt opp slik:
 
 - `profiles`: en rad per innlogget bruker fra `auth.users`
 - `companies`: bedrifter/kunder som eies av en bruker
-- `products`: produkter/tjenester som tilhorer en bedrift
-- `invoice_schedules`: faste faktureringsplaner per bedrift, for eksempel daglig, ukentlig eller manedlig
-- `invoice_schedule_items`: hvilke produkter som skal vare med i en gitt faktureringsplan
-- `invoice_schedule_lines`: fakturalinjer som skal brukes nar en plan gjentas
+- `products`: produkter/tjenester som tilhører en bedrift
+- `invoice_schedules`: faktureringsplaner per bedrift, enten én gang, daglig, ukentlig eller månedlig
+- `invoice_schedule_lines`: fakturalinjer som skal brukes når en plan gjentas
+- `invoice_schedule_attachments`: vedleggsmetadata for linjer i faktureringsplaner
 - `invoices`: fakturaer som er opprettet
 - `invoice_items`: fakturalinjer for hver faktura
+- `invoice_attachments`: vedleggsmetadata for fakturalinjer
+
+Selve filene lagres privat i Storage-bucketen `invoice-attachments`.
 
 Row Level Security er aktivert slik at hver bruker bare kan lese og endre sine egne data.

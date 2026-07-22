@@ -1,6 +1,6 @@
 import type { InputHTMLAttributes } from "react";
 
-export type InputVariant = "default" | "soft" | "danger";
+type InputVariant = "default" | "soft" | "danger";
 
 type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   variant?: InputVariant;

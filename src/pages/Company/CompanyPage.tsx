@@ -3,15 +3,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { SectionHeader } from "../../components/SectionHeader";
-import { Panel } from "../../components/layout/Panel";
 import { Notice } from "../../components/layout/Notice";
 import type { ProductInput } from "../../lib/data";
 import type { Company, InvoiceWithDetails, Product } from "../../types";
-import { InvoiceList } from "../Invoices/InvoicesComponents/InvoiceList";
-import { CompanyInfo } from "./CompanyComponents/CompanyInfo";
-import { CompanyProducts } from "./CompanyComponents/CompanyProducts";
-import { CompanyStatistics } from "./CompanyComponents/CompanyStatistics";
-import { NewProductDialog } from "./CompanyComponents/NewProductDialog";
+import { CompanyInfo } from "./components/CompanyInfo";
+import { CompanyInvoicesPanel } from "./components/CompanyInvoicesPanel";
+import { CompanyProducts } from "./components/CompanyProducts";
+import { CompanyStatistics } from "./components/CompanyStatistics";
+import { NewProductDialog } from "./components/NewProductDialog";
 
 type CompanyPageProps = {
   companies: Company[];
@@ -20,7 +19,12 @@ type CompanyPageProps = {
   onCreateProduct: (input: ProductInput) => Promise<void>;
 };
 
-export default function CompanyPage({ companies, products, invoices, onCreateProduct }: CompanyPageProps) {
+export default function CompanyPage({
+  companies,
+  products,
+  invoices,
+  onCreateProduct,
+}: CompanyPageProps) {
   const { companyId } = useParams();
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
@@ -30,8 +34,13 @@ export default function CompanyPage({ companies, products, invoices, onCreatePro
   if (!company) {
     return (
       <>
-        <Button variant="secondary" onClick={() => navigate("/companies")}>← Tilbake til selskaper</Button>
-        <EmptyState title="Fant ikke selskapet" description="Selskapet finnes ikke, eller du har ikke tilgang til det." />
+        <Button variant="secondary" onClick={() => navigate("/companies")}>
+          ← Tilbake til selskaper
+        </Button>
+        <EmptyState
+          title="Fant ikke selskapet"
+          description="Selskapet finnes ikke, eller du har ikke tilgang til det."
+        />
       </>
     );
   }
@@ -44,7 +53,11 @@ export default function CompanyPage({ companies, products, invoices, onCreatePro
       <SectionHeader
         title={company.name}
         description="Selskapsinformasjon, produkter og tjenester."
-        action={<Button variant="secondary" onClick={() => navigate("/companies")}>← Tilbake</Button>}
+        action={
+          <Button variant="secondary" onClick={() => navigate("/companies")}>
+            ← Tilbake
+          </Button>
+        }
       />
 
       <NewProductDialog
@@ -56,11 +69,7 @@ export default function CompanyPage({ companies, products, invoices, onCreatePro
         onMessage={setMessage}
       />
 
-      {message && (
-        <Notice>
-          {message}
-        </Notice>
-      )}
+      {message && <Notice>{message}</Notice>}
 
       <CompanyStatistics invoices={companyInvoices} />
       <CompanyInfo company={company} />
@@ -69,32 +78,15 @@ export default function CompanyPage({ companies, products, invoices, onCreatePro
         onAddProduct={() => setShowNewProduct(true)}
       />
 
-      <Panel>
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className="text-base font-semibold text-slate-950">Fakturaer</h3>
-            <p className="mt-1 text-sm text-slate-600">De siste fakturaene som tilhører {company.name}.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => navigate(`/invoices?companyId=${company.id}`)}
-            >
-              Se alle fakturaer
-            </Button>
-            <Button onClick={() => navigate(`/invoices?create=true&companyId=${company.id}`)}>
-              Ny faktura
-            </Button>
-          </div>
-        </div>
-        <InvoiceList
-          invoices={companyInvoices}
-          selectedId=""
-          onSelect={(invoiceId) => navigate(`/invoices?invoiceId=${invoiceId}&companyId=${company.id}`)}
-          compact
-          limit={5}
-        />
-      </Panel>
+      <CompanyInvoicesPanel
+        companyName={company.name}
+        invoices={companyInvoices}
+        onOpenAllInvoices={() => navigate(`/invoices?companyId=${company.id}`)}
+        onCreateInvoice={() => navigate(`/invoices?create=true&companyId=${company.id}`)}
+        onOpenInvoice={(invoiceId) =>
+          navigate(`/invoices?invoiceId=${invoiceId}&companyId=${company.id}`)
+        }
+      />
     </>
   );
 }

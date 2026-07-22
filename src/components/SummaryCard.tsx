@@ -1,3 +1,5 @@
+import { Panel } from "./layout/Panel";
+
 type SummaryCardProps = {
   label: string;
   value: string | number;
@@ -13,4 +15,3 @@ export function SummaryCard({ label, value, description }: SummaryCardProps) {
     </Panel>
   );
 }
-import { Panel } from "./layout/Panel";

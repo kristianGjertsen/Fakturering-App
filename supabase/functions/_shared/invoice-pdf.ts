@@ -1,16 +1,29 @@
+import { attachmentReference } from "./attachment-references.ts";
+import { bytesToBase64 } from "./base64.ts";
+
 export type PdfTemplate = "classic" | "modern" | "minimal";
 
 export type PdfInvoice = {
   pdf_template?: PdfTemplate;
   invoice_number: string;
   issue_date: string;
+  delivery_date?: string | null;
+  delivery_place?: string | null;
   due_date: string | null;
   notes?: string | null;
   subtotal: number;
   vat_total: number;
   total: number;
-  company: { name: string; email: string | null } | null;
+  company: {
+    name: string;
+    address?: string | null;
+    postal_address?: string | null;
+    org_number?: string | null;
+    email: string | null;
+    country?: string | null;
+  } | null;
   invoice_items: Array<{
+    id?: string;
     description: string;
     quantity: number;
     unit: string;
@@ -19,6 +32,31 @@ export type PdfInvoice = {
     line_total: number;
     sort_order?: number;
   }>;
+  invoice_attachments?: Array<{
+    invoice_item_id: string;
+  }>;
+};
+
+const fallbackInvoice = {
+  seller: {
+    name: "Kristian Gjertsen ENK",
+    address: "Adresseveien 1",
+    postalAddress: "0001 Oslo",
+    country: "NO",
+    orgNumber: "123 456 789",
+  },
+  customer: {
+    name: "Testfirma Kristian AS",
+    address: "Kundegata 2",
+    postalAddress: "0123 Oslo",
+    country: "NO",
+    orgNumber: "987 654 321",
+  },
+  invoiceNumber: "1001",
+  issueDate: "2026-07-18",
+  deliveryDate: "2026-07-18",
+  deliveryPlace: "Digital levering",
+  dueDate: "2026-08-17",
 };
 
 type Theme = {
@@ -67,20 +105,20 @@ export function createInvoicePdfBase64(invoice: PdfInvoice) {
   const items = [...invoice.invoice_items].sort(
     (left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0),
   );
-  const pages = chunk(items, 18);
-  const pageItems = pages.length > 0 ? pages : [[]];
+  const pages = paginateItems(items, invoice);
+  const pageItems = pages.length > 0 ? pages : [{ items: [], lineOffset: 0 }];
   const template = invoice.pdf_template ?? "classic";
-  const streams = pageItems.map((itemsForPage, index) =>
-    createPage(invoice, itemsForPage, index + 1, pageItems.length, template),
+  const streams = pageItems.map((page, index) =>
+    createPage(
+      invoice,
+      page.items,
+      index + 1,
+      pageItems.length,
+      template,
+      page.lineOffset,
+    ),
   );
-  const bytes = buildPdf(streams);
-  let binary = "";
-
-  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
-  }
-
-  return btoa(binary);
+  return bytesToBase64(buildPdf(streams));
 }
 
 function createPage(
@@ -89,9 +127,20 @@ function createPage(
   page: number,
   pageCount: number,
   template: PdfTemplate,
+  lineOffset: number,
 ) {
   const theme = themes[template];
   const commands: string[] = [];
+  const invoiceNumber = invoice.invoice_number || fallbackInvoice.invoiceNumber;
+  const issueDate = invoice.issue_date || fallbackInvoice.issueDate;
+  const dueDate = invoice.due_date || fallbackInvoice.dueDate;
+  const deliveryDate = invoice.delivery_date || issueDate || fallbackInvoice.deliveryDate;
+  const deliveryPlace = invoice.delivery_place || fallbackInvoice.deliveryPlace;
+  const customerName = invoice.company?.name || fallbackInvoice.customer.name;
+  const customerAddress = invoice.company?.address || fallbackInvoice.customer.address;
+  const customerPostalAddress = invoice.company?.postal_address || fallbackInvoice.customer.postalAddress;
+  const customerCountry = countryLabel(invoice.company?.country ?? fallbackInvoice.customer.country);
+  const customerOrgNumber = invoice.company?.org_number || fallbackInvoice.customer.orgNumber;
 
   if (theme.pageBackground) {
     commands.push(`${theme.pageBackground} rg 0 0 595 842 re f`);
@@ -103,53 +152,88 @@ function createPage(
     commands.push(`${theme.accent} RG 1.5 w 45 790 m 550 790 l S`);
   }
 
+  if (template === "modern") {
+    commands.push("0.859 0.918 1 rg 35 592 525 112 re f");
+  } else if (template === "minimal") {
+    commands.push(
+      "0.796 0.835 0.882 RG 0.8 w 45 705 m 550 705 l S",
+      "0.796 0.835 0.882 RG 0.8 w 45 592 m 550 592 l S",
+    );
+  }
+
   commands.push(
     text(45, 812, template === "minimal" ? 20 : 22, "Faktura", theme.headerText),
     text(455, 815, 10, `Side ${page} av ${pageCount}`, template === "minimal" ? theme.muted : theme.headerText),
     text(45, 752, 9, "Fakturanummer", theme.muted),
-    text(45, 733, 16, invoice.invoice_number),
-    text(240, 752, 9, "Fakturadato", theme.muted),
-    text(240, 733, 12, formatDate(invoice.issue_date)),
-    text(400, 752, 9, "Forfallsdato", theme.muted),
-    text(400, 733, 12, formatDate(invoice.due_date)),
-    text(45, 690, 9, "Kunde", theme.muted),
-    text(45, 671, 14, invoice.company?.name ?? "Ukjent kunde"),
-    text(45, 653, 10, invoice.company?.email ?? "", "0.12 0.18 0.28"),
+    text(45, 733, 15, invoiceNumber),
+    text(155, 752, 9, "Fakturadato", theme.muted),
+    text(155, 733, 11, formatDate(issueDate)),
+    text(260, 752, 9, "Leveringsdato", theme.muted),
+    text(260, 733, 11, formatDate(deliveryDate)),
+    text(365, 752, 9, "Leveringssted", theme.muted),
+    text(365, 733, 11, deliveryPlace),
+    text(475, 752, 9, "Forfallsdato", theme.muted),
+    text(475, 733, 11, formatDate(dueDate)),
+    text(45, 690, 9, "Selger", theme.muted),
+    text(45, 671, 13, fallbackInvoice.seller.name),
+    text(45, 653, 10, fallbackInvoice.seller.address, "0.12 0.18 0.28"),
+    text(45, 637, 10, fallbackInvoice.seller.postalAddress, "0.12 0.18 0.28"),
+    text(45, 621, 10, countryLabel(fallbackInvoice.seller.country), "0.12 0.18 0.28"),
+    text(45, 605, 10, `Org.nr. ${fallbackInvoice.seller.orgNumber}`, "0.12 0.18 0.28"),
+    text(310, 690, 9, "Kunde", theme.muted),
+    text(310, 671, 13, customerName),
+    text(310, 653, 10, customerAddress, "0.12 0.18 0.28"),
+    text(310, 637, 10, customerPostalAddress, "0.12 0.18 0.28"),
+    text(310, 621, 10, customerCountry, "0.12 0.18 0.28"),
+    text(310, 605, 10, `Org.nr. ${customerOrgNumber}`, "0.12 0.18 0.28"),
+    text(310, 589, 10, invoice.company?.email ?? "", "0.12 0.18 0.28"),
   );
 
-  if (template === "modern") {
-    commands.push("0.859 0.918 1 rg 35 635 525 70 re f");
-  } else if (template === "minimal") {
-    commands.push(
-      "0.796 0.835 0.882 RG 0.8 w 45 705 m 550 705 l S",
-      "0.796 0.835 0.882 RG 0.8 w 45 635 m 550 635 l S",
-    );
-  }
-
   if (theme.tableHeaderBackground) {
-    commands.push(`${theme.tableHeaderBackground} rg 45 572 505 28 re f`);
+    commands.push(`${theme.tableHeaderBackground} rg 45 540 505 28 re f`);
   }
 
   commands.push(
-    text(52, 582, 9, "Beskrivelse", theme.tableHeaderText),
-    text(303, 582, 9, "Antall", theme.tableHeaderText),
-    text(370, 582, 9, "Pris", theme.tableHeaderText),
-    text(440, 582, 9, "MVA", theme.tableHeaderText),
-    text(500, 582, 9, "Sum", theme.tableHeaderText),
-    `${theme.accent} RG 0.8 w 45 572 m 550 572 l S`,
+    text(52, 550, 9, "Beskrivelse", theme.tableHeaderText),
+    text(247, 550, 9, "Vedlegg", theme.tableHeaderText),
+    text(325, 550, 9, "Antall", theme.tableHeaderText),
+    text(390, 550, 9, "Pris", theme.tableHeaderText),
+    text(450, 550, 9, "MVA", theme.tableHeaderText),
+    text(510, 550, 9, "Sum", theme.tableHeaderText),
+    `${theme.accent} RG 0.8 w 45 540 m 550 540 l S`,
   );
 
-  let y = 548;
-  for (const item of items) {
-    commands.push(
-      text(52, y, 9, truncate(item.description, 41)),
-      text(303, y, 9, `${formatNumber(item.quantity)} ${item.unit}`, "0.12 0.18 0.28"),
-      text(370, y, 9, formatCurrency(item.unit_price), "0.12 0.18 0.28"),
-      text(440, y, 9, `${formatNumber(item.vat_rate)}%`, "0.12 0.18 0.28"),
-      text(500, y, 9, formatCurrency(item.line_total)),
-      "0.89 0.91 0.94 RG 0.4 w 45 " + (y - 9) + " m 550 " + (y - 9) + " l S",
+  let y = 516;
+  for (const [itemIndex, item] of items.entries()) {
+    const attachmentCount = item.id
+      ? (invoice.invoice_attachments ?? []).filter(
+        (attachment) => attachment.invoice_item_id === item.id
+      ).length
+      : 0;
+    const attachmentReferences = attachmentCount > 0
+      ? Array.from(
+        { length: attachmentCount },
+        (_, attachmentIndex) =>
+          attachmentReference(lineOffset + itemIndex, attachmentIndex),
+      )
+      : ["NEI"];
+    const referenceLines = chunk(attachmentReferences, 3).map(
+      (references) => references.join(", "),
     );
-    y -= 25;
+    const rowHeight = invoiceRowHeight(attachmentCount);
+
+    commands.push(
+      text(52, y, 9, truncate(item.description, 31)),
+      text(325, y, 9, `${formatNumber(item.quantity)} ${item.unit}`, "0.12 0.18 0.28"),
+      text(390, y, 9, formatCurrency(item.unit_price), "0.12 0.18 0.28"),
+      text(450, y, 9, `${formatNumber(item.vat_rate)}%`, "0.12 0.18 0.28"),
+      text(510, y, 9, formatCurrency(item.line_total)),
+      ...referenceLines.map((line, index) =>
+        text(260, y - index * 10, 9, line, "0.12 0.18 0.28")
+      ),
+      "0.89 0.91 0.94 RG 0.4 w 45 " + (y - rowHeight + 16) + " m 550 " + (y - rowHeight + 16) + " l S",
+    );
+    y -= rowHeight;
   }
 
   if (page === pageCount) {
@@ -174,7 +258,7 @@ function createPage(
 
   commands.push(
     text(45, 38, 8, "Generert i AutoFaktura", theme.footerText),
-    text(475, 38, 8, invoice.invoice_number, theme.footerText),
+    text(475, 38, 8, invoiceNumber, theme.footerText),
   );
 
   return winAnsi(commands.filter(Boolean).join("\n") + "\n");
@@ -259,6 +343,45 @@ function chunk<T>(values: T[], size: number) {
   );
 }
 
+function paginateItems(items: PdfInvoice["invoice_items"], invoice: PdfInvoice) {
+  const pages: Array<{
+    items: PdfInvoice["invoice_items"];
+    lineOffset: number;
+  }> = [];
+  let currentItems: PdfInvoice["invoice_items"] = [];
+  let currentHeight = 0;
+  let lineOffset = 0;
+
+  items.forEach((item, index) => {
+    const attachmentCount = item.id
+      ? (invoice.invoice_attachments ?? []).filter(
+        (attachment) => attachment.invoice_item_id === item.id
+      ).length
+      : 0;
+    const rowHeight = invoiceRowHeight(attachmentCount);
+
+    if (currentItems.length > 0 && currentHeight + rowHeight > 350) {
+      pages.push({ items: currentItems, lineOffset });
+      currentItems = [];
+      currentHeight = 0;
+      lineOffset = index;
+    }
+
+    currentItems.push(item);
+    currentHeight += rowHeight;
+  });
+
+  if (currentItems.length > 0) {
+    pages.push({ items: currentItems, lineOffset });
+  }
+
+  return pages;
+}
+
+function invoiceRowHeight(attachmentCount: number) {
+  return 25 + Math.max(0, Math.ceil(attachmentCount / 3) - 1) * 10;
+}
+
 function formatDate(value: string | null) {
   if (!value) return "-";
   const [year, month, day] = value.slice(0, 10).split("-");
@@ -271,6 +394,26 @@ function formatCurrency(value: number) {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 2 }).format(Number(value));
+}
+
+function countryLabel(value: string | null | undefined) {
+  const labels: Record<string, string> = {
+    NO: "Norge",
+    SE: "Sverige",
+    DK: "Danmark",
+    FI: "Finland",
+    IS: "Island",
+    DE: "Tyskland",
+    NL: "Nederland",
+    GB: "Storbritannia",
+    US: "USA",
+    FR: "Frankrike",
+    ES: "Spania",
+    IT: "Italia",
+    PL: "Polen",
+  };
+
+  return value ? labels[value] ?? value : "";
 }
 
 function truncate(value: string, length: number) {

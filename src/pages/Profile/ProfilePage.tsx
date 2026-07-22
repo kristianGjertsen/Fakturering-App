@@ -1,28 +1,36 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { deleteCurrentUser } from "../../lib/data";
 import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
-import { Panel } from "../../components/layout/Panel";
 import { Notice } from "../../components/layout/Notice";
+import { Panel } from "../../components/layout/Panel";
+import { deleteCurrentUser } from "../../lib/data";
+import {
+  ProfileForm,
+  type ProfileFeedbackTone,
+} from "./components/ProfileForm";
 
-type ProfileViewProps = {
+type ProfilePageProps = {
   session: Session;
   onSignOut: () => Promise<void>;
 };
 
-export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
-  const [deleting, setDeleting] = useState(false);
-  const [message, setMessage] = useState("");
+type Feedback = {
+  message: string;
+  tone: ProfileFeedbackTone;
+};
 
-  const fullName =
-    typeof session.user.user_metadata.full_name === "string"
-      ? session.user.user_metadata.full_name
-      : "";
+export default function ProfilePage({ session, onSignOut }: ProfilePageProps) {
+  const [feedback, setFeedback] = useState<Feedback>({ message: "", tone: "info" });
+  const [deleting, setDeleting] = useState(false);
+
+  const showFeedback = useCallback((message: string, tone: ProfileFeedbackTone) => {
+    setFeedback({ message, tone });
+  }, []);
 
   async function handleDeleteUser() {
     const confirmed = window.confirm(
-      "Er du sikker på at du vil slette brukeren? Dette sletter kontoen og tilhørende data."
+      "Er du sikker på at du vil slette brukeren? Dette sletter kontoen og tilhørende data.",
     );
 
     if (!confirmed) {
@@ -30,13 +38,16 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
     }
 
     setDeleting(true);
-    setMessage("");
+    showFeedback("", "danger");
 
     try {
       await deleteCurrentUser();
       await onSignOut();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Kunne ikke slette brukeren.");
+      showFeedback(
+        error instanceof Error ? error.message : "Kunne ikke slette brukeren.",
+        "danger",
+      );
     } finally {
       setDeleting(false);
     }
@@ -44,24 +55,18 @@ export default function ProfilePage({ session, onSignOut }: ProfileViewProps) {
 
   return (
     <>
-      <SectionHeader title="Profil" description="Brukerinfo og kontohandlinger." />
+      <SectionHeader title="Profil" description="Brukerinformasjon og kontohandlinger." />
 
-      {message && (
-        <Notice tone="danger">
-          {message}
-        </Notice>
-      )}
+      {feedback.message && <Notice tone={feedback.tone}>{feedback.message}</Notice>}
+
+      <ProfileForm
+        userId={session.user.id}
+        email={session.user.email ?? ""}
+        onFeedback={showFeedback}
+      />
 
       <Panel>
         <dl className="grid gap-4 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-slate-500">E-post</dt>
-            <dd className="mt-1 font-medium text-slate-950">{session.user.email ?? "Ukjent"}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Navn</dt>
-            <dd className="mt-1 font-medium text-slate-950">{fullName || "Ikke satt"}</dd>
-          </div>
           <div>
             <dt className="text-slate-500">Sist logget inn</dt>
             <dd className="mt-1 font-medium text-slate-950">

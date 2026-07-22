@@ -1,29 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
-}
+import { jsonResponse, preflightResponse } from "../_shared/cors.ts";
 
 serve(async (request) => {
   if (request.method === "OPTIONS") {
-    return new Response("ok", {
-      status: 200,
-      headers: corsHeaders,
-    });
+    return preflightResponse();
   }
 
   if (request.method !== "POST") {
@@ -62,6 +44,38 @@ serve(async (request) => {
   }
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
+  const [invoiceAttachments, scheduleAttachments] = await Promise.all([
+    adminClient
+      .from("invoice_attachments")
+      .select("storage_path, invoices!inner(owner_user_id)")
+      .eq("invoices.owner_user_id", user.id),
+    adminClient
+      .from("invoice_schedule_attachments")
+      .select("storage_path, invoice_schedules!inner(owner_user_id)")
+      .eq("invoice_schedules.owner_user_id", user.id),
+  ]);
+
+  const attachmentQueryError = invoiceAttachments.error ?? scheduleAttachments.error;
+
+  if (attachmentQueryError) {
+    return jsonResponse({ error: attachmentQueryError.message }, 500);
+  }
+
+  const storagePaths = [...new Set([
+    ...(invoiceAttachments.data ?? []).map((attachment) => attachment.storage_path as string),
+    ...(scheduleAttachments.data ?? []).map((attachment) => attachment.storage_path as string),
+  ])];
+
+  for (let offset = 0; offset < storagePaths.length; offset += 100) {
+    const { error: storageError } = await adminClient.storage
+      .from("invoice-attachments")
+      .remove(storagePaths.slice(offset, offset + 100));
+
+    if (storageError) {
+      return jsonResponse({ error: storageError.message }, 500);
+    }
+  }
+
   const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
 
   if (deleteError) {
