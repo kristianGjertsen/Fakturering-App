@@ -1,33 +1,17 @@
-import type { FormEvent } from "react";
-import { useState } from "react";
-import { supabase } from "../../supabaseClient";
+import { useState, type FormEvent } from "react";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
-import { Select } from "../../components/Select";
-import { countryOptions } from "../../lib/countries";
+import { supabase } from "../../supabaseClient";
+import {
+  createRegistrationFormState,
+  RegistrationFields,
+} from "./components/RegistrationFields";
 
-type BankAccountFormRow = {
-  localId: string;
-  account_name: string;
-  account_number: string;
-};
-
-const createBankAccountRow = (): BankAccountFormRow => ({
-  localId: crypto.randomUUID(),
-  account_name: "",
-  account_number: "",
-});
+const authInputClassName =
+  "mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0";
 
 export default function LoginPage() {
-  const [fullName, setFullName] = useState("");
-  const [companyName, setCompanyName] = useState("");
-  const [address, setAddress] = useState("");
-  const [postalAddress, setPostalAddress] = useState("");
-  const [country, setCountry] = useState("NO");
-  const [orgNumber, setOrgNumber] = useState("");
-  const [hasSentInvoicesBefore, setHasSentInvoicesBefore] = useState(false);
-  const [lastInvoiceNumber, setLastInvoiceNumber] = useState("");
-  const [bankAccounts, setBankAccounts] = useState<BankAccountFormRow[]>([createBankAccountRow()]);
+  const [registrationForm, setRegistrationForm] = useState(createRegistrationFormState);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
@@ -44,7 +28,7 @@ export default function LoginPage() {
     setMessage("");
 
     try {
-      const normalizedBankAccounts = bankAccounts
+      const normalizedBankAccounts = registrationForm.bankAccounts
         .map((account) => ({
           account_name: account.account_name.trim(),
           account_number: account.account_number.trim(),
@@ -60,9 +44,10 @@ export default function LoginPage() {
         return;
       }
 
-      const normalizedLastInvoiceNumber = Number(lastInvoiceNumber);
+      const normalizedLastInvoiceNumber = Number(registrationForm.lastInvoiceNumber);
       if (
-        isRegistering && hasSentInvoicesBefore &&
+        isRegistering &&
+        registrationForm.hasSentInvoicesBefore &&
         (!Number.isSafeInteger(normalizedLastInvoiceNumber) || normalizedLastInvoiceNumber < 0)
       ) {
         setMessage("Oppgi siste brukte fakturanummer som et heltall.");
@@ -75,15 +60,17 @@ export default function LoginPage() {
             password,
             options: {
               data: {
-                full_name: fullName.trim(),
-                company_name: companyName.trim(),
-                address: address.trim(),
-                postal_address: postalAddress.trim(),
-                country,
-                org_number: orgNumber.trim(),
+                full_name: registrationForm.fullName.trim(),
+                company_name: registrationForm.companyName.trim(),
+                address: registrationForm.address.trim(),
+                postal_address: registrationForm.postalAddress.trim(),
+                country: registrationForm.country,
+                org_number: registrationForm.orgNumber.trim(),
                 bank_accounts: normalizedBankAccounts,
-                has_sent_invoices_before: hasSentInvoicesBefore,
-                last_invoice_number: hasSentInvoicesBefore ? normalizedLastInvoiceNumber : 9999,
+                has_sent_invoices_before: registrationForm.hasSentInvoicesBefore,
+                last_invoice_number: registrationForm.hasSentInvoicesBefore
+                  ? normalizedLastInvoiceNumber
+                  : 9999,
               },
             },
           })
@@ -96,16 +83,15 @@ export default function LoginPage() {
 
         setMessage(
           isRateLimited
-            ? "For mange forsok pa kort tid. Vent litt og prov igjen."
-            : response.error.message
+            ? "For mange forsøk på kort tid. Vent litt og prøv igjen."
+            : response.error.message,
         );
       } else if (isRegistering) {
         setMessage("Bruker opprettet. Sjekk e-post hvis bekreftelse er aktivert.");
       } else {
         window.location.href = "/";
       }
-    }
-    finally {
+    } finally {
       setLoading(false);
     }
   }
@@ -117,229 +103,31 @@ export default function LoginPage() {
           {isRegistering ? "Opprett bruker" : "Logg inn"}
         </h1>
         <p className="mt-2 text-sm text-slate-500">
-          Logg inn for a administrere kunder og fakturaer.
+          Logg inn for å administrere kunder og fakturaer.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           {isRegistering && (
-            <>
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">Navn</span>
-                <Input
-                  className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
-                  type="text"
-                  value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
-                  required={isRegistering}
-                />
-              </label>
-
-              <fieldset className="rounded-lg border border-slate-200 p-4">
-                <legend className="px-1 text-sm font-medium text-slate-700">
-                  Har firmaet sendt fakturaer tidligere?
-                </legend>
-                <span className="mt-1 block text-xs text-slate-500">
-                  Dette brukes for å bestemme neste fakturanummer. Fakturanummere må være sekvensielle.
-                    </span>
-                <div className="mt-2 flex gap-5">
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="radio"
-                      name="hasSentInvoicesBefore"
-                      checked={!hasSentInvoicesBefore}
-                      onChange={() => {
-                        setHasSentInvoicesBefore(false);
-                        setLastInvoiceNumber("");
-                      }}
-                    />
-                    Nei
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="radio"
-                      name="hasSentInvoicesBefore"
-                      checked={hasSentInvoicesBefore}
-                      onChange={() => setHasSentInvoicesBefore(true)}
-                    />
-                    Ja
-                  </label>
-                </div>
-                {hasSentInvoicesBefore ? (
-                  <label className="mt-3 block">
-                    <span className="text-sm font-medium text-slate-700">Siste brukte fakturanummer</span>
-                    <Input
-                      className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={lastInvoiceNumber}
-                      onChange={(event) => setLastInvoiceNumber(event.target.value)}
-                      required
-                    />
-                    <span className="mt-1 block text-xs text-slate-500">
-                      Neste faktura får nummer {Number.isSafeInteger(Number(lastInvoiceNumber)) && lastInvoiceNumber !== "" ? Number(lastInvoiceNumber) + 1 : "…"}.
-                    </span>
-                  </label>
-                ) : (
-                  <p className="mt-3 text-xs text-slate-500">Første faktura får nummer 10000.</p>
-                )}
-              </fieldset>
-
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">Firmanavn</span>
-                <Input
-                  className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
-                  type="text"
-                  value={companyName}
-                  onChange={(event) => setCompanyName(event.target.value)}
-                  required={isRegistering}
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">Adresse</span>
-                <Input
-                  className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
-                  type="text"
-                  value={address}
-                  onChange={(event) => setAddress(event.target.value)}
-                  required={isRegistering}
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">Postadresse</span>
-                <Input
-                  className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
-                  type="text"
-                  value={postalAddress}
-                  onChange={(event) => setPostalAddress(event.target.value)}
-                  required={isRegistering}
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">Organisasjonsnummer</span>
-                <Input
-                  className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
-                  type="text"
-                  value={orgNumber}
-                  onChange={(event) => setOrgNumber(event.target.value)}
-                  required={isRegistering}
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">Land</span>
-                <Select
-                  className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
-                  value={country}
-                  options={countryOptions}
-                  onChange={setCountry}
-                  ariaLabel="Velg land"
-                />
-              </label>
-
-              <div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium text-slate-700">Kontonummere</span>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="xs"
-                    onClick={() => setBankAccounts((accounts) => [...accounts, createBankAccountRow()])}
-                  >
-                    Legg til
-                  </Button>
-                </div>
-                <div className="mt-2 space-y-2">
-                  {bankAccounts.map((account, index) => (
-                    <div key={account.localId} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-                      <Input
-                        className="rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
-                        type="text"
-                        value={account.account_name}
-                        onChange={(event) =>
-                          setBankAccounts((accounts) =>
-                            accounts.map((nextAccount) =>
-                              nextAccount.localId === account.localId
-                                ? { ...nextAccount, account_name: event.target.value }
-                                : nextAccount
-                            )
-                          )
-                        }
-                        placeholder="Navn"
-                        aria-label={`Kontonavn ${index + 1}`}
-                        required={isRegistering}
-                      />
-                      <Input
-                        className="rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
-                        type="text"
-                        value={account.account_number}
-                        onChange={(event) =>
-                          setBankAccounts((accounts) =>
-                            accounts.map((nextAccount) =>
-                              nextAccount.localId === account.localId
-                                ? { ...nextAccount, account_number: event.target.value }
-                                : nextAccount
-                            )
-                          )
-                        }
-                        placeholder="Kontonummer"
-                        aria-label={`Kontonummer ${index + 1}`}
-                        required={isRegistering}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          setBankAccounts((accounts) =>
-                            accounts.length === 1
-                              ? [createBankAccountRow()]
-                              : accounts.filter((nextAccount) => nextAccount.localId !== account.localId)
-                          )
-                        }
-                      >
-                        Fjern
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
+            <RegistrationFields value={registrationForm} onChange={setRegistrationForm} />
           )}
 
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">E-post</span>
-            <Input
-              className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">Passord</span>
-            <Input
-              className="mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              minLength={6}
-            />
-          </label>
+          <AuthField
+            label="E-post"
+            type="email"
+            value={email}
+            onChange={setEmail}
+          />
+          <AuthField
+            label="Passord"
+            type="password"
+            value={password}
+            onChange={setPassword}
+            minLength={6}
+          />
 
           {message && <p className="text-sm text-slate-600">{message}</p>}
 
-          <Button
-            className="w-full"
-            type="submit"
-            disabled={loading}
-          >
+          <Button className="w-full" type="submit" disabled={loading}>
             {loading ? "Vent..." : isRegistering ? "Opprett bruker" : "Logg inn"}
           </Button>
         </form>
@@ -357,5 +145,29 @@ export default function LoginPage() {
         </Button>
       </section>
     </main>
+  );
+}
+
+type AuthFieldProps = {
+  label: string;
+  type: "email" | "password";
+  value: string;
+  onChange: (value: string) => void;
+  minLength?: number;
+};
+
+function AuthField({ label, type, value, onChange, minLength }: AuthFieldProps) {
+  return (
+    <label className="block">
+      <span className="text-sm font-medium text-slate-700">{label}</span>
+      <Input
+        className={authInputClassName}
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required
+        minLength={minLength}
+      />
+    </label>
   );
 }

@@ -1,3 +1,6 @@
+import { attachmentReference } from "./attachment-references.ts";
+import { bytesToBase64 } from "./base64.ts";
+
 export type PdfTemplate = "classic" | "modern" | "minimal";
 
 export type PdfInvoice = {
@@ -115,14 +118,7 @@ export function createInvoicePdfBase64(invoice: PdfInvoice) {
       page.lineOffset,
     ),
   );
-  const bytes = buildPdf(streams);
-  let binary = "";
-
-  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
-  }
-
-  return btoa(binary);
+  return bytesToBase64(buildPdf(streams));
 }
 
 function createPage(
@@ -398,23 +394,6 @@ function formatCurrency(value: number) {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 2 }).format(Number(value));
-}
-
-function attachmentReference(lineIndex: number, attachmentIndex: number) {
-  return `${lineLetter(lineIndex)}${attachmentIndex + 1}`;
-}
-
-function lineLetter(index: number) {
-  let value = index + 1;
-  let result = "";
-
-  while (value > 0) {
-    value -= 1;
-    result = String.fromCharCode(65 + (value % 26)) + result;
-    value = Math.floor(value / 26);
-  }
-
-  return result;
 }
 
 function countryLabel(value: string | null | undefined) {

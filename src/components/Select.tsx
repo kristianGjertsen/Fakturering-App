@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { inputClass } from "./Input";
 
-export type SelectOption = {
+type SelectOption = {
   value: string | number;
   label: string;
   disabled?: boolean;

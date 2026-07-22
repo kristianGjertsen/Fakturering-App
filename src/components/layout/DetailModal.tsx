@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Button } from "../Button";
+import { useModalDismiss } from "./useModalDismiss";
 
 type DetailModalProps = {
   open: boolean;
@@ -9,22 +10,7 @@ type DetailModalProps = {
 };
 
 export function DetailModal({ open, onClose, ariaLabel, children }: DetailModalProps) {
-  useEffect(() => {
-    if (!open) return;
-
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.addEventListener("keydown", closeOnEscape);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [open, onClose]);
+  useModalDismiss(open, onClose, { lockBodyScroll: true });
 
   if (!open) return null;
 

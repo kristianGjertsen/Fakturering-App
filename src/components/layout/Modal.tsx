@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Button } from "../Button";
+import { useModalDismiss } from "./useModalDismiss";
 
 type ModalProps = {
   open: boolean;
@@ -18,16 +19,7 @@ export function Modal({
   children,
   labelledBy,
 }: ModalProps) {
-  useEffect(() => {
-    if (!open) return;
-
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [open, onClose]);
+  useModalDismiss(open, onClose);
 
   if (!open) return null;
 
