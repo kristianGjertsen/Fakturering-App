@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import type { PDFDocumentLoadingTask, RenderTask } from "pdfjs-dist";
-import type { InvoiceWithDetails } from "../../../types";
-import { createInvoicePdfBlob, openInvoicePdf } from "../../../lib/invoicePdf";
-import { Button } from "../../../components/Button";
+import type { InvoiceWithDetails } from "../../../../types";
+import { createInvoicePdfBlob, openInvoicePdf } from "../../../../lib/invoicePdf";
+import { Button } from "../../../../components/Button";
 
 type InvoicePdfPreviewProps = {
   invoice: InvoiceWithDetails;

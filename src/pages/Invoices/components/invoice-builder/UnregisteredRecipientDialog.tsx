@@ -1,4 +1,4 @@
-import { Button } from "../../../components/Button";
+import { Button } from "../../../../components/Button";
 
 type UnregisteredRecipientDialogProps = {
   open: boolean;
@@ -9,7 +9,6 @@ type UnregisteredRecipientDialogProps = {
 
 export function UnregisteredRecipientDialog({
   open,
-  onCancel,
   onCreateCompany,
   onContinue,
 }: UnregisteredRecipientDialogProps) {
@@ -33,8 +32,7 @@ export function UnregisteredRecipientDialog({
           Du kan fortsatt lage en enkeltfaktura uten å lagre mottakeren. Da må du oppgi e-postadressen manuelt.
         </p>
 
-        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button variant="ghost" onClick={onCancel}>Avbryt</Button>
+        <div className="mt-6 flex  gap-2 sm:flex-row sm:justify-end">
           <Button variant="secondary" onClick={onContinue}>Fortsett uten selskap</Button>
           <Button onClick={onCreateCompany}>Opprett selskap</Button>
         </div>

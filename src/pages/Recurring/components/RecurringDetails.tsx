@@ -9,7 +9,7 @@ import {
   scheduleToPreviewInvoice,
 } from "../../../lib/schedulePreview";
 import type { InvoiceScheduleWithDetails } from "../../../types";
-import { InvoicePdfPreviewPanel } from "../../Invoices/components/InvoicePdfPreviewPanel";
+import { InvoicePdfPreviewPanel } from "../../Invoices/components/preview/InvoicePdfPreviewPanel";
 import { getScheduleDisplayTitle } from "../schedulePresentation";
 import { ScheduleAttachmentList } from "./ScheduleAttachmentList";
 import { ScheduleLineItemsTable } from "./ScheduleLineItemsTable";

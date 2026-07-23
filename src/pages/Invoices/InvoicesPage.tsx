@@ -8,9 +8,9 @@ import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
 import { Notice } from "../../components/layout/Notice";
 import { DetailModal } from "../../components/layout/DetailModal";
-import { InvoiceBuilder } from "./components/InvoiceBuilder";
-import { InvoiceDetails } from "./components/InvoiceDetails";
-import { InvoiceList } from "./components/InvoiceList";
+import { InvoiceBuilder } from "./components/invoice-builder/InvoiceBuilder";
+import { InvoiceDetails } from "./components/view/InvoiceDetails";
+import { InvoiceList } from "./components/view/InvoiceList";
 import { scheduleToPreviewInvoice } from "../../lib/schedulePreview";
 import {
   prepareInvoiceEmailDelivery,

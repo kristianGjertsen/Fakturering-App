@@ -1,10 +1,10 @@
-import type { Company } from "../../../types";
-import { Button } from "../../../components/Button";
-import { FormField } from "../../../components/FormField";
-import { Input } from "../../../components/Input";
-import { Select } from "../../../components/Select";
-import { Panel } from "../../../components/layout/Panel";
-import type { InvoiceKind, RecipientMode } from "../invoiceBuilderModel";
+import type { Company } from "../../../../types";
+import { Button } from "../../../../components/Button";
+import { FormField } from "../../../../components/FormField";
+import { Input } from "../../../../components/Input";
+import { Select } from "../../../../components/Select";
+import { Panel } from "../../../../components/layout/Panel";
+import type { InvoiceKind, RecipientMode } from "../../invoiceBuilderModel";
 import { InvoiceCreationTiming } from "./InvoiceBuilderSections";
 
 type InvoiceInformationPanelProps = {

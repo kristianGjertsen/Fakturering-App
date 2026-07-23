@@ -1,5 +1,5 @@
-import { Button } from "../../../components/Button";
-import type { PdfTemplate } from "../../../types";
+import { Button } from "../../../../components/Button";
+import type { PdfTemplate } from "../../../../types";
 
 type InvoicePdfTemplateSelectorProps = {
   value: PdfTemplate;

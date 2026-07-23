@@ -3,6 +3,7 @@ import { EmptyState } from "../../../components/EmptyState";
 import { Panel } from "../../../components/layout/Panel";
 import { formatCurrency } from "../../../lib/format";
 import type { InvoiceWithDetails } from "../../../types";
+import { INVOICE_STATUS_LABELS } from "../../Invoices/invoicePresentation";
 
 type RecentInvoicesPanelProps = {
   invoices: InvoiceWithDetails[];
@@ -51,7 +52,7 @@ export function RecentInvoicesPanel({ invoices, onCreateInvoice }: RecentInvoice
                     {invoice.company?.name ?? "Ukjent"}
                   </td>
                   <td className="py-3 pr-4 text-slate-600">
-                    {invoice.paid ? "Betalt" : invoice.status}
+                    {invoice.paid ? "Betalt" : INVOICE_STATUS_LABELS[invoice.status] || invoice.status}
                   </td>
                   <td className="py-3 pr-4 text-right font-medium text-slate-950">
                     {formatCurrency(invoice.total)}

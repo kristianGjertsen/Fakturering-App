@@ -1,27 +1,27 @@
 import { useState } from "react";
-import { Button } from "../../../components/Button";
-import { statusToneClasses } from "../../../components/DocumentBrowser";
+import { Button } from "../../../../components/Button";
+import { statusToneClasses } from "../../../../components/DocumentBrowser";
 import {
   attachmentFileName,
   formatFileSize,
   referenceInvoiceAttachments,
-} from "../../../lib/attachments";
-import { countryLabel } from "../../../lib/countries";
-import { downloadInvoiceAttachment } from "../../../lib/data";
-import { formatCurrency, formatDate } from "../../../lib/format";
+} from "../../../../lib/attachments";
+import { countryLabel } from "../../../../lib/countries";
+import { downloadInvoiceAttachment } from "../../../../lib/data";
+import { formatCurrency, formatDate } from "../../../../lib/format";
 import type {
   InvoiceAttachment,
   InvoiceItem,
   InvoiceScheduleWithDetails,
   InvoiceWithDetails,
-} from "../../../types";
+} from "../../../../types";
 import {
   getInvoiceStatusTone,
   INVOICE_STATUS_LABELS,
-} from "../invoicePresentation";
-import { InvoicePdfPreviewPanel } from "./InvoicePdfPreviewPanel";
-import { Panel } from "../../../components/layout/Panel";
-import type { InvoiceDeliveryAction } from "../invoiceDelivery";
+} from "../../invoicePresentation";
+import { InvoicePdfPreviewPanel } from "../preview/InvoicePdfPreviewPanel";
+import { Panel } from "../../../../components/layout/Panel";
+import type { InvoiceDeliveryAction } from "../../invoiceDelivery";
 
 type InvoiceDetailsProps = {
   invoice: InvoiceWithDetails;

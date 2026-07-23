@@ -1,7 +1,7 @@
 import { Button } from "../../../components/Button";
 import { Panel } from "../../../components/layout/Panel";
 import type { InvoiceWithDetails } from "../../../types";
-import { InvoiceList } from "../../Invoices/components/InvoiceList";
+import { InvoiceList } from "../../Invoices/components/view/InvoiceList";
 
 type CompanyInvoicesPanelProps = {
   companyName: string;

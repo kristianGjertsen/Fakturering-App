@@ -1,18 +1,18 @@
-import type { InvoiceDraftLine, Product } from "../../../types";
+import type { InvoiceDraftLine, Product } from "../../../../types";
 import {
   ATTACHMENT_ACCEPT,
   attachmentFileName,
   attachmentReference,
   formatFileSize,
-} from "../../../lib/attachments";
-import { formatCurrency } from "../../../lib/format";
-import { calculateLine, toNumber } from "../../../lib/invoiceMath";
-import { Button } from "../../../components/Button";
-import { FormField } from "../../../components/FormField";
-import { Input, inputClass } from "../../../components/Input";
-import { Select } from "../../../components/Select";
-import { Panel } from "../../../components/layout/Panel";
-import { isSubmittableInvoiceLine } from "../invoiceBuilderModel";
+} from "../../../../lib/attachments";
+import { formatCurrency } from "../../../../lib/format";
+import { calculateLine, toNumber } from "../../../../lib/invoiceMath";
+import { Button } from "../../../../components/Button";
+import { FormField } from "../../../../components/FormField";
+import { Input, inputClass } from "../../../../components/Input";
+import { Select } from "../../../../components/Select";
+import { Panel } from "../../../../components/layout/Panel";
+import { isSubmittableInvoiceLine } from "../../invoiceBuilderModel";
 
 type InvoiceLinesEditorProps = {
   lines: InvoiceDraftLine[];

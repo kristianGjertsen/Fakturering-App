@@ -5,18 +5,18 @@ import type {
   InvoiceDraftLine,
   PdfTemplate,
   Product,
-} from "../../../types";
-import type { InvoiceInput } from "../../../lib/data";
-import { validateAttachmentFiles } from "../../../lib/attachments";
-import { todayInputValue } from "../../../lib/format";
-import { calculateTotals } from "../../../lib/invoiceMath";
-import { FormField } from "../../../components/FormField";
-import { inputClass } from "../../../components/Input";
-import { Button } from "../../../components/Button";
-import { SectionHeader } from "../../../components/SectionHeader";
-import { Panel } from "../../../components/layout/Panel";
-import { Notice } from "../../../components/layout/Notice";
-import { InvoicePdfPreview } from "./InvoicePdfPreview";
+} from "../../../../types";
+import type { InvoiceInput } from "../../../../lib/data";
+import { validateAttachmentFiles } from "../../../../lib/attachments";
+import { todayInputValue } from "../../../../lib/format";
+import { calculateTotals } from "../../../../lib/invoiceMath";
+import { FormField } from "../../../../components/FormField";
+import { inputClass } from "../../../../components/Input";
+import { Button } from "../../../../components/Button";
+import { SectionHeader } from "../../../../components/SectionHeader";
+import { Panel } from "../../../../components/layout/Panel";
+import { Notice } from "../../../../components/layout/Notice";
+import { InvoicePdfPreview } from "../preview/InvoicePdfPreview";
 import { InvoicePdfTemplateSelector } from "./InvoicePdfTemplateSelector";
 import { UnregisteredRecipientDialog } from "./UnregisteredRecipientDialog";
 import { InvoiceLinesEditor } from "./InvoiceLinesEditor";
@@ -36,7 +36,7 @@ import {
   isSubmittableInvoiceLine,
   type InvoiceKind,
   type RecipientMode,
-} from "../invoiceBuilderModel";
+} from "../../invoiceBuilderModel";
 
 type InvoiceBuilderProps = {
   companies: Company[];

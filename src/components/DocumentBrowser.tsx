@@ -8,6 +8,7 @@ import {
   CompanyDocumentGroup,
   DocumentRow,
 } from "./document-browser/DocumentList";
+import { DocumentCalendar } from "./document-browser/DocumentCalendar";
 import {
   filterAndSortDocuments,
   groupDocumentsByCompany,
@@ -19,7 +20,7 @@ import type {
   DocumentSortKey,
 } from "./document-browser/types";
 
-type ViewMode = "companies" | "all";
+type ViewMode = "companies" | "all" | "calendar";
 
 export { statusToneClasses } from "./document-browser/DocumentList";
 export type { DocumentBrowserItem, StatusTone } from "./document-browser/types";
@@ -30,6 +31,7 @@ type DocumentBrowserProps = {
   onSelect: (id: string) => void;
   searchPlaceholder: string;
   itemLabel: string;
+  calendarEnabled?: boolean;
 };
 
 export function DocumentBrowser({
@@ -38,6 +40,7 @@ export function DocumentBrowser({
   onSelect,
   searchPlaceholder,
   itemLabel,
+  calendarEnabled = false,
 }: DocumentBrowserProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("companies");
   const [search, setSearch] = useState("");
@@ -110,10 +113,20 @@ export function DocumentBrowser({
             >
               Alle
             </Button>
+            {calendarEnabled && (
+              <Button
+                variant={viewMode === "calendar" ? "primary" : "ghost"}
+                size="xs"
+                className="shadow-none"
+                onClick={() => setViewMode("calendar")}
+              >
+                Kalender
+              </Button>
+            )}
           </div>
         </div>
 
-        <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        <div className={`mt-4 grid gap-2 md:grid-cols-2 ${viewMode === "calendar" ? "xl:grid-cols-3" : "xl:grid-cols-4"}`}>
           <label className="md:col-span-2 xl:col-span-1">
             <span className="sr-only">Søk</span>
             <Input
@@ -150,7 +163,7 @@ export function DocumentBrowser({
               onChange={setStatusFilter}
             />
           </label>
-          <label>
+          <label className={viewMode === "calendar" ? "hidden" : ""}>
             <span className="sr-only">Sorter</span>
             <Select
               ariaLabel="Sorter"
@@ -173,6 +186,8 @@ export function DocumentBrowser({
       <div className="max-h-[72vh] overflow-y-auto p-2">
         {filteredItems.length === 0 ? (
           <p className="px-3 py-10 text-center text-sm text-slate-500">Ingen treff med valgte filtre.</p>
+        ) : viewMode === "calendar" ? (
+          <DocumentCalendar items={filteredItems} selectedId={selectedId} onSelect={onSelect} />
         ) : viewMode === "companies" ? (
           <div className="space-y-1">
             {groups.map((group) => {

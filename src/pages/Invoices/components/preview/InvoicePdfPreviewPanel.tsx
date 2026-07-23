@@ -1,5 +1,5 @@
-import { Panel } from "../../../components/layout/Panel";
-import type { InvoiceWithDetails } from "../../../types";
+import { Panel } from "../../../../components/layout/Panel";
+import type { InvoiceWithDetails } from "../../../../types";
 import { InvoicePdfPreview } from "./InvoicePdfPreview";
 
 type InvoicePdfPreviewPanelProps = {

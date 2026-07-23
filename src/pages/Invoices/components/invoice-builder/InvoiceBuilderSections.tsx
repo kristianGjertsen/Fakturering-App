@@ -1,16 +1,16 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { RepeatDraft } from "../../../types";
-import { formatCurrency } from "../../../lib/format";
-import { Button } from "../../../components/Button";
-import { FormField } from "../../../components/FormField";
-import { Input } from "../../../components/Input";
-import { Select } from "../../../components/Select";
-import { Panel } from "../../../components/layout/Panel";
-import type { InvoiceKind, InvoiceTotals } from "../invoiceBuilderModel";
+import type { RepeatDraft } from "../../../../types";
+import { formatCurrency } from "../../../../lib/format";
+import { Button } from "../../../../components/Button";
+import { FormField } from "../../../../components/FormField";
+import { Input } from "../../../../components/Input";
+import { Select } from "../../../../components/Select";
+import { Panel } from "../../../../components/layout/Panel";
+import type { InvoiceKind, InvoiceTotals } from "../../invoiceBuilderModel";
 import {
   getRepeatIntervalHint,
   getRepeatIntervalLabel,
-} from "../invoiceBuilderModel";
+} from "../../invoiceBuilderModel";
 
 type InvoiceTypePanelProps = {
   value: InvoiceKind;
