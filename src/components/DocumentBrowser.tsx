@@ -84,7 +84,7 @@ export function DocumentBrowser({
   }
 
   return (
-    <Panel as="aside" padding="none" className="overflow-hidden">
+    <Panel as="aside" padding="none" className="">
       <div className="border-b border-blue-100 bg-slate-50/70 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
