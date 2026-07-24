@@ -82,8 +82,14 @@ export default function InvoicesPage({
   );
 
   useEffect(() => {
+    if (!requestedInvoiceId) {
+      if (selectedInvoiceId) {
+        setSelectedInvoiceId("");
+      }
+      return;
+    }
+
     if (
-      requestedInvoiceId &&
       requestedInvoiceId !== selectedInvoiceId &&
       availableInvoices.some((invoice) => invoice.id === requestedInvoiceId)
     ) {
@@ -114,7 +120,6 @@ export default function InvoicesPage({
   }
 
   function updateInvoiceSelection(invoiceId: string) {
-    setSelectedInvoiceId(invoiceId);
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       if (invoiceId) {

@@ -81,13 +81,12 @@ export function InvoiceInformationPanel({
             ariaLabel="Selskap"
             value={recipientMode === "guest" ? UNREGISTERED_RECIPIENT_OPTION : companyId}
             options={[
-              ...(companies.length === 0
-                ? [{ value: "", label: "Ingen registrerte selskaper" }]
-                : []),
               ...companies.map((company) => ({ value: company.id, label: company.name })),
               {
                 value: UNREGISTERED_RECIPIENT_OPTION,
-                label: "Ingen selskap (engangskunde)",
+                label: companies.length === 0
+                  ? "Ingen registrerte selskaper (engangskunde)"
+                  : "Ingen selskap (engangskunde)",
               },
             ]}
             onChange={handleCompanyChange}
