@@ -2,11 +2,13 @@ import type {
   Company,
   InvoiceScheduleWithDetails,
   InvoiceWithDetails,
+  ProfileBankAccount,
   Product,
 } from "../types";
 import { fetchCompanies } from "./companyData";
 import { fetchInvoices, fetchSchedules } from "./invoiceData";
 import { fetchProducts } from "./productData";
+import { fetchProfileDetails } from "./profileData";
 
 export {
   createCompany,
@@ -46,15 +48,23 @@ export type AppData = {
   products: Product[];
   invoices: InvoiceWithDetails[];
   schedules: InvoiceScheduleWithDetails[];
+  bankAccounts: ProfileBankAccount[];
 };
 
-export async function fetchAppData(): Promise<AppData> {
-  const [companies, products, invoices, schedules] = await Promise.all([
+export async function fetchAppData(userId: string): Promise<AppData> {
+  const [companies, products, invoices, schedules, profileDetails] = await Promise.all([
     fetchCompanies(),
     fetchProducts(),
     fetchInvoices(),
     fetchSchedules(),
+    fetchProfileDetails(userId),
   ]);
 
-  return { companies, products, invoices, schedules };
+  return {
+    companies,
+    products,
+    invoices,
+    schedules,
+    bankAccounts: profileDetails.bankAccounts,
+  };
 }

@@ -5,13 +5,14 @@ import type {
   InvoiceDraftLine,
   PdfTemplate,
   Product,
+  ProfileBankAccount,
 } from "../../../../types";
 import type { InvoiceInput } from "../../../../lib/data";
 import { validateAttachmentFiles } from "../../../../lib/attachments";
 import { todayInputValue } from "../../../../lib/format";
 import { calculateTotals } from "../../../../lib/invoiceMath";
 import { FormField } from "../../../../components/FormField";
-import { inputClass } from "../../../../components/Input";
+import { inputClass, Input } from "../../../../components/Input";
 import { Button } from "../../../../components/Button";
 import { SectionHeader } from "../../../../components/SectionHeader";
 import { Panel } from "../../../../components/layout/Panel";
@@ -37,16 +38,25 @@ import {
   type InvoiceKind,
   type RecipientMode,
 } from "../../invoiceBuilderModel";
+import { Select } from "../../../../components/Select";
 
 type InvoiceBuilderProps = {
   companies: Company[];
+  bankAccounts: ProfileBankAccount[];
   products: Product[];
   onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<string>;
   onOpenCompanies: () => void;
   initialCompanyId?: string;
 };
 
-export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCompanies, initialCompanyId = "" }: InvoiceBuilderProps) {
+export function InvoiceBuilder({
+  companies,
+  bankAccounts,
+  products,
+  onCreateInvoice,
+  onOpenCompanies,
+  initialCompanyId = "",
+}: InvoiceBuilderProps) {
   const [invoiceKind, setInvoiceKind] = useState<InvoiceKind>("single");
   const [companyId, setCompanyId] = useState(initialCompanyId);
   const [recipientMode, setRecipientMode] = useState<RecipientMode>("company");
@@ -58,6 +68,10 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
   const [invoiceTitle, setInvoiceTitle] = useState("");
   const [issueDate, setIssueDate] = useState(todayInputValue);
   const [paymentTermsDays, setPaymentTermsDays] = useState(14);
+  const [bankAccountId, setBankAccountId] = useState("");
+  const [paymentInfoText, setPaymentInfoText] = useState("");
+  const [kidEnabled, setKidEnabled] = useState(false);
+  const [kidNumber, setKidNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [pdfTemplate, setPdfTemplate] = useState<PdfTemplate>("classic");
   const [lines, setLines] = useState<InvoiceDraftLine[]>([createEmptyInvoiceLine()]);
@@ -72,9 +86,29 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
     }
   }, [companies, companyId, recipientMode]);
 
+  useEffect(() => {
+    if (!bankAccounts.length) {
+      setBankAccountId("");
+      setPaymentInfoText("");
+      return;
+    }
+
+    if (!bankAccountId || !bankAccounts.some((account) => account.id === bankAccountId)) {
+      const firstAccount = bankAccounts[0];
+      setBankAccountId(firstAccount.id);
+      setPaymentInfoText(createPaymentInfoText(firstAccount));
+    }
+  }, [bankAccountId, bankAccounts]);
+
   const companyProducts = products.filter((product) => product.company_id === companyId);
   const totals = calculateTotals(lines);
   const selectedCompany = companies.find((company) => company.id === companyId) ?? null;
+  const invoiceNotes = createInvoiceNotes({
+    kidEnabled,
+    kidNumber,
+    notes,
+    paymentInfoText,
+  });
   const dueDate = addDaysToDate(issueDate, paymentTermsDays);
   const previewInvoice = createInvoicePreview({
     companyId,
@@ -83,7 +117,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
     invoiceTitle,
     issueDate,
     lines,
-    notes,
+    notes: invoiceNotes,
     pdfTemplate,
     recipientEmail,
     recipientMode,
@@ -100,6 +134,13 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
     setRecipientName("");
     setRecipientEmail("");
     setLines([createEmptyInvoiceLine()]);
+  }
+
+  function handleBankAccountChange(nextBankAccountId: string) {
+    const nextBankAccount = bankAccounts.find((account) => account.id === nextBankAccountId) ?? null;
+
+    setBankAccountId(nextBankAccountId);
+    setPaymentInfoText(nextBankAccount ? createPaymentInfoText(nextBankAccount) : "");
   }
 
   function continueWithUnregisteredRecipient() {
@@ -187,9 +228,9 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
       currentLines.map((line) =>
         line.localId === lineId
           ? {
-              ...line,
-              attachments: line.attachments.filter((attachment) => attachment.localId !== attachmentId),
-            }
+            ...line,
+            attachments: line.attachments.filter((attachment) => attachment.localId !== attachmentId),
+          }
           : line
       )
     );
@@ -244,7 +285,7 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
         invoiceTitle,
         issueDate,
         dueDate,
-        notes,
+        notes: invoiceNotes,
         pdfTemplate,
         lines: validLines,
         repeat: { ...repeat, enabled: invoiceKind === "recurring", autoSend: true },
@@ -264,6 +305,10 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
       setIssueDate(todayInputValue());
       setPaymentTermsDays(14);
       setNotes("");
+      setBankAccountId(bankAccounts[0]?.id ?? "");
+      setPaymentInfoText(bankAccounts[0] ? createPaymentInfoText(bankAccounts[0]) : "");
+      setKidEnabled(false);
+      setKidNumber("");
       setPdfTemplate("classic");
       setLines([createEmptyInvoiceLine()]);
       setRepeat(createDefaultRepeatDraft());
@@ -345,6 +390,59 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
             onUpdateLine={updateLine}
           />
           <Panel>
+            <FormField
+              label="Betaling til"
+              helper={
+                bankAccounts.length > 0
+                  ? "Valgt konto legges inn på fakturaen."
+                  : "Legg inn bankkonto under Profil for å velge konto her."
+              }
+            >
+              <Select
+                ariaLabel="Betaling til"
+                value={bankAccountId}
+                options={[
+                  ...(bankAccounts.length === 0
+                    ? [{ value: "", label: "Ingen registrerte kontoer", disabled: true }]
+                    : []),
+                  ...bankAccounts.map((account) => ({
+                    value: account.id,
+                    label: `${account.account_name} - ${account.account_number}`,
+                  })),
+                ]}
+                onChange={handleBankAccountChange}
+                disabled={bankAccounts.length === 0}
+              />
+            </FormField>
+
+            <FormField label="Betalingstekst">
+              <Input
+                value={paymentInfoText}
+                onChange={(event) => setPaymentInfoText(event.target.value)}
+                placeholder="Betaling til kontonummer 1234.56.78901"
+              />
+            </FormField>
+
+            <label className="flex items-center gap-3 text-sm font-medium text-slate-800">
+              <Input
+                type="checkbox"
+                className="h-4 w-4 rounded border-blue-200 text-blue-700 focus:ring-blue-100"
+                checked={kidEnabled}
+                onChange={(event) => setKidEnabled(event.target.checked)}
+              />
+              KID
+            </label>
+
+            {kidEnabled && (
+              <FormField label="KID">
+                <Input
+                  value={kidNumber}
+                  onChange={(event) => setKidNumber(event.target.value)}
+                  placeholder="Skriv inn KID"
+                />
+              </FormField>
+            )}
+
             <FormField label="Notat på faktura">
               <textarea className={`${inputClass} min-h-24 resize-y`} value={notes} onChange={(event) => setNotes(event.target.value)} />
             </FormField>
@@ -366,4 +464,26 @@ export function InvoiceBuilder({ companies, products, onCreateInvoice, onOpenCom
       </section>
     </form>
   );
+}
+
+function createPaymentInfoText(bankAccount: ProfileBankAccount) {
+  return `Betaling til kontonummer ${bankAccount.account_number}`;
+}
+
+function createInvoiceNotes({
+  kidEnabled,
+  kidNumber,
+  notes,
+  paymentInfoText,
+}: {
+  kidEnabled: boolean;
+  kidNumber: string;
+  notes: string;
+  paymentInfoText: string;
+}) {
+  return [
+    paymentInfoText.trim(),
+    kidEnabled && kidNumber.trim() ? `KID: ${kidNumber.trim()}` : "",
+    notes.trim(),
+  ].filter(Boolean).join("\n\n");
 }

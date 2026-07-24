@@ -82,6 +82,7 @@ export function AuthenticatedRoutes({
         element={
           <InvoicesPage
             companies={data.companies}
+            bankAccounts={data.bankAccounts}
             products={data.products}
             invoices={data.invoices}
             schedules={oneTimeSchedules}

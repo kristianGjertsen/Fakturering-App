@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { Company, InvoiceScheduleWithDetails, InvoiceWithDetails, Product } from "../../types";
+import type {
+  Company,
+  InvoiceScheduleWithDetails,
+  InvoiceWithDetails,
+  Product,
+  ProfileBankAccount,
+} from "../../types";
 import type { InvoiceInput } from "../../lib/data";
 import { sendInvoiceEmail, updateInvoicePaid } from "../../lib/data";
 import { EmptyState } from "../../components/EmptyState";
@@ -20,6 +26,7 @@ import { getVisibleInvoices } from "./invoicePresentation";
 
 type InvoicesPageProps = {
   companies: Company[];
+  bankAccounts: ProfileBankAccount[];
   products: Product[];
   invoices: InvoiceWithDetails[];
   schedules: InvoiceScheduleWithDetails[];
@@ -32,6 +39,7 @@ type InvoicesPageProps = {
 
 export default function InvoicesPage({
   companies,
+  bankAccounts,
   products,
   invoices,
   schedules,
@@ -231,6 +239,7 @@ export default function InvoicesPage({
         {pageHeader}
         <InvoiceBuilder
           companies={companies}
+          bankAccounts={bankAccounts}
           products={products}
           initialCompanyId={companyFilterId}
           onCreateInvoice={async (input) => {

@@ -141,6 +141,7 @@ function createPage(
   const customerPostalAddress = invoice.company?.postal_address || fallbackInvoice.customer.postalAddress;
   const customerCountry = countryLabel(invoice.company?.country ?? fallbackInvoice.customer.country);
   const customerOrgNumber = invoice.company?.org_number || fallbackInvoice.customer.orgNumber;
+  const { noteText, paymentText } = splitInvoiceNotes(invoice.notes);
 
   if (theme.pageBackground) {
     commands.push(`${theme.pageBackground} rg 0 0 595 842 re f`);
@@ -248,10 +249,15 @@ function createPage(
       text(480, totalsY - 16, 14, formatCurrency(invoice.total), theme.accent),
     );
 
-    if (invoice.notes) {
+    if (paymentText) {
       commands.push(
-        text(45, 112, 9, "Notat", theme.muted),
-        text(45, 94, 9, truncate(invoice.notes, 95), "0.12 0.18 0.28"),
+        ...infoBoxCommands(45, 100, 505, 42, "Betalingsinformasjon", paymentText, theme.muted),
+      );
+    }
+
+    if (noteText) {
+      commands.push(
+        ...infoBoxCommands(45, 52, 505, 42, "Notater", noteText, theme.muted),
       );
     }
   }
@@ -303,6 +309,44 @@ function buildPdf(streams: Uint8Array[]) {
 
 function text(x: number, y: number, size: number, value: string, color = "0.03 0.1 0.22") {
   return value ? `${color} rg BT /F1 ${size} Tf ${x} ${y} Td ${literal(value)} Tj ET` : "";
+}
+
+function infoBoxCommands(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  title: string,
+  value: string,
+  mutedColor: string,
+) {
+  const lines = value.split(/\n+/).map((line) => line.trim()).filter(Boolean).slice(0, 2);
+
+  return [
+    `0.796 0.835 0.882 RG 0.8 w ${x} ${y} ${width} ${height} re S`,
+    text(x + 10, y + height - 16, 9, title, mutedColor),
+    ...lines.map((line, index) =>
+      text(x + 10, y + height - 31 - index * 11, 9, truncate(line, 92), "0.12 0.18 0.28")
+    ),
+  ];
+}
+
+function splitInvoiceNotes(notes: string | null | undefined) {
+  const sections = (notes ?? "")
+    .split(/\n{2,}/)
+    .map((section) => section.trim())
+    .filter(Boolean);
+  const paymentSections = sections.filter(isPaymentSection);
+  const noteSections = sections.filter((section) => !isPaymentSection(section));
+
+  return {
+    paymentText: paymentSections.join("\n"),
+    noteText: noteSections.join("\n\n"),
+  };
+}
+
+function isPaymentSection(section: string) {
+  return /^(Betaling til|KID:)/i.test(section);
 }
 
 function literal(value: string) {

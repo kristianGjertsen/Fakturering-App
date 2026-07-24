@@ -25,7 +25,7 @@ type AuthenticatedAppProps = {
 
 export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
   const navigate = useNavigate();
-  const { data, isLoading, error, refreshData } = useAppData();
+  const { data, isLoading, error, refreshData } = useAppData(session.user.id);
 
   async function handleCreateCompany(input: CompanyInput) {
     await createCompany(session.user.id, input);

@@ -118,6 +118,7 @@ const styles = StyleSheet.create({
 export function InvoicePdfTemplate({ invoice }: { invoice: InvoicePdfData }) {
   const template = invoice.pdf_template ?? "classic";
   const items = [...(invoice.invoice_items ?? [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const { noteText, paymentText } = splitInvoiceNotes(invoice.notes);
   const invoiceNumber = invoice.invoice_number || INVOICE_PDF_DEFAULTS.invoiceNumber;
   const issueDate = invoice.issue_date || INVOICE_PDF_DEFAULTS.issueDate;
   const dueDate = invoice.due_date || INVOICE_PDF_DEFAULTS.dueDate;
@@ -223,10 +224,17 @@ export function InvoicePdfTemplate({ invoice }: { invoice: InvoicePdfData }) {
           />
         </View>
 
-        {invoice.notes && (
+        {paymentText && (
           <View style={styles.notes} wrap={false}>
-            <Text style={styles.label}>Notat</Text>
-            <Text style={styles.notesText}>{invoice.notes}</Text>
+            <Text style={styles.label}>Betalingsinformasjon</Text>
+            <Text style={styles.notesText}>{paymentText}</Text>
+          </View>
+        )}
+
+        {noteText && (
+          <View style={styles.notes} wrap={false}>
+            <Text style={styles.label}>Notater</Text>
+            <Text style={styles.notesText}>{noteText}</Text>
           </View>
         )}
 
@@ -246,6 +254,24 @@ function InvoiceMetadataItem({ label, value }: { label: string; value: string })
       <Text style={styles.value}>{value}</Text>
     </View>
   );
+}
+
+function splitInvoiceNotes(notes: string | null | undefined) {
+  const sections = (notes ?? "")
+    .split(/\n{2,}/)
+    .map((section) => section.trim())
+    .filter(Boolean);
+  const paymentSections = sections.filter(isPaymentSection);
+  const noteSections = sections.filter((section) => !isPaymentSection(section));
+
+  return {
+    paymentText: paymentSections.join("\n"),
+    noteText: noteSections.join("\n\n"),
+  };
+}
+
+function isPaymentSection(section: string) {
+  return /^(Betaling til|KID:)/i.test(section);
 }
 
 function InvoiceParty({

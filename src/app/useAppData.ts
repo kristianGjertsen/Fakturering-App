@@ -6,9 +6,10 @@ const EMPTY_APP_DATA: AppData = {
   products: [],
   invoices: [],
   schedules: [],
+  bankAccounts: [],
 };
 
-export function useAppData() {
+export function useAppData(userId: string) {
   const [data, setData] = useState<AppData>(EMPTY_APP_DATA);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -18,7 +19,7 @@ export function useAppData() {
     setError("");
 
     try {
-      setData(await fetchAppData());
+      setData(await fetchAppData(userId));
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -28,7 +29,7 @@ export function useAppData() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     void refreshData();
