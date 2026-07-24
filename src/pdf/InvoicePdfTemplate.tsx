@@ -21,6 +21,7 @@ type InvoicePdfAttachment = {
 export type InvoicePdfData = {
   pdf_template?: PdfTemplate;
   invoice_number: string | null;
+  scheduled_for?: string | null;
   issue_date: string;
   delivery_date?: string | null;
   delivery_place?: string | null;
@@ -119,7 +120,7 @@ export function InvoicePdfTemplate({ invoice }: { invoice: InvoicePdfData }) {
   const template = invoice.pdf_template ?? "classic";
   const items = [...(invoice.invoice_items ?? [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const { noteText, paymentText } = splitInvoiceNotes(invoice.notes);
-  const invoiceNumber = invoice.invoice_number || INVOICE_PDF_DEFAULTS.invoiceNumber;
+  const invoiceNumber = invoice.invoice_number ?? invoiceNumberPlaceholder(invoice);
   const issueDate = invoice.issue_date || INVOICE_PDF_DEFAULTS.issueDate;
   const dueDate = invoice.due_date || INVOICE_PDF_DEFAULTS.dueDate;
   const deliveryDate = invoice.delivery_date || issueDate;
@@ -272,6 +273,10 @@ function splitInvoiceNotes(notes: string | null | undefined) {
 
 function isPaymentSection(section: string) {
   return /^(Betaling til|KID:)/i.test(section);
+}
+
+function invoiceNumberPlaceholder(invoice: InvoicePdfData) {
+  return invoice.scheduled_for ? "Opprettes ved utsending" : "Tildeles ved utsendelse";
 }
 
 function InvoiceParty({

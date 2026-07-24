@@ -146,7 +146,7 @@ export function createInvoicePreview({
     recipient_country: selectedCompany?.country ?? null,
     schedule_id: null,
     scheduled_for: null,
-    invoice_number: isScheduled ? "Opprettes ved utsending" : "Tildeles ved ferdigstilling",
+    invoice_number: isScheduled ? "Opprettes ved utsending" : "Tildeles ved utsendelse",
     title: invoiceTitle.trim() || (isScheduled ? "Opprettes ved utsending" : "Utkast"),
     issue_date: previewIssueDate,
     due_date: previewDueDate,

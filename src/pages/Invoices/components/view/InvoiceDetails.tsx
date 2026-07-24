@@ -141,7 +141,7 @@ function InvoiceOverview({
           {invoice.title || invoice.invoice_number || "Utkast"}
         </h3>
         <p className="text-sm font-medium text-slate-700">
-          {invoice.invoice_number ?? "Fakturanummer tildeles ved ferdigstilling"}
+          {invoice.invoice_number ?? "Fakturanummer tildeles ved utsendelse"}
         </p>
         <p className="text-sm text-slate-600">
           {invoice.company?.name ?? invoice.recipient_name}

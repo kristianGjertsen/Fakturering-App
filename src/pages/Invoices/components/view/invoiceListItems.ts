@@ -43,7 +43,7 @@ function invoiceToListItem(invoice: InvoiceWithDetails): DocumentBrowserItem {
     companyId: invoice.company_id ?? `guest-${invoice.id}`,
     companyName: invoice.company?.name ?? invoice.recipient_name,
     title: invoice.title || invoice.invoice_number || "Utkast",
-    subtitle: invoice.invoice_number ?? "Fakturanummer tildeles ved ferdigstilling",
+    subtitle: invoice.invoice_number ?? "Fakturanummer tildeles ved utsendelse",
     statusLabel: invoice.paid ? "Betalt" : INVOICE_STATUS_LABELS[invoice.status],
     statusTone: getInvoiceStatusTone(invoice.status, invoice.paid),
     amount: Number(invoice.total),
