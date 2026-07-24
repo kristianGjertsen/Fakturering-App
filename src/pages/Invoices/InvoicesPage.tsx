@@ -230,11 +230,11 @@ export default function InvoicesPage({
       description={companyFilterId
         ? "Viser fakturaer for valgt selskap."
         : "Finn fakturaer etter bedrift, sorter listen og åpne en faktura for detaljer og PDF-forhåndsvisning."}
-      action={
+      action={!showCreateForm ? (
         <Button onClick={() => setShowCreateForm((value) => !value)}>
-          {showCreateForm ? "Skjul skjema" : "Ny faktura"}
+          Ny faktura
         </Button>
-      }
+      ) : undefined}
     />
   );
 
@@ -252,6 +252,7 @@ export default function InvoicesPage({
             setShowCreateForm(false);
             return createdId;
           }}
+          onDiscardDraft={() => setShowCreateForm(false)}
           onOpenCompanies={onOpenCompanies}
         />
       </>

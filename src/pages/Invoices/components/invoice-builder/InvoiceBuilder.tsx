@@ -45,6 +45,7 @@ type InvoiceBuilderProps = {
   bankAccounts: ProfileBankAccount[];
   products: Product[];
   onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<string>;
+  onDiscardDraft: () => void;
   onOpenCompanies: () => void;
   initialCompanyId?: string;
 };
@@ -54,6 +55,7 @@ export function InvoiceBuilder({
   bankAccounts,
   products,
   onCreateInvoice,
+  onDiscardDraft,
   onOpenCompanies,
   initialCompanyId = "",
 }: InvoiceBuilderProps) {
@@ -322,7 +324,7 @@ export function InvoiceBuilder({
   }
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit}>
+    <form className="space-y-6 pb-24" onSubmit={handleSubmit}>
       <UnregisteredRecipientDialog
         open={showUnregisteredRecipientDialog}
         onCancel={() => setShowUnregisteredRecipientDialog(false)}
@@ -331,18 +333,7 @@ export function InvoiceBuilder({
       />
       <SectionHeader
         title="Ny faktura"
-        description="Velg et selskap, fyll inn produkter eller manuelle linjer, og lagre fakturaen i Supabase."
-        action={
-          <Button type="submit" disabled={saving}>
-            {saving
-              ? "Lagrer..."
-              : invoiceKind === "recurring"
-                ? "Lagre gjentakelse"
-                : scheduleOnce
-                  ? "Planlegg faktura"
-                  : "Lagre faktura"}
-          </Button>
-        }
+        description="Velg mottaker, fakturalinjer, betalingsinfo og PDF-stil."
       />
 
       {message && <Notice>{message}</Notice>}
@@ -462,6 +453,28 @@ export function InvoiceBuilder({
           )}
         </aside>
       </section>
+
+      <div className="sticky bottom-4 z-30 mx-auto max-w-xl rounded-2xl border border-blue-100 bg-white/95 px-4 py-3 shadow-[0_18px_45px_rgba(15,23,42,0.18)] backdrop-blur">
+        <div className="flex flex-col-reverse justify-center gap-2 sm:flex-row sm:items-center">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onDiscardDraft}
+            disabled={saving}
+          >
+            Forkast utkast
+          </Button>
+          <Button type="submit" disabled={saving}>
+            {saving
+              ? "Lagrer..."
+              : invoiceKind === "recurring"
+                ? "Lagre gjentakelse"
+                : scheduleOnce
+                  ? "Planlegg faktura"
+                  : "Lagre faktura"}
+          </Button>
+        </div>
+      </div>
     </form>
   );
 }
