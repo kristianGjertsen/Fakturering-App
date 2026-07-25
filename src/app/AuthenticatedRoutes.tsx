@@ -100,7 +100,13 @@ export function AuthenticatedRoutes({
       />
       <Route
         path="/profile"
-        element={<ProfilePage session={session} onSignOut={onSignOut} />}
+        element={
+          <ProfilePage
+            session={session}
+            invoices={data.invoices}
+            onSignOut={onSignOut}
+          />
+        }
       />
       <Route path="*" element={<Navigate replace to="/" />} />
     </Routes>

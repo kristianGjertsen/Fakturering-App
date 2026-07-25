@@ -120,7 +120,7 @@ export function InvoicePdfTemplate({ invoice }: { invoice: InvoicePdfData }) {
   const template = invoice.pdf_template ?? "classic";
   const items = [...(invoice.invoice_items ?? [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const { noteText, paymentText } = splitInvoiceNotes(invoice.notes);
-  const invoiceNumber = invoice.invoice_number ?? invoiceNumberPlaceholder(invoice);
+  const invoiceNumber = invoice.invoice_number ?? invoiceNumberPlaceholder();
   const issueDate = invoice.issue_date || INVOICE_PDF_DEFAULTS.issueDate;
   const dueDate = invoice.due_date || INVOICE_PDF_DEFAULTS.dueDate;
   const deliveryDate = invoice.delivery_date || issueDate;
@@ -275,8 +275,8 @@ function isPaymentSection(section: string) {
   return /^(Betaling til|KID:)/i.test(section);
 }
 
-function invoiceNumberPlaceholder(invoice: InvoicePdfData) {
-  return invoice.scheduled_for ? "Opprettes ved utsending" : "Tildeles ved utsendelse";
+function invoiceNumberPlaceholder() {
+  return "Tildeles ved utsendelse";
 }
 
 function InvoiceParty({

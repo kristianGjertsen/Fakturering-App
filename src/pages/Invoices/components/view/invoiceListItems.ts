@@ -29,7 +29,7 @@ function scheduleToListItem(schedule: InvoiceScheduleWithDetails): DocumentBrows
     companyId: schedule.company_id,
     companyName: schedule.company?.name ?? "Ukjent bedrift",
     title: previewInvoice.title,
-    subtitle: previewInvoice.invoice_number ?? "Opprettes ved utsending",
+    subtitle: previewInvoice.invoice_number ?? "Tildeles ved utsendelse",
     statusLabel: "Planlagt",
     statusTone: "purple",
     amount: Number(previewInvoice.total),
