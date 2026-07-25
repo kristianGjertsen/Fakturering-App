@@ -26,6 +26,24 @@ export async function downloadAccountingExport(invoices: InvoiceWithDetails[]) {
 
   const files: ZipFile[] = [
     {
+      path: "README.md",
+      data: `# Regnskapsgrunnlag
+
+Denne ZIP-filen inneholder dokumentene du trenger for å føre betalte fakturaer i regnskapet.
+Kun fakturaer som var markert som betalt ved nedlasting er inkludert.
+
+Innhold:
+- Fakturaoversikt.xlsx: samlet oversikt over betalte fakturaer.
+- Fakturalinjer.xlsx: alle fakturalinjer fra de betalte fakturaene.
+- Betalinger.xlsx: beløp, betalingsinformasjon og eventuell KID.
+- Fakturajournal.pdf: enkel journal over eksporterte fakturaer.
+- Fakturaer/: PDF-kopi av hver betalte faktura.
+- Vedlegg/: vedlegg sortert per fakturanummer.
+
+Antall betalte fakturaer i eksporten: ${paidInvoices.length}
+`,
+    },
+    {
       path: "Fakturaoversikt.xlsx",
       data: await createXlsx([
         [
@@ -397,4 +415,21 @@ function safePathPart(value: string) {
 
 function formatAmount(value: number) {
   return `${value.toLocaleString("nb-NO", { maximumFractionDigits: 2 })} kr`;
+}
+function createReadme(invoiceCount: number) {
+  return `# Regnskapsgrunnlag
+
+Denne ZIP-filen inneholder dokumentene du trenger for å føre betalte fakturaer i regnskapet.
+Kun fakturaer som var markert som betalt ved nedlasting er inkludert.
+
+Innhold:
+- Fakturaoversikt.xlsx: samlet oversikt over betalte fakturaer.
+- Fakturalinjer.xlsx: alle fakturalinjer fra de betalte fakturaene.
+- Betalinger.xlsx: beløp, betalingsinformasjon og eventuell KID.
+- Fakturajournal.pdf: enkel journal over eksporterte fakturaer.
+- Fakturaer/: PDF-kopi av hver betalte faktura.
+- Vedlegg/: vedlegg sortert per fakturanummer.
+
+Antall betalte fakturaer i eksporten: ${invoiceCount}
+`;
 }
