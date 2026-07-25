@@ -13,9 +13,9 @@ import { fetchProfileDetails } from "./profileData";
 export {
   createCompany,
   fetchCompanies,
-  updateCompanyLogoDisabled,
+  updateCompanyLogoPreference,
 } from "./companyData";
-export type { CompanyInput } from "./companyData";
+export type { CompanyInput, CompanyLogoPreferenceInput } from "./companyData";
 export {
   deleteInvoice,
   fetchInvoices,

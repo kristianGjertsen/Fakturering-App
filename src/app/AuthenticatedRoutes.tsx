@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import type {
   AppData,
   CompanyInput,
+  CompanyLogoPreferenceInput,
   InvoiceInput,
   ProductInput,
 } from "../lib/data";
@@ -18,7 +19,10 @@ type AuthenticatedRoutesProps = {
   data: AppData;
   onCreateCompany: (input: CompanyInput) => Promise<void>;
   onCreateProduct: (input: ProductInput) => Promise<void>;
-  onUpdateCompanyLogoDisabled: (companyId: string, logoDisabled: boolean) => Promise<void>;
+  onUpdateCompanyLogoPreference: (
+    companyId: string,
+    input: CompanyLogoPreferenceInput,
+  ) => Promise<void>;
   onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<string>;
   onDeleteInvoice: (invoiceId: string) => Promise<void>;
   onRefreshInvoices: () => Promise<void>;
@@ -30,7 +34,7 @@ export function AuthenticatedRoutes({
   data,
   onCreateCompany,
   onCreateProduct,
-  onUpdateCompanyLogoDisabled,
+  onUpdateCompanyLogoPreference,
   onCreateInvoice,
   onDeleteInvoice,
   onRefreshInvoices,
@@ -65,6 +69,7 @@ export function AuthenticatedRoutes({
             companies={data.companies}
             onCreateCompany={onCreateCompany}
             onOpenCompany={(companyId) => navigate(`/companies/${companyId}`)}
+            onUpdateCompanyLogoPreference={onUpdateCompanyLogoPreference}
           />
         }
       />
@@ -76,7 +81,7 @@ export function AuthenticatedRoutes({
             products={data.products}
             invoices={data.invoices}
             onCreateProduct={onCreateProduct}
-            onUpdateCompanyLogoDisabled={onUpdateCompanyLogoDisabled}
+            onUpdateCompanyLogoPreference={onUpdateCompanyLogoPreference}
           />
         }
       />

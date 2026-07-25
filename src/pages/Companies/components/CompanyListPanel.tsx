@@ -1,15 +1,24 @@
-import { Button } from "../../../components/Button";
 import { EmptyState } from "../../../components/EmptyState";
 import { Panel } from "../../../components/layout/Panel";
 import { countryLabel } from "../../../lib/countries";
+import type { CompanyLogoPreferenceInput } from "../../../lib/data";
 import type { Company } from "../../../types";
+import { CompanyLogo } from "../../Company/components/CompanyLogo";
 
 type CompanyListPanelProps = {
   companies: Company[];
   onOpenCompany: (companyId: string) => void;
+  onUpdateCompanyLogoPreference: (
+    companyId: string,
+    input: CompanyLogoPreferenceInput,
+  ) => Promise<void>;
 };
 
-export function CompanyListPanel({ companies, onOpenCompany }: CompanyListPanelProps) {
+export function CompanyListPanel({
+  companies,
+  onOpenCompany,
+  onUpdateCompanyLogoPreference,
+}: CompanyListPanelProps) {
   return (
     <section>
       <Panel as="div">
@@ -33,17 +42,27 @@ export function CompanyListPanel({ companies, onOpenCompany }: CompanyListPanelP
         ) : (
           <div className="mt-5 divide-y divide-blue-100 overflow-hidden rounded-lg border border-blue-100">
             {companies.map((company) => (
-              <Button
+              <button
                 key={company.id}
-                variant="ghost"
-                className="w-full justify-between rounded-none px-4 py-4 text-left hover:bg-blue-50"
+                type="button"
+                className="flex w-full items-center gap-3 px-4 py-4 text-left transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400"
                 onClick={() => onOpenCompany(company.id)}
               >
-                <span className="min-w-0">
-                  <span className="block truncate font-semibold text-slate-950">
+                <CompanyLogo
+                  company={company}
+                  variant="compact"
+                  discover
+                  onLogoResolved={(source) => void onUpdateCompanyLogoPreference(company.id, {
+                    logo_disabled: false,
+                    logo_url: source.src,
+                    logo_source: source.label,
+                  })}
+                />
+                <div className="min-w-0 flex-1">
+                  <h4 className="truncate text-sm font-semibold text-slate-950">
                     {company.name}
-                  </span>
-                  <span className="mt-1 block truncate text-sm font-normal text-slate-600">
+                  </h4>
+                  <p className="mt-1 truncate text-sm text-slate-600">
                     {[
                       company.org_number,
                       company.email,
@@ -51,12 +70,12 @@ export function CompanyListPanel({ companies, onOpenCompany }: CompanyListPanelP
                       company.postal_address,
                       countryLabel(company.country),
                     ].filter(Boolean).join(" · ") || "Ingen detaljer registrert"}
-                  </span>
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-md border border-blue-200 bg-white px-3 py-1.5 text-sm font-semibold text-blue-800 shadow-sm">
+                  Åpne
                 </span>
-                <span aria-hidden="true" className="shrink-0 text-lg text-blue-700">
-                  →
-                </span>
-              </Button>
+              </button>
             ))}
           </div>
         )}

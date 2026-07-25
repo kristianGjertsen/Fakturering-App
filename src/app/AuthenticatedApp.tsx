@@ -8,9 +8,10 @@ import {
   createProduct,
   deleteInvoice,
   type CompanyInput,
+  type CompanyLogoPreferenceInput,
   type InvoiceInput,
   type ProductInput,
-  updateCompanyLogoDisabled,
+  updateCompanyLogoPreference,
 } from "../lib/data";
 import { supabase } from "../supabaseClient";
 import {
@@ -38,8 +39,11 @@ export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
     await refreshData();
   }
 
-  async function handleUpdateCompanyLogoDisabled(companyId: string, logoDisabled: boolean) {
-    await updateCompanyLogoDisabled(companyId, logoDisabled);
+  async function handleUpdateCompanyLogoPreference(
+    companyId: string,
+    input: CompanyLogoPreferenceInput,
+  ) {
+    await updateCompanyLogoPreference(companyId, input);
     await refreshData();
   }
 
@@ -82,7 +86,7 @@ export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
             data={data}
             onCreateCompany={handleCreateCompany}
             onCreateProduct={handleCreateProduct}
-            onUpdateCompanyLogoDisabled={handleUpdateCompanyLogoDisabled}
+            onUpdateCompanyLogoPreference={handleUpdateCompanyLogoPreference}
             onCreateInvoice={handleCreateInvoice}
             onDeleteInvoice={handleDeleteInvoice}
             onRefreshInvoices={refreshData}

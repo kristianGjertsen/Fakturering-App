@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
 import { Notice } from "../../components/layout/Notice";
-import type { CompanyInput } from "../../lib/data";
+import type { CompanyInput, CompanyLogoPreferenceInput } from "../../lib/data";
 import type { Company } from "../../types";
 import { CompanyListPanel } from "./components/CompanyListPanel";
 import { NewCompanyDialog } from "./components/NewCompanyDialog";
@@ -11,12 +11,17 @@ type CompaniesPageProps = {
   companies: Company[];
   onCreateCompany: (input: CompanyInput) => Promise<void>;
   onOpenCompany: (companyId: string) => void;
+  onUpdateCompanyLogoPreference: (
+    companyId: string,
+    input: CompanyLogoPreferenceInput,
+  ) => Promise<void>;
 };
 
 export default function CompaniesPage({
   companies,
   onCreateCompany,
   onOpenCompany,
+  onUpdateCompanyLogoPreference,
 }: CompaniesPageProps) {
   const [message, setMessage] = useState("");
   const [showNewCompany, setShowNewCompany] = useState(false);
@@ -53,7 +58,11 @@ export default function CompaniesPage({
 
       {message && <Notice>{message}</Notice>}
 
-      <CompanyListPanel companies={companies} onOpenCompany={onOpenCompany} />
+      <CompanyListPanel
+        companies={companies}
+        onOpenCompany={onOpenCompany}
+        onUpdateCompanyLogoPreference={onUpdateCompanyLogoPreference}
+      />
     </>
   );
 }

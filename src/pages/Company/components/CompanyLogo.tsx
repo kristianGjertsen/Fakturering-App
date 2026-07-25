@@ -21,8 +21,11 @@ const GUESSED_DOMAIN_EXTENSIONS = ["no", "com", "dk", "se", "io"];
 
 type CompanyLogoProps = {
   company: Company;
-  updating: boolean;
-  onToggleLogoDisabled: (disabled: boolean) => void;
+  discover?: boolean;
+  updating?: boolean;
+  variant?: "detail" | "compact";
+  onLogoResolved?: (source: LogoSource) => void;
+  onToggleLogoDisabled?: (disabled: boolean) => void;
 };
 
 type LogoSource = {
@@ -32,51 +35,118 @@ type LogoSource = {
 
 export function CompanyLogo({
   company,
-  updating,
+  discover = false,
+  updating = false,
+  variant = "detail",
+  onLogoResolved,
   onToggleLogoDisabled,
 }: CompanyLogoProps) {
   const [sourceIndex, setSourceIndex] = useState(0);
+  const [savedResolvedSource, setSavedResolvedSource] = useState("");
   const sources = useMemo(() => logoSourcesForCompany(company), [company]);
-  const currentSource = company.logo_disabled ? null : sources[sourceIndex] ?? null;
+  const savedSource = company.logo_url
+    ? { src: company.logo_url, label: company.logo_source ?? "lagret logo" }
+    : null;
+  const shouldDiscoverLogo = (variant === "detail" || discover) && !savedSource;
+  const currentSource = company.logo_disabled
+    ? null
+    : savedSource ?? (shouldDiscoverLogo ? sources[sourceIndex] ?? null : null);
   const initial = company.name.trim().charAt(0).toUpperCase() || "?";
 
   useEffect(() => {
     setSourceIndex(0);
-  }, [company.id, company.email, company.name, company.logo_disabled]);
+    setSavedResolvedSource("");
+  }, [company.id, company.email, company.name, company.logo_disabled, company.logo_url]);
+
+  function handleLogoLoaded(source: LogoSource) {
+    if (!shouldDiscoverLogo || savedResolvedSource === source.src) {
+      return;
+    }
+
+    setSavedResolvedSource(source.src);
+    onLogoResolved?.(source);
+  }
+
+  if (variant === "compact") {
+    return (
+      <LogoMark
+        companyName={company.name}
+        currentSource={currentSource}
+        initial={initial}
+        size="compact"
+        onNextSource={() => setSourceIndex((index) => index + 1)}
+        onLogoLoaded={handleLogoLoaded}
+      />
+    );
+  }
 
   return (
     <div className="flex w-full flex-col gap-2 sm:w-28">
-      <div className="grid h-20 w-20 shrink-0 place-items-center rounded-lg border border-blue-100 bg-white shadow-sm">
-        {currentSource ? (
-          <img
-            src={currentSource.src}
-            alt={`${company.name} logo`}
-            width={64}
-            height={64}
-            className="max-h-14 max-w-14 object-contain"
-            onError={() => setSourceIndex((index) => index + 1)}
-          />
-        ) : (
-          <span className="text-2xl font-semibold text-blue-900" aria-label={`${company.name} logo fallback`}>
-            {initial}
-          </span>
-        )}
-      </div>
+      <LogoMark
+        companyName={company.name}
+        currentSource={currentSource}
+        initial={initial}
+        size="detail"
+        onNextSource={() => setSourceIndex((index) => index + 1)}
+        onLogoLoaded={handleLogoLoaded}
+      />
 
       <p className="max-w-28 text-xs text-slate-500">
         Logo hentet fra {company.logo_disabled ? "fallback" : currentSource?.label ?? "fallback"}.
       </p>
 
-      <Button
-        size="xs"
-        variant="secondary"
-        onClick={() => onToggleLogoDisabled(!company.logo_disabled)}
-        disabled={updating}
-      >
-        {company.logo_disabled
-          ? updating ? "Aktiverer..." : "Hent logo igjen"
-          : updating ? "Fjerner..." : "Fjern logo"}
-      </Button>
+      {onToggleLogoDisabled && (
+        <Button
+          size="xs"
+          variant="secondary"
+          onClick={() => onToggleLogoDisabled(!company.logo_disabled)}
+          disabled={updating}
+        >
+          {company.logo_disabled
+            ? updating ? "Aktiverer..." : "Hent logo igjen"
+            : updating ? "Fjerner..." : "Fjern logo"}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function LogoMark({
+  companyName,
+  currentSource,
+  initial,
+  onNextSource,
+  onLogoLoaded,
+  size,
+}: {
+  companyName: string;
+  currentSource: LogoSource | null;
+  initial: string;
+  onNextSource: () => void;
+  onLogoLoaded: (source: LogoSource) => void;
+  size: "detail" | "compact";
+}) {
+  const boxClass = size === "detail" ? "h-20 w-20" : "h-11 w-11";
+  const imageClass = size === "detail" ? "max-h-14 max-w-14" : "max-h-8 max-w-8";
+  const textClass = size === "detail" ? "text-2xl" : "text-base";
+
+  return (
+    <div className={`grid shrink-0 place-items-center rounded-lg border border-blue-100 bg-white shadow-sm ${boxClass}`}>
+      {currentSource ? (
+        <img
+          src={currentSource.src}
+          alt={`${companyName} logo`}
+          width={size === "detail" ? 64 : 32}
+          height={size === "detail" ? 64 : 32}
+          className={`object-contain ${imageClass}`}
+          onError={onNextSource}
+          onLoad={() => onLogoLoaded(currentSource)}
+        />
+      ) : (
+        <span className={`font-semibold text-blue-900 ${textClass}`} aria-label={`${companyName} logo fallback`}>
+          {initial}
+        </span>
+      )}
     </div>
   );
 }

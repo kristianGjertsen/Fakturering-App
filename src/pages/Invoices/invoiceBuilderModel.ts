@@ -217,6 +217,8 @@ function createGuestPreviewCompany(
     country: null,
     private_notes: null,
     logo_disabled: false,
+    logo_url: null,
+    logo_source: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };

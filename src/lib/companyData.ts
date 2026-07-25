@@ -11,6 +11,12 @@ export type CompanyInput = {
   private_notes: string;
 };
 
+export type CompanyLogoPreferenceInput = {
+  logo_disabled: boolean;
+  logo_url: string | null;
+  logo_source: string | null;
+};
+
 export async function fetchCompanies() {
   const { data, error } = await supabase
     .from("companies")
@@ -41,10 +47,13 @@ export async function createCompany(ownerUserId: string, input: CompanyInput) {
   }
 }
 
-export async function updateCompanyLogoDisabled(companyId: string, logoDisabled: boolean) {
+export async function updateCompanyLogoPreference(
+  companyId: string,
+  input: CompanyLogoPreferenceInput,
+) {
   const { error } = await supabase
     .from("companies")
-    .update({ logo_disabled: logoDisabled })
+    .update(input)
     .eq("id", companyId);
 
   if (error) {

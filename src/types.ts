@@ -9,6 +9,8 @@ export type Company = {
   country: string | null;
   private_notes: string | null;
   logo_disabled: boolean;
+  logo_url: string | null;
+  logo_source: string | null;
   created_at: string;
   updated_at: string;
 };

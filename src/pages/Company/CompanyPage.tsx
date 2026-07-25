@@ -4,7 +4,7 @@ import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { SectionHeader } from "../../components/SectionHeader";
 import { Notice } from "../../components/layout/Notice";
-import type { ProductInput } from "../../lib/data";
+import type { CompanyLogoPreferenceInput, ProductInput } from "../../lib/data";
 import type { Company, InvoiceWithDetails, Product } from "../../types";
 import { CompanyInfo } from "./components/CompanyInfo";
 import { CompanyInvoicesPanel } from "./components/CompanyInvoicesPanel";
@@ -18,7 +18,10 @@ type CompanyPageProps = {
   products: Product[];
   invoices: InvoiceWithDetails[];
   onCreateProduct: (input: ProductInput) => Promise<void>;
-  onUpdateCompanyLogoDisabled: (companyId: string, logoDisabled: boolean) => Promise<void>;
+  onUpdateCompanyLogoPreference: (
+    companyId: string,
+    input: CompanyLogoPreferenceInput,
+  ) => Promise<void>;
 };
 
 export default function CompanyPage({
@@ -26,7 +29,7 @@ export default function CompanyPage({
   products,
   invoices,
   onCreateProduct,
-  onUpdateCompanyLogoDisabled,
+  onUpdateCompanyLogoPreference,
 }: CompanyPageProps) {
   const { companyId } = useParams();
   const navigate = useNavigate();
@@ -53,17 +56,38 @@ export default function CompanyPage({
   const companyProducts = products.filter((product) => product.company_id === currentCompany.id);
   const companyInvoices = invoices.filter((invoice) => invoice.company_id === currentCompany.id);
 
-  async function handleToggleLogoDisabled(logoDisabled: boolean) {
+  async function handleSaveLogoPreference(input: CompanyLogoPreferenceInput) {
     setUpdatingLogo(true);
     setMessage("");
 
     try {
-      await onUpdateCompanyLogoDisabled(currentCompany.id, logoDisabled);
-      setMessage(logoDisabled ? "Logo er fjernet for dette selskapet." : "Logo hentes igjen for dette selskapet.");
+      await onUpdateCompanyLogoPreference(currentCompany.id, input);
+      return true;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Kunne ikke oppdatere logo-innstilling.");
+      return false;
     } finally {
       setUpdatingLogo(false);
+    }
+  }
+
+  async function handleToggleLogoDisabled(logoDisabled: boolean) {
+    const saved = await handleSaveLogoPreference(
+      logoDisabled
+        ? {
+            logo_disabled: true,
+            logo_url: null,
+            logo_source: "fallback",
+          }
+        : {
+            logo_disabled: false,
+            logo_url: null,
+            logo_source: null,
+          },
+    );
+
+    if (saved) {
+      setMessage(logoDisabled ? "Fallback-logo er lagret for dette selskapet." : "Logo hentes igjen for dette selskapet.");
     }
   }
 
@@ -73,6 +97,11 @@ export default function CompanyPage({
         <CompanyLogo
           company={currentCompany}
           updating={updatingLogo}
+          onLogoResolved={(source) => void handleSaveLogoPreference({
+            logo_disabled: false,
+            logo_url: source.src,
+            logo_source: source.label,
+          })}
           onToggleLogoDisabled={(logoDisabled) => void handleToggleLogoDisabled(logoDisabled)}
         />
         <div className="min-w-0 flex-1">
