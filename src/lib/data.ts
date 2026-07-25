@@ -13,6 +13,7 @@ import { fetchProfileDetails } from "./profileData";
 export {
   createCompany,
   fetchCompanies,
+  updateCompanyLogoDisabled,
 } from "./companyData";
 export type { CompanyInput } from "./companyData";
 export {

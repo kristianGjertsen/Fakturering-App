@@ -18,6 +18,7 @@ type AuthenticatedRoutesProps = {
   data: AppData;
   onCreateCompany: (input: CompanyInput) => Promise<void>;
   onCreateProduct: (input: ProductInput) => Promise<void>;
+  onUpdateCompanyLogoDisabled: (companyId: string, logoDisabled: boolean) => Promise<void>;
   onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<string>;
   onDeleteInvoice: (invoiceId: string) => Promise<void>;
   onRefreshInvoices: () => Promise<void>;
@@ -29,6 +30,7 @@ export function AuthenticatedRoutes({
   data,
   onCreateCompany,
   onCreateProduct,
+  onUpdateCompanyLogoDisabled,
   onCreateInvoice,
   onDeleteInvoice,
   onRefreshInvoices,
@@ -74,6 +76,7 @@ export function AuthenticatedRoutes({
             products={data.products}
             invoices={data.invoices}
             onCreateProduct={onCreateProduct}
+            onUpdateCompanyLogoDisabled={onUpdateCompanyLogoDisabled}
           />
         }
       />

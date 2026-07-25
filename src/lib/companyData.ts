@@ -40,3 +40,14 @@ export async function createCompany(ownerUserId: string, input: CompanyInput) {
     throw error;
   }
 }
+
+export async function updateCompanyLogoDisabled(companyId: string, logoDisabled: boolean) {
+  const { error } = await supabase
+    .from("companies")
+    .update({ logo_disabled: logoDisabled })
+    .eq("id", companyId);
+
+  if (error) {
+    throw error;
+  }
+}

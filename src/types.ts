@@ -8,6 +8,7 @@ export type Company = {
   postal_address: string | null;
   country: string | null;
   private_notes: string | null;
+  logo_disabled: boolean;
   created_at: string;
   updated_at: string;
 };
