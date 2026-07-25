@@ -133,6 +133,7 @@ function InvoiceOverview({
     : invoice.paid
       ? "Betalt"
       : INVOICE_STATUS_LABELS[invoice.status];
+  const canTogglePaid = invoice.paid || ["sent", "reminded", "paid"].includes(invoice.status);
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -180,7 +181,7 @@ function InvoiceOverview({
         <div className="flex flex-wrap gap-2">
           {scheduled ? (
             <Button variant="secondary" disabled>Planlagt</Button>
-          ) : (
+          ) : canTogglePaid && (
             <Button
               variant={invoice.paid ? "secondary" : "success"}
               onClick={onTogglePaid}
