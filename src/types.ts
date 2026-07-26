@@ -12,6 +12,8 @@ export type Company = {
   phone: string | null;
   payment_terms_days: number;
   invoice_notes: string | null;
+  website: string | null;
+  website_from_brreg: boolean;
   logo_disabled: boolean;
   logo_url: string | null;
   logo_source: string | null;

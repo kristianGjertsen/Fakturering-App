@@ -67,12 +67,27 @@ export function CompanyLogo({
 }: CompanyLogoProps) {
   const [rejectedSourceUrls, setRejectedSourceUrls] = useState<string[]>([]);
   const [savedResolvedSource, setSavedResolvedSource] = useState("");
-  const sources = useMemo(() => logoSourcesForCompany(company), [company]);
+  const [exactNameDomain, setExactNameDomain] = useState<string | null>(null);
+  const [nameSearchComplete, setNameSearchComplete] = useState(false);
+  const websiteDomain = domainFromWebsite(company.website);
+  const emailDomain = domainFromEmail(company.email);
+  const needsNameSearch = !websiteDomain && !emailDomain;
+  const sources = useMemo(
+    () => logoSourcesForCompany(company, exactNameDomain),
+    [company, exactNameDomain],
+  );
   const availableSources = sources.filter((source) => !rejectedSourceUrls.includes(source.src));
   const savedLogoNeedsRefresh = Boolean(
     company.logo_url
-      && company.logo_source === "Logo.dev API-kall"
-      && company.logo_url !== sources[0]?.src,
+      && (
+        company.logo_source === "Logo.dev API-kall"
+        || (
+          websiteDomain
+          && company.logo_source !== (
+            company.website_from_brreg ? "BRREG-nettside" : "nettside-domene"
+          )
+        )
+      ),
   );
   const savedSource = company.logo_url
     && !savedLogoNeedsRefresh
@@ -80,15 +95,56 @@ export function CompanyLogo({
     ? { src: company.logo_url, label: company.logo_source ?? "lagret logo" }
     : null;
   const shouldDiscoverLogo = (variant === "detail" || discover) && !savedSource;
+  const discoveryReady = !needsNameSearch || nameSearchComplete;
   const currentSource = company.logo_disabled
     ? null
-    : savedSource ?? (shouldDiscoverLogo ? availableSources[0] ?? null : null);
+    : savedSource ?? (shouldDiscoverLogo && discoveryReady ? availableSources[0] ?? null : null);
   const initial = company.name.trim().charAt(0).toUpperCase() || "?";
 
   useEffect(() => {
     setRejectedSourceUrls([]);
     setSavedResolvedSource("");
-  }, [company.id, company.email, company.name, company.logo_disabled, company.logo_url]);
+  }, [
+    company.id,
+    company.email,
+    company.name,
+    company.website,
+    company.logo_disabled,
+    company.logo_url,
+  ]);
+
+  useEffect(() => {
+    setExactNameDomain(null);
+
+    if (!needsNameSearch || company.logo_disabled) {
+      setNameSearchComplete(true);
+      return;
+    }
+
+    const controller = new AbortController();
+    setNameSearchComplete(false);
+
+    void fetch(`/api/logo-search?q=${encodeURIComponent(companyNameWithoutLegalSuffix(company.name))}`, {
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return await response.json() as { domain?: string | null };
+      })
+      .then((result) => {
+        if (!controller.signal.aborted) {
+          setExactNameDomain(result?.domain ?? null);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setExactNameDomain(null);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setNameSearchComplete(true);
+      });
+
+    return () => controller.abort();
+  }, [company.id, company.name, company.logo_disabled, needsNameSearch]);
 
   function handleLogoLoaded(source: LogoSource) {
     if (!shouldDiscoverLogo || savedResolvedSource === source.src) {
@@ -228,37 +284,67 @@ function withLogoCacheVersion(imageUrl: string) {
   }
 }
 
-function logoSourcesForCompany(company: Company): LogoSource[] {
-  const domain = domainFromEmail(company.email);
-  const guessedDomains = guessedDomainsForCompanyName(company.name);
+function logoSourcesForCompany(company: Company, exactNameDomain: string | null): LogoSource[] {
+  const websiteDomain = domainFromWebsite(company.website);
+  const emailDomain = domainFromEmail(company.email);
   const lookupName = companyNameWithoutLegalSuffix(company.name);
-  const faviconDomains = uniqueValues([domain, ...guessedDomains].filter(isPresent));
+  const shouldUseNameFallback = !websiteDomain && !emailDomain;
+  const guessedDomains = guessedDomainsForCompanyName(company.name);
+  const preciseDomains = uniqueValues(
+    [websiteDomain, emailDomain, exactNameDomain].filter(isPresent),
+  );
+  const faviconDomains = uniqueValues([...preciseDomains, ...guessedDomains]);
   const logoDevBaseParams = `token=${LOGO_DEV_TOKEN}&size=128&format=png&theme=light&retina=true&fallback=404`;
 
   return [
-    {
-      src: `https://img.logo.dev/name/${encodeURIComponent(lookupName)}?${logoDevBaseParams}`,
-      label: "Logo.dev API-kall",
-    },
-    ...(domain ? [{
+    ...preciseDomains.map((domain): LogoSource => ({
       src: `https://img.logo.dev/${domain}?${logoDevBaseParams}`,
-      label: "maildomene",
+      label: logoSourceLabel(domain, websiteDomain, emailDomain, company.website_from_brreg),
+    })),
+    ...(shouldUseNameFallback ? [{
+      src: `https://img.logo.dev/name/${encodeURIComponent(lookupName)}?${logoDevBaseParams}`,
+      label: "Logo.dev navneoppslag",
     }] : []),
     ...faviconDomains.flatMap((faviconDomain): LogoSource[] => [
       {
         src: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(faviconDomain)}&sz=128`,
-        label: domain === faviconDomain ? "maildomene" : "nettside-domene",
+        label: logoSourceLabel(faviconDomain, websiteDomain, emailDomain, company.website_from_brreg),
       },
       {
         src: `https://${faviconDomain}/favicon.ico`,
-        label: domain === faviconDomain ? "maildomene" : "nettside-domene",
+        label: logoSourceLabel(faviconDomain, websiteDomain, emailDomain, company.website_from_brreg),
       },
       {
         src: `https://www.${faviconDomain}/favicon.ico`,
-        label: domain === faviconDomain ? "maildomene" : "nettside-domene",
+        label: logoSourceLabel(faviconDomain, websiteDomain, emailDomain, company.website_from_brreg),
       },
     ]),
   ];
+}
+
+function logoSourceLabel(
+  domain: string,
+  websiteDomain: string | null,
+  emailDomain: string | null,
+  websiteFromBrreg: boolean,
+) {
+  if (domain === websiteDomain) return websiteFromBrreg ? "BRREG-nettside" : "nettside-domene";
+  if (domain === emailDomain) return "maildomene";
+  return "eksakt navnetreff";
+}
+
+function domainFromWebsite(website: string | null) {
+  const value = website?.trim();
+  if (!value) return null;
+
+  try {
+    return new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`)
+      .hostname
+      .replace(/^www\./, "")
+      .toLowerCase();
+  } catch {
+    return null;
+  }
 }
 
 function domainFromEmail(email: string | null) {

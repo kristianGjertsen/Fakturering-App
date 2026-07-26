@@ -7,11 +7,13 @@ export type BrregCompany = {
   postalAddress: string;
   email: string;
   phone: string;
+  website: string;
 };
 
 export type BrregPrefilledFields = {
   email: boolean;
   phone: boolean;
+  website: boolean;
 };
 
 export type CompanyFormData = {
@@ -23,6 +25,7 @@ export type CompanyFormData = {
   email: string;
   contactPerson: string;
   phone: string;
+  website: string;
   paymentTermsDays: number;
   invoiceNotes: string;
   privateNotes: string;
@@ -37,6 +40,7 @@ export const emptyCompanyForm: CompanyFormData = {
   email: "",
   contactPerson: "",
   phone: "",
+  website: "",
   paymentTermsDays: 14,
   invoiceNotes: "",
   privateNotes: "",

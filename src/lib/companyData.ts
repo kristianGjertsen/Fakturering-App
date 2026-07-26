@@ -13,6 +13,8 @@ export type CompanyInput = {
   phone: string;
   payment_terms_days: number;
   invoice_notes: string;
+  website: string;
+  website_from_brreg: boolean;
 };
 
 export type CompanyLogoPreferenceInput = {
@@ -48,11 +50,20 @@ export async function createCompany(ownerUserId: string, input: CompanyInput) {
     phone: input.phone.trim() || null,
     payment_terms_days: input.payment_terms_days,
     invoice_notes: input.invoice_notes.trim() || null,
+    website: normalizeWebsite(input.website),
+    website_from_brreg: Boolean(input.website.trim() && input.website_from_brreg),
   });
 
   if (error) {
     throw error;
   }
+}
+
+function normalizeWebsite(value: string) {
+  const website = value.trim();
+  if (!website) return null;
+
+  return /^https?:\/\//i.test(website) ? website : `https://${website}`;
 }
 
 export async function updateCompanyLogoPreference(

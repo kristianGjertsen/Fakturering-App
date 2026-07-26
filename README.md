@@ -14,7 +14,12 @@ Legg inn Supabase-verdiene i `.env`:
 ```env
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
+LOGO_DEV_SECRET_KEY=sk_...
 ```
+
+`LOGO_DEV_SECRET_KEY` brukes bare på serveren til eksakt navnesøk etter logoer.
+Hvis den mangler, brukes nettside-/e-postdomene og deretter vanlig fallback; nøkkelen
+skal aldri ha `VITE_`-prefiks.
 
 ## Supabase
 

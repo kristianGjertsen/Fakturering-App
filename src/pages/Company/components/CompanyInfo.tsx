@@ -18,6 +18,7 @@ export function CompanyInfo({ company }: CompanyInfoProps) {
         <InfoItem label="E-post" value={company.email} />
         <InfoItem label="Kontaktperson" value={company.contact_person} />
         <InfoItem label="Telefon" value={company.phone} />
+        <InfoItem label="Nettside" value={company.website} />
         <InfoItem label="Adresse" value={company.address} />
         <InfoItem label="Postadresse" value={company.postal_address} />
         <InfoItem label="Land" value={countryLabel(company.country)} />

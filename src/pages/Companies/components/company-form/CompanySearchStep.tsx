@@ -64,6 +64,7 @@ export function CompanySearchStep({
       country: "NO",
       email: company.email,
       phone: company.phone,
+      website: company.website,
     });
     onSelect(company);
     setResults([]);
@@ -80,6 +81,7 @@ export function CompanySearchStep({
             organizationNumber: "",
             address: "",
             postalAddress: "",
+            website: "",
           });
           setQuery("");
         }}
@@ -102,6 +104,7 @@ export function CompanySearchStep({
                 organizationNumber: "",
                 address: "",
                 postalAddress: "",
+                website: "",
               });
             }}
           >

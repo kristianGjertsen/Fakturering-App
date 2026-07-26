@@ -44,6 +44,7 @@ export function InvoiceSettingsStep({ value, onChange }: InvoiceSettingsStepProp
           <SummaryItem label="E-post" value={value.email} />
           <SummaryItem label="Kontaktperson" value={value.contactPerson} />
           <SummaryItem label="Telefon" value={value.phone} />
+          <SummaryItem label="Nettside" value={value.website} />
           <SummaryItem label="Land" value={countryLabel(value.country) ?? value.country} />
           <SummaryItem label="Betalingsfrist" value={`${value.paymentTermsDays} dager`} />
         </dl>

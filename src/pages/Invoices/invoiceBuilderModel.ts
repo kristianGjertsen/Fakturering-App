@@ -220,6 +220,8 @@ function createGuestPreviewCompany(
     phone: null,
     payment_terms_days: 14,
     invoice_notes: null,
+    website: null,
+    website_from_brreg: false,
     logo_disabled: false,
     logo_url: null,
     logo_source: null,

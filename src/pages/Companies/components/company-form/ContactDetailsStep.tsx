@@ -43,6 +43,16 @@ export function ContactDetailsStep({
           onChange={(event) => onChange({ phone: event.target.value })}
         />
       </FormField>
+      <FormField label="Nettside">
+        {brregPrefilledFields.website && <BrregSourceTag />}
+        <Input
+          inputMode="url"
+          className={brregPrefilledFields.website ? "mt-2" : ""}
+          value={value.website}
+          placeholder="https://eksempel.no"
+          onChange={(event) => onChange({ website: event.target.value })}
+        />
+      </FormField>
       <FormField label="Land">
         <Select
           value={value.country}

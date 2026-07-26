@@ -32,6 +32,7 @@ export function NewCompanyForm({
   const [brregPrefilledFields, setBrregPrefilledFields] = useState<BrregPrefilledFields>({
     email: false,
     phone: false,
+    website: false,
   });
   const [savingCompany, setSavingCompany] = useState(false);
   const [validationMessage, setValidationMessage] = useState("");
@@ -41,6 +42,7 @@ export function NewCompanyForm({
     setBrregPrefilledFields((fields) => ({
       email: patch.email === undefined ? fields.email : false,
       phone: patch.phone === undefined ? fields.phone : false,
+      website: patch.website === undefined ? fields.website : false,
     }));
     setValidationMessage("");
   }
@@ -50,6 +52,7 @@ export function NewCompanyForm({
     setBrregPrefilledFields({
       email: Boolean(company?.email),
       phone: Boolean(company?.phone),
+      website: Boolean(company?.website),
     });
   }
 
@@ -87,10 +90,10 @@ export function NewCompanyForm({
     onMessage("");
 
     try {
-      await onCreateCompany(toCompanyInput(companyForm));
+      await onCreateCompany(toCompanyInput(companyForm, brregPrefilledFields.website));
       setCompanyForm(emptyCompanyForm);
       setSelectedCompany(null);
-      setBrregPrefilledFields({ email: false, phone: false });
+      setBrregPrefilledFields({ email: false, phone: false, website: false });
       setCurrentStep(1);
       onMessage("Selskap lagret.");
       onCreated();
@@ -185,7 +188,7 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
-function toCompanyInput(form: CompanyFormData): CompanyInput {
+function toCompanyInput(form: CompanyFormData, websiteFromBrreg: boolean): CompanyInput {
   return {
     name: form.companyName,
     org_number: form.organizationNumber.replace(/\D/g, ""),
@@ -198,5 +201,7 @@ function toCompanyInput(form: CompanyFormData): CompanyInput {
     phone: form.phone,
     payment_terms_days: form.paymentTermsDays,
     invoice_notes: form.invoiceNotes,
+    website: form.website,
+    website_from_brreg: websiteFromBrreg,
   };
 }

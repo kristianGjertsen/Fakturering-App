@@ -17,6 +17,7 @@ type BrregEntity = {
   epostadresse?: string;
   telefon?: string;
   mobil?: string;
+  hjemmeside?: string;
 };
 
 type BrregSearchResponse = {
@@ -71,5 +72,6 @@ function mapBrregCompany(entity: BrregEntity): BrregCompany {
     postalAddress,
     email: entity.epostadresse?.trim() ?? "",
     phone: entity.telefon?.trim() || entity.mobil?.trim() || "",
+    website: entity.hjemmeside?.trim() ?? "",
   };
 }
