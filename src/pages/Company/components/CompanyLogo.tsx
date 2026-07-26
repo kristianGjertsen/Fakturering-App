@@ -253,6 +253,10 @@ function logoSourcesForCompany(company: Company): LogoSource[] {
         src: `https://${faviconDomain}/favicon.ico`,
         label: domain === faviconDomain ? "maildomene" : "nettside-domene",
       },
+      {
+        src: `https://www.${faviconDomain}/favicon.ico`,
+        label: domain === faviconDomain ? "maildomene" : "nettside-domene",
+      },
     ]),
   ];
 }

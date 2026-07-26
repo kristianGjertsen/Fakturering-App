@@ -16,9 +16,12 @@ export function CompanyInfo({ company }: CompanyInfoProps) {
         <InfoItem label="Navn" value={company.name} />
         <InfoItem label="Organisasjonsnummer" value={company.org_number} />
         <InfoItem label="E-post" value={company.email} />
+        <InfoItem label="Kontaktperson" value={company.contact_person} />
+        <InfoItem label="Telefon" value={company.phone} />
         <InfoItem label="Adresse" value={company.address} />
         <InfoItem label="Postadresse" value={company.postal_address} />
         <InfoItem label="Land" value={countryLabel(company.country)} />
+        <InfoItem label="Standard betalingsfrist" value={`${company.payment_terms_days} dager`} />
         <InfoItem label="Opprettet" value={formatDate(company.created_at)} />
         <InfoItem label="Sist oppdatert" value={formatDate(company.updated_at)} />
       </dl>
@@ -27,6 +30,13 @@ export function CompanyInfo({ company }: CompanyInfoProps) {
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Internt notat</p>
         <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
           {company.private_notes || "Ingen interne notater registrert."}
+        </p>
+      </div>
+
+      <div className="mt-6 border-t border-blue-100 pt-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Standard fakturanotat</p>
+        <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+          {company.invoice_notes || "Ingen standardtekst registrert."}
         </p>
       </div>
     </Panel>

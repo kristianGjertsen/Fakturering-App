@@ -22,6 +22,7 @@ export function NewCompanyDialog({
       title="Nytt selskap"
       description="Lagre kundeinformasjon for fakturaer, produkter og statistikk."
       labelledBy="new-company-title"
+      maxWidth="2xl"
     >
       <NewCompanyForm
         onCreateCompany={onCreateCompany}

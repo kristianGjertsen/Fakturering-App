@@ -9,6 +9,10 @@ export type CompanyInput = {
   postal_address: string;
   country: string;
   private_notes: string;
+  contact_person: string;
+  phone: string;
+  payment_terms_days: number;
+  invoice_notes: string;
 };
 
 export type CompanyLogoPreferenceInput = {
@@ -40,6 +44,10 @@ export async function createCompany(ownerUserId: string, input: CompanyInput) {
     postal_address: input.postal_address.trim() || null,
     country: input.country.trim() || "NO",
     private_notes: input.private_notes.trim() || null,
+    contact_person: input.contact_person.trim() || null,
+    phone: input.phone.trim() || null,
+    payment_terms_days: input.payment_terms_days,
+    invoice_notes: input.invoice_notes.trim() || null,
   });
 
   if (error) {

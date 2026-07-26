@@ -8,6 +8,10 @@ export type Company = {
   postal_address: string | null;
   country: string | null;
   private_notes: string | null;
+  contact_person: string | null;
+  phone: string | null;
+  payment_terms_days: number;
+  invoice_notes: string | null;
   logo_disabled: boolean;
   logo_url: string | null;
   logo_source: string | null;

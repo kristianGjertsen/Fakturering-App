@@ -9,6 +9,7 @@ type ModalProps = {
   description?: string;
   children: ReactNode;
   labelledBy: string;
+  maxWidth?: "lg" | "2xl";
 };
 
 export function Modal({
@@ -18,6 +19,7 @@ export function Modal({
   description,
   children,
   labelledBy,
+  maxWidth = "lg",
 }: ModalProps) {
   useModalDismiss(open, onClose);
 
@@ -32,7 +34,9 @@ export function Modal({
       }}
     >
       <section
-        className="my-4 w-full max-w-lg rounded-xl border border-blue-100 bg-white shadow-xl"
+        className={`my-4 w-full rounded-xl border border-blue-100 bg-white shadow-xl ${
+          maxWidth === "2xl" ? "max-w-2xl" : "max-w-lg"
+        }`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}

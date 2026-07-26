@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   Company,
   InvoiceDraftLine,
@@ -81,11 +81,27 @@ export function InvoiceBuilder({
   const [scheduleOnce, setScheduleOnce] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const defaultsAppliedForCompanyId = useRef("");
 
   useEffect(() => {
     if (recipientMode === "company" && !companyId && companies[0]) {
       setCompanyId(companies[0].id);
     }
+  }, [companies, companyId, recipientMode]);
+
+  useEffect(() => {
+    if (recipientMode !== "company" || !companyId || defaultsAppliedForCompanyId.current === companyId) {
+      return;
+    }
+
+    const company = companies.find((item) => item.id === companyId);
+    if (!company) return;
+
+    const companyPaymentTermsDays = company.payment_terms_days ?? 14;
+    setPaymentTermsDays(companyPaymentTermsDays);
+    setNotes(company.invoice_notes ?? "");
+    setRepeat((current) => ({ ...current, paymentTermsDays: companyPaymentTermsDays }));
+    defaultsAppliedForCompanyId.current = companyId;
   }, [companies, companyId, recipientMode]);
 
   useEffect(() => {
@@ -148,6 +164,7 @@ export function InvoiceBuilder({
   function continueWithUnregisteredRecipient() {
     setRecipientMode("guest");
     setCompanyId("");
+    defaultsAppliedForCompanyId.current = "";
     setInvoiceKind("single");
     setScheduleOnce(false);
     setLines([createEmptyInvoiceLine()]);
@@ -305,15 +322,19 @@ export function InvoiceBuilder({
       );
       setInvoiceTitle("");
       setIssueDate(todayInputValue());
-      setPaymentTermsDays(14);
-      setNotes("");
+      const companyPaymentTermsDays = selectedCompany?.payment_terms_days ?? 14;
+      setPaymentTermsDays(companyPaymentTermsDays);
+      setNotes(selectedCompany?.invoice_notes ?? "");
       setBankAccountId(bankAccounts[0]?.id ?? "");
       setPaymentInfoText(bankAccounts[0] ? createPaymentInfoText(bankAccounts[0]) : "");
       setKidEnabled(false);
       setKidNumber("");
       setPdfTemplate("classic");
       setLines([createEmptyInvoiceLine()]);
-      setRepeat(createDefaultRepeatDraft());
+      setRepeat({
+        ...createDefaultRepeatDraft(),
+        paymentTermsDays: companyPaymentTermsDays,
+      });
       setScheduleOnce(false);
       setInvoiceKind("single");
     } catch (error) {
