@@ -11,3 +11,7 @@ coverage/
 .DS_Store
 Thumbs.db
 tsconfig.tsbuildinfo
+
+# Temporary source images used to generate logo blacklist hashes
+tools/logo-blacklist/reference-images/*
+!tools/logo-blacklist/reference-images/.gitkeep

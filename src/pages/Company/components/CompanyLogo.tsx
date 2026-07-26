@@ -1,8 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../../components/Button";
+import { calculateLogoHash, isBlacklistedHash } from "../../../lib/logoBlacklist";
 import type { Company } from "../../../types";
 
 const LOGO_DEV_TOKEN = "pk_Z6uB4trEQnSCsNrqOJQ0VA";
+const LOGO_CACHE_VERSION = "2";
+const COMPANY_FORM_SUFFIXES = new Set([
+  "a/s",
+  "ab",
+  "al",
+  "ans",
+  "as",
+  "asa",
+  "ba",
+  "da",
+  "enk",
+  "fkf",
+  "iks",
+  "inc",
+  "kf",
+  "ks",
+  "llc",
+  "ltd",
+  "nuf",
+  "sa",
+  "se",
+  "sti",
+]);
 const GENERIC_EMAIL_DOMAINS = new Set([
   "gmail.com",
   "googlemail.com",
@@ -41,20 +65,28 @@ export function CompanyLogo({
   onLogoResolved,
   onToggleLogoDisabled,
 }: CompanyLogoProps) {
-  const [sourceIndex, setSourceIndex] = useState(0);
+  const [rejectedSourceUrls, setRejectedSourceUrls] = useState<string[]>([]);
   const [savedResolvedSource, setSavedResolvedSource] = useState("");
   const sources = useMemo(() => logoSourcesForCompany(company), [company]);
+  const availableSources = sources.filter((source) => !rejectedSourceUrls.includes(source.src));
+  const savedLogoNeedsRefresh = Boolean(
+    company.logo_url
+      && company.logo_source === "Logo.dev API-kall"
+      && company.logo_url !== sources[0]?.src,
+  );
   const savedSource = company.logo_url
+    && !savedLogoNeedsRefresh
+    && !rejectedSourceUrls.includes(company.logo_url)
     ? { src: company.logo_url, label: company.logo_source ?? "lagret logo" }
     : null;
   const shouldDiscoverLogo = (variant === "detail" || discover) && !savedSource;
   const currentSource = company.logo_disabled
     ? null
-    : savedSource ?? (shouldDiscoverLogo ? sources[sourceIndex] ?? null : null);
+    : savedSource ?? (shouldDiscoverLogo ? availableSources[0] ?? null : null);
   const initial = company.name.trim().charAt(0).toUpperCase() || "?";
 
   useEffect(() => {
-    setSourceIndex(0);
+    setRejectedSourceUrls([]);
     setSavedResolvedSource("");
   }, [company.id, company.email, company.name, company.logo_disabled, company.logo_url]);
 
@@ -67,6 +99,12 @@ export function CompanyLogo({
     onLogoResolved?.(source);
   }
 
+  function handleSourceRejected(source: LogoSource) {
+    setRejectedSourceUrls((urls) =>
+      urls.includes(source.src) ? urls : [...urls, source.src],
+    );
+  }
+
   if (variant === "compact") {
     return (
       <LogoMark
@@ -74,7 +112,7 @@ export function CompanyLogo({
         currentSource={currentSource}
         initial={initial}
         size="compact"
-        onNextSource={() => setSourceIndex((index) => index + 1)}
+        onSourceRejected={handleSourceRejected}
         onLogoLoaded={handleLogoLoaded}
       />
     );
@@ -87,7 +125,7 @@ export function CompanyLogo({
         currentSource={currentSource}
         initial={initial}
         size="detail"
-        onNextSource={() => setSourceIndex((index) => index + 1)}
+        onSourceRejected={handleSourceRejected}
         onLogoLoaded={handleLogoLoaded}
       />
 
@@ -115,33 +153,62 @@ function LogoMark({
   companyName,
   currentSource,
   initial,
-  onNextSource,
+  onSourceRejected,
   onLogoLoaded,
   size,
 }: {
   companyName: string;
   currentSource: LogoSource | null;
   initial: string;
-  onNextSource: () => void;
+  onSourceRejected: (source: LogoSource) => void;
   onLogoLoaded: (source: LogoSource) => void;
   size: "detail" | "compact";
 }) {
+  const [verifiedSourceUrl, setVerifiedSourceUrl] = useState("");
   const boxClass = size === "detail" ? "h-20 w-20" : "h-11 w-11";
   const imageClass = size === "detail" ? "max-h-14 max-w-14" : "max-h-8 max-w-8";
   const textClass = size === "detail" ? "text-2xl" : "text-base";
+  const sourceIsVerified = currentSource?.src === verifiedSourceUrl;
+
+  function handleCandidateLoaded(image: HTMLImageElement, source: LogoSource) {
+    try {
+      const hash = calculateLogoHash(image);
+      if (isBlacklistedHash(hash)) {
+        onSourceRejected(source);
+        return;
+      }
+
+      setVerifiedSourceUrl(source.src);
+      onLogoLoaded(source);
+    } catch {
+      onSourceRejected(source);
+    }
+  }
 
   return (
     <div className={`grid shrink-0 place-items-center rounded-lg border border-blue-100 bg-white shadow-sm ${boxClass}`}>
       {currentSource ? (
-        <img
-          src={currentSource.src}
-          alt={`${companyName} logo`}
-          width={size === "detail" ? 64 : 32}
-          height={size === "detail" ? 64 : 32}
-          className={`object-contain ${imageClass}`}
-          onError={onNextSource}
-          onLoad={() => onLogoLoaded(currentSource)}
-        />
+        <>
+          {!sourceIsVerified && (
+            <span
+              className={`col-start-1 row-start-1 font-semibold text-blue-900 ${textClass}`}
+              aria-label={`${companyName} logo kontrolleres`}
+            >
+              {initial}
+            </span>
+          )}
+          <img
+            key={currentSource.src}
+            src={withLogoCacheVersion(currentSource.src)}
+            crossOrigin="anonymous"
+            alt={`${companyName} logo`}
+            width={size === "detail" ? 64 : 32}
+            height={size === "detail" ? 64 : 32}
+            className={`col-start-1 row-start-1 object-contain ${imageClass} ${sourceIsVerified ? "" : "invisible"}`}
+            onError={() => onSourceRejected(currentSource)}
+            onLoad={(event) => handleCandidateLoaded(event.currentTarget, currentSource)}
+          />
+        </>
       ) : (
         <span className={`font-semibold text-blue-900 ${textClass}`} aria-label={`${companyName} logo fallback`}>
           {initial}
@@ -151,15 +218,26 @@ function LogoMark({
   );
 }
 
+function withLogoCacheVersion(imageUrl: string) {
+  try {
+    const url = new URL(imageUrl);
+    url.searchParams.set("autofaktura_cache", LOGO_CACHE_VERSION);
+    return url.toString();
+  } catch {
+    return imageUrl;
+  }
+}
+
 function logoSourcesForCompany(company: Company): LogoSource[] {
   const domain = domainFromEmail(company.email);
   const guessedDomains = guessedDomainsForCompanyName(company.name);
+  const lookupName = companyNameWithoutLegalSuffix(company.name);
   const faviconDomains = uniqueValues([domain, ...guessedDomains].filter(isPresent));
   const logoDevBaseParams = `token=${LOGO_DEV_TOKEN}&size=128&format=png&theme=light&retina=true&fallback=404`;
 
   return [
     {
-      src: `https://img.logo.dev/name/${encodeURIComponent(company.name)}?${logoDevBaseParams}`,
+      src: `https://img.logo.dev/name/${encodeURIComponent(lookupName)}?${logoDevBaseParams}`,
       label: "Logo.dev API-kall",
     },
     ...(domain ? [{
@@ -189,23 +267,41 @@ function domainFromEmail(email: string | null) {
 }
 
 function guessedDomainsForCompanyName(companyName: string) {
-  const baseName = companyName
+  const baseName = companyNameWithoutLegalSuffix(companyName)
     .toLowerCase()
     .replace(/&/g, "og")
-    .replace(/\b(as|asa|enk|da|ans|ba|nuf|firma|company|ltd|inc)\b/g, "")
-    .normalize("NFD")
+    .normalize("NFC")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/æ/g, "ae")
-    .replace(/ø/g, "o")
-    .replace(/å/g, "a")
-    .replace(/[^a-z0-9]+/g, "")
+    .replace(/[^a-z0-9\u00e6\u00f8\u00e5]+/g, "")
     .trim();
 
   if (!baseName) {
     return [];
   }
 
-  return GUESSED_DOMAIN_EXTENSIONS.map((extension) => `${baseName}.${extension}`);
+  const asciiBaseName = baseName
+    .replace(/\u00e6/g, "ae")
+    .replace(/\u00f8/g, "o")
+    .replace(/\u00e5/g, "a");
+
+  return uniqueValues([baseName, asciiBaseName]).flatMap((domainName) =>
+    GUESSED_DOMAIN_EXTENSIONS.map((extension) => `${domainName}.${extension}`),
+  );
+}
+
+function companyNameWithoutLegalSuffix(companyName: string) {
+  const nameParts = companyName.trim().split(/\s+/);
+
+  while (nameParts.length > 1) {
+    const lastPart = nameParts[nameParts.length - 1].toLowerCase().replace(/[.,]+$/g, "");
+    if (!COMPANY_FORM_SUFFIXES.has(lastPart)) {
+      break;
+    }
+
+    nameParts.pop();
+  }
+
+  return nameParts.join(" ");
 }
 
 function uniqueValues<T>(values: T[]) {

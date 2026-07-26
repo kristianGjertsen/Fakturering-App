@@ -36,6 +36,10 @@ export default function CompanyPage({
   const [message, setMessage] = useState("");
   const [showNewProduct, setShowNewProduct] = useState(false);
   const [updatingLogo, setUpdatingLogo] = useState(false);
+  const [resolvedLogo, setResolvedLogo] = useState<{
+    companyId: string;
+    url: string;
+  } | null>(null);
   const company = companies.find((item) => item.id === companyId) ?? null;
 
   if (!company) {
@@ -55,6 +59,11 @@ export default function CompanyPage({
   const currentCompany = company;
   const companyProducts = products.filter((product) => product.company_id === currentCompany.id);
   const companyInvoices = invoices.filter((invoice) => invoice.company_id === currentCompany.id);
+  const displayedLogoUrl = currentCompany.logo_disabled
+    ? null
+    : resolvedLogo?.companyId === currentCompany.id
+      ? resolvedLogo.url
+      : currentCompany.logo_url;
 
   async function handleSaveLogoPreference(input: CompanyLogoPreferenceInput) {
     setUpdatingLogo(true);
@@ -94,16 +103,31 @@ export default function CompanyPage({
   return (
     <>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        <CompanyLogo
-          company={currentCompany}
-          updating={updatingLogo}
-          onLogoResolved={(source) => void handleSaveLogoPreference({
-            logo_disabled: false,
-            logo_url: source.src,
-            logo_source: source.label,
-          })}
-          onToggleLogoDisabled={(logoDisabled) => void handleToggleLogoDisabled(logoDisabled)}
-        />
+        <div className="flex w-full flex-col gap-2 sm:w-40">
+          <CompanyLogo
+            company={currentCompany}
+            updating={updatingLogo}
+            onLogoResolved={(source) => {
+              setResolvedLogo({ companyId: currentCompany.id, url: source.src });
+              void handleSaveLogoPreference({
+                logo_disabled: false,
+                logo_url: source.src,
+                logo_source: source.label,
+              });
+            }}
+            onToggleLogoDisabled={(logoDisabled) => void handleToggleLogoDisabled(logoDisabled)}
+          />
+
+          <div className="rounded-md border border-dashed border-amber-300 bg-amber-50 p-2 text-[10px] leading-4 text-amber-950">
+            <p className="font-semibold uppercase tracking-wide">Temp – bildenavn</p>
+            <p className="break-all font-mono">
+              {displayedLogoUrl ? imageNameFromUrl(displayedLogoUrl) : "fallback (ingen bildefil)"}
+            </p>
+            {displayedLogoUrl && (
+              <p className="mt-1 break-all font-mono text-amber-800">{displayedLogoUrl}</p>
+            )}
+          </div>
+        </div>
         <div className="min-w-0 flex-1">
           <SectionHeader
             title={currentCompany.name}
@@ -146,4 +170,14 @@ export default function CompanyPage({
       />
     </>
   );
+}
+
+function imageNameFromUrl(imageUrl: string) {
+  try {
+    const pathParts = new URL(imageUrl).pathname.split("/").filter(Boolean);
+    return decodeURIComponent(pathParts[pathParts.length - 1] ?? imageUrl);
+  } catch {
+    const pathParts = imageUrl.split("/").filter(Boolean);
+    return pathParts[pathParts.length - 1] ?? imageUrl;
+  }
 }
