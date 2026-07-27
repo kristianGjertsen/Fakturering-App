@@ -36,7 +36,13 @@ export function filterAndSortDocuments(
   const matchingItems = items.filter((item) => {
     const matchesCompany = companyId === "all" || item.companyId === companyId;
     const matchesStatus = status === "all" || item.statusLabel === status;
-    const searchableText = `${item.title} ${item.subtitle ?? ""} ${item.companyName} ${item.statusLabel}`
+    const searchableText = [
+      item.companyName,
+      item.invoiceNumber,
+      item.title,
+      item.subtitle,
+      item.statusLabel,
+    ].filter(Boolean).join(" ")
       .toLocaleLowerCase("nb-NO");
 
     return matchesCompany

@@ -4,6 +4,7 @@ export type DocumentBrowserItem = {
   id: string;
   companyId: string;
   companyName: string;
+  invoiceNumber?: string;
   title: string;
   subtitle?: string;
   statusLabel: string;
@@ -11,6 +12,9 @@ export type DocumentBrowserItem = {
   amount: number;
   date: string | null;
   dateLabel?: string;
+  createdAt?: string | null;
+  dueDate?: string | null;
+  canMarkPaid?: boolean;
 };
 
 export type DocumentSortKey =

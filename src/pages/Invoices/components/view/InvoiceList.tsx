@@ -12,6 +12,8 @@ type InvoiceListProps = {
   schedules?: InvoiceScheduleWithDetails[];
   selectedId: string;
   onSelect: (invoiceId: string) => void;
+  onMarkPaid?: (invoiceId: string) => void;
+  markingPaidId?: string;
   compact?: boolean;
   limit?: number;
 };
@@ -21,6 +23,8 @@ export function InvoiceList({
   schedules = [],
   selectedId,
   onSelect,
+  onMarkPaid,
+  markingPaidId = "",
   compact = false,
   limit,
 }: InvoiceListProps) {
@@ -37,6 +41,8 @@ export function InvoiceList({
       items={displayedItems}
       selectedId={selectedId}
       onSelect={onSelect}
+      onMarkPaid={onMarkPaid}
+      markingPaidId={markingPaidId}
     />
   );
 }

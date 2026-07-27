@@ -18,6 +18,7 @@ import type {
 import {
   getInvoiceStatusTone,
   INVOICE_STATUS_LABELS,
+  isInvoiceOverdue,
 } from "../../invoicePresentation";
 import { InvoicePdfPreviewPanel } from "../preview/InvoicePdfPreviewPanel";
 import { Panel } from "../../../../components/layout/Panel";
@@ -125,14 +126,19 @@ function InvoiceOverview({
   onSend,
   onTogglePaid,
 }: InvoiceOverviewProps) {
+  const overdue = !scheduled && isInvoiceOverdue(invoice);
   const statusTone = scheduled
     ? "purple"
-    : getInvoiceStatusTone(invoice.status, invoice.paid);
+    : overdue
+      ? "danger"
+      : getInvoiceStatusTone(invoice.status, invoice.paid);
   const statusLabel = scheduled
     ? "Planlagt"
-    : invoice.paid
-      ? "Betalt"
-      : INVOICE_STATUS_LABELS[invoice.status];
+    : overdue
+      ? "Forfalt"
+      : invoice.paid
+        ? "Betalt"
+        : INVOICE_STATUS_LABELS[invoice.status];
   const canTogglePaid = invoice.paid || ["sent", "reminded", "paid"].includes(invoice.status);
 
   return (

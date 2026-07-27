@@ -1,5 +1,5 @@
 import type { StatusTone } from "../../components/DocumentBrowser";
-import type { InvoiceStatus, InvoiceWithDetails } from "../../types";
+import type { Invoice, InvoiceStatus, InvoiceWithDetails } from "../../types";
 
 export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
   draft: "Utkast",
@@ -35,4 +35,24 @@ export function getInvoiceStatusTone(
   if (status === "reminded") return "purple";
   if (status === "cancelled") return "danger";
   return "neutral";
+}
+
+export function isInvoiceOverdue(
+  invoice: Pick<Invoice, "due_date" | "paid" | "status">,
+  now = new Date(),
+) {
+  if (
+    !invoice.due_date
+    || invoice.paid
+    || invoice.status === "paid"
+    || invoice.status === "cancelled"
+    || !["sent", "reminded"].includes(invoice.status)
+  ) {
+    return false;
+  }
+
+  const dueDate = new Date(`${invoice.due_date}T00:00:00`);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  return !Number.isNaN(dueDate.getTime()) && dueDate < today;
 }

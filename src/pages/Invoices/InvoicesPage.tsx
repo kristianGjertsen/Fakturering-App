@@ -224,6 +224,30 @@ export default function InvoicesPage({
     }
   }
 
+  async function handleMarkInvoicePaid(invoiceId: string) {
+    const invoice = visibleInvoices.find((item) => item.id === invoiceId);
+    if (
+      !invoice
+      || invoice.paid
+      || invoice.status === "paid"
+      || !["sent", "reminded"].includes(invoice.status)
+    ) {
+      return;
+    }
+
+    setUpdatingPaidInvoiceId(invoiceId);
+    setActionMessage("");
+    try {
+      await updateInvoicePaid(invoiceId, true);
+      await onRefreshInvoices();
+      setActionMessage("Fakturaen er markert som betalt.");
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : "Kunne ikke oppdatere betalingsstatus.");
+    } finally {
+      setUpdatingPaidInvoiceId("");
+    }
+  }
+
   const pageHeader = (
     <SectionHeader
       title="Fakturaer"
@@ -283,6 +307,8 @@ export default function InvoicesPage({
         schedules={filteredSchedules}
         selectedId={selectedInvoiceId}
         onSelect={selectInvoice}
+        onMarkPaid={(invoiceId) => void handleMarkInvoicePaid(invoiceId)}
+        markingPaidId={updatingPaidInvoiceId}
       />
 
       <DetailModal
