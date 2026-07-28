@@ -48,7 +48,7 @@ type CompanyLogoProps = {
   discover?: boolean;
   updating?: boolean;
   variant?: "detail" | "compact";
-  onLogoResolved?: (source: LogoSource) => void;
+  onLogoResolved?: (source: LogoSource, logoBlob?: Blob) => void;
   onToggleLogoDisabled?: (disabled: boolean) => void;
 };
 
@@ -146,13 +146,13 @@ export function CompanyLogo({
     return () => controller.abort();
   }, [company.id, company.name, company.logo_disabled, needsNameSearch]);
 
-  function handleLogoLoaded(source: LogoSource) {
+  function handleLogoLoaded(source: LogoSource, logoBlob?: Blob) {
     if (!shouldDiscoverLogo || savedResolvedSource === source.src) {
       return;
     }
 
     setSavedResolvedSource(source.src);
-    onLogoResolved?.(source);
+    onLogoResolved?.(source, logoBlob);
   }
 
   function handleSourceRejected(source: LogoSource) {
@@ -217,7 +217,7 @@ function LogoMark({
   currentSource: LogoSource | null;
   initial: string;
   onSourceRejected: (source: LogoSource) => void;
-  onLogoLoaded: (source: LogoSource) => void;
+  onLogoLoaded: (source: LogoSource, logoBlob?: Blob) => void;
   size: "detail" | "compact";
 }) {
   const [verifiedSourceUrl, setVerifiedSourceUrl] = useState("");
@@ -235,7 +235,9 @@ function LogoMark({
       }
 
       setVerifiedSourceUrl(source.src);
-      onLogoLoaded(source);
+      void logoPngBlob(image)
+        .then((logoBlob) => onLogoLoaded(source, logoBlob))
+        .catch(() => onLogoLoaded(source));
     } catch {
       onSourceRejected(source);
     }
@@ -282,6 +284,29 @@ function withLogoCacheVersion(imageUrl: string) {
   } catch {
     return imageUrl;
   }
+}
+
+function logoPngBlob(image: HTMLImageElement) {
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Nettleseren støtter ikke bildebehandling.");
+  }
+
+  context.drawImage(image, 0, 0);
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+      } else {
+        reject(new Error("Kunne ikke lagre logoen som PNG."));
+      }
+    }, "image/png");
+  });
 }
 
 function logoSourcesForCompany(company: Company, exactNameDomain: string | null): LogoSource[] {

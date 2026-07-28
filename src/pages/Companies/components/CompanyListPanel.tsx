@@ -52,10 +52,11 @@ export function CompanyListPanel({
                   company={company}
                   variant="compact"
                   discover
-                  onLogoResolved={(source) => void onUpdateCompanyLogoPreference(company.id, {
+                  onLogoResolved={(source, logoBlob) => void onUpdateCompanyLogoPreference(company.id, {
                     logo_disabled: false,
                     logo_url: source.src,
                     logo_source: source.label,
+                    logo_blob: logoBlob,
                   })}
                 />
                 <div className="min-w-0 flex-1">

@@ -107,12 +107,13 @@ export default function CompanyPage({
           <CompanyLogo
             company={currentCompany}
             updating={updatingLogo}
-            onLogoResolved={(source) => {
+            onLogoResolved={(source, logoBlob) => {
               setResolvedLogo({ companyId: currentCompany.id, url: source.src });
               void handleSaveLogoPreference({
                 logo_disabled: false,
                 logo_url: source.src,
                 logo_source: source.label,
+                logo_blob: logoBlob,
               });
             }}
             onToggleLogoDisabled={(logoDisabled) => void handleToggleLogoDisabled(logoDisabled)}

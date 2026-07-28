@@ -21,7 +21,10 @@ export type CompanyLogoPreferenceInput = {
   logo_disabled: boolean;
   logo_url: string | null;
   logo_source: string | null;
+  logo_blob?: Blob;
 };
+
+const COMPANY_LOGOS_BUCKET = "company-logos";
 
 export async function fetchCompanies() {
   const { data, error } = await supabase
@@ -70,12 +73,52 @@ export async function updateCompanyLogoPreference(
   companyId: string,
   input: CompanyLogoPreferenceInput,
 ) {
+  let logoUrl = input.logo_url;
+  if (input.logo_blob) {
+    try {
+      logoUrl = await uploadCompanyLogo(companyId, input.logo_blob);
+    } catch {
+      logoUrl = input.logo_url;
+    }
+  }
+
   const { error } = await supabase
     .from("companies")
-    .update(input)
+    .update({
+      logo_disabled: input.logo_disabled,
+      logo_url: logoUrl,
+      logo_source: input.logo_source,
+    })
     .eq("id", companyId);
 
   if (error) {
     throw error;
   }
+}
+
+async function uploadCompanyLogo(companyId: string, logoBlob: Blob) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user.id) {
+    throw new Error("Du må være innlogget for å lagre logo.");
+  }
+
+  const storagePath = `${session.user.id}/${companyId}/logo.png`;
+  const { error } = await supabase.storage
+    .from(COMPANY_LOGOS_BUCKET)
+    .upload(storagePath, logoBlob, {
+      cacheControl: "31536000",
+      contentType: "image/png",
+      upsert: true,
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  const { data } = supabase.storage
+    .from(COMPANY_LOGOS_BUCKET)
+    .getPublicUrl(storagePath);
+  const publicUrl = new URL(data.publicUrl);
+  publicUrl.searchParams.set("v", Date.now().toString());
+  return publicUrl.toString();
 }
