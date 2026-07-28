@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
@@ -8,7 +8,10 @@ import type { CompanyLogoPreferenceInput, ProductInput } from "../../lib/data";
 import type { Company, InvoiceWithDetails, Product } from "../../types";
 import { CompanyInfo } from "./components/CompanyInfo";
 import { CompanyInvoicesPanel } from "./components/CompanyInvoicesPanel";
-import { CompanyLogo } from "./components/CompanyLogo";
+import {
+  CompanyLogo,
+  NO_LOGO_FOUND_SOURCE,
+} from "./components/CompanyLogo";
 import { CompanyProducts } from "./components/CompanyProducts";
 import { CompanyStatistics } from "./components/CompanyStatistics";
 import { NewProductDialog } from "./components/NewProductDialog";
@@ -36,11 +39,16 @@ export default function CompanyPage({
   const [message, setMessage] = useState("");
   const [showNewProduct, setShowNewProduct] = useState(false);
   const [updatingLogo, setUpdatingLogo] = useState(false);
+  const [rediscoverLogo, setRediscoverLogo] = useState(false);
   const [resolvedLogo, setResolvedLogo] = useState<{
     companyId: string;
     url: string;
   } | null>(null);
   const company = companies.find((item) => item.id === companyId) ?? null;
+
+  useEffect(() => {
+    setRediscoverLogo(false);
+  }, [companyId]);
 
   if (!company) {
     return (
@@ -85,18 +93,28 @@ export default function CompanyPage({
       logoDisabled
         ? {
             logo_disabled: true,
-            logo_url: null,
-            logo_source: "fallback",
+            logo_url: currentCompany.logo_url,
+            logo_source: currentCompany.logo_source,
           }
         : {
             logo_disabled: false,
-            logo_url: null,
-            logo_source: null,
+            logo_url: currentCompany.logo_url,
+            logo_source: currentCompany.logo_url
+              ? currentCompany.logo_source
+              : null,
           },
     );
 
     if (saved) {
-      setMessage(logoDisabled ? "Fallback-logo er lagret for dette selskapet." : "Logo hentes igjen for dette selskapet.");
+      setResolvedLogo(null);
+      setRediscoverLogo(!logoDisabled);
+      setMessage(
+        logoDisabled
+          ? "Logoen er skjult. Den lagrede logoen er beholdt."
+          : currentCompany.logo_url
+            ? "Den lagrede logoen er aktivert igjen."
+            : "Logo hentes igjen for dette selskapet.",
+      );
     }
   }
 
@@ -106,6 +124,7 @@ export default function CompanyPage({
         <div className="flex w-full flex-col gap-2 sm:w-40">
           <CompanyLogo
             company={currentCompany}
+            discover={rediscoverLogo}
             updating={updatingLogo}
             onLogoResolved={(source, logoBlob) => {
               setResolvedLogo({ companyId: currentCompany.id, url: source.src });
@@ -114,6 +133,14 @@ export default function CompanyPage({
                 logo_url: source.src,
                 logo_source: source.label,
                 logo_blob: logoBlob,
+              });
+            }}
+            onLogoSearchExhausted={() => {
+              setRediscoverLogo(false);
+              void handleSaveLogoPreference({
+                logo_disabled: false,
+                logo_url: null,
+                logo_source: NO_LOGO_FOUND_SOURCE,
               });
             }}
             onToggleLogoDisabled={(logoDisabled) => void handleToggleLogoDisabled(logoDisabled)}

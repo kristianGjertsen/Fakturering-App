@@ -5,6 +5,7 @@ import type { Company } from "../../../types";
 
 const LOGO_DEV_TOKEN = "pk_Z6uB4trEQnSCsNrqOJQ0VA";
 const LOGO_CACHE_VERSION = "2";
+export const NO_LOGO_FOUND_SOURCE = "Bokstav-fallback (ingen logo funnet)";
 const COMPANY_FORM_SUFFIXES = new Set([
   "a/s",
   "ab",
@@ -49,12 +50,14 @@ type CompanyLogoProps = {
   updating?: boolean;
   variant?: "detail" | "compact";
   onLogoResolved?: (source: LogoSource, logoBlob?: Blob) => void;
+  onLogoSearchExhausted?: () => void;
   onToggleLogoDisabled?: (disabled: boolean) => void;
 };
 
 type LogoSource = {
   src: string;
   label: string;
+  trusted?: boolean;
 };
 
 export function CompanyLogo({
@@ -63,47 +66,56 @@ export function CompanyLogo({
   updating = false,
   variant = "detail",
   onLogoResolved,
+  onLogoSearchExhausted,
   onToggleLogoDisabled,
 }: CompanyLogoProps) {
   const [rejectedSourceUrls, setRejectedSourceUrls] = useState<string[]>([]);
   const [savedResolvedSource, setSavedResolvedSource] = useState("");
   const [exactNameDomain, setExactNameDomain] = useState<string | null>(null);
   const [nameSearchComplete, setNameSearchComplete] = useState(false);
+  const [exhaustedResultSaved, setExhaustedResultSaved] = useState(false);
   const websiteDomain = domainFromWebsite(company.website);
   const emailDomain = domainFromEmail(company.email);
-  const needsNameSearch = !websiteDomain && !emailDomain;
+  const savedSource = company.logo_url
+    && !rejectedSourceUrls.includes(company.logo_url)
+    ? {
+        src: company.logo_url,
+        label: company.logo_source ?? "lagret logo",
+        trusted: true,
+      }
+    : null;
+  const hasSavedFallback = (
+    !company.logo_url
+    && company.logo_source === NO_LOGO_FOUND_SOURCE
+  );
+  const shouldDiscoverLogo = discover && !savedSource && !hasSavedFallback;
+  const knownDomainSources = useMemo(
+    () => knownDomainLogoSources(company),
+    [company],
+  );
+  const knownDomainsExhausted = knownDomainSources.every(
+    (source) => rejectedSourceUrls.includes(source.src),
+  );
+  const shouldSearchByName = shouldDiscoverLogo && knownDomainsExhausted;
   const sources = useMemo(
-    () => logoSourcesForCompany(company, exactNameDomain),
-    [company, exactNameDomain],
+    () => [
+      ...knownDomainSources,
+      ...(nameSearchComplete
+        ? nameBasedLogoSources(company, exactNameDomain)
+        : []),
+    ],
+    [company, exactNameDomain, knownDomainSources, nameSearchComplete],
   );
   const availableSources = sources.filter((source) => !rejectedSourceUrls.includes(source.src));
-  const savedLogoNeedsRefresh = Boolean(
-    company.logo_url
-      && (
-        company.logo_source === "Logo.dev API-kall"
-        || (
-          websiteDomain
-          && company.logo_source !== (
-            company.website_from_brreg ? "BRREG-nettside" : "nettside-domene"
-          )
-        )
-      ),
-  );
-  const savedSource = company.logo_url
-    && !savedLogoNeedsRefresh
-    && !rejectedSourceUrls.includes(company.logo_url)
-    ? { src: company.logo_url, label: company.logo_source ?? "lagret logo" }
-    : null;
-  const shouldDiscoverLogo = (variant === "detail" || discover) && !savedSource;
-  const discoveryReady = !needsNameSearch || nameSearchComplete;
   const currentSource = company.logo_disabled
     ? null
-    : savedSource ?? (shouldDiscoverLogo && discoveryReady ? availableSources[0] ?? null : null);
+    : savedSource ?? (shouldDiscoverLogo ? availableSources[0] ?? null : null);
   const initial = company.name.trim().charAt(0).toUpperCase() || "?";
 
   useEffect(() => {
     setRejectedSourceUrls([]);
     setSavedResolvedSource("");
+    setExhaustedResultSaved(false);
   }, [
     company.id,
     company.email,
@@ -116,8 +128,8 @@ export function CompanyLogo({
   useEffect(() => {
     setExactNameDomain(null);
 
-    if (!needsNameSearch || company.logo_disabled) {
-      setNameSearchComplete(true);
+    if (!shouldSearchByName || company.logo_disabled) {
+      setNameSearchComplete(false);
       return;
     }
 
@@ -144,7 +156,27 @@ export function CompanyLogo({
       });
 
     return () => controller.abort();
-  }, [company.id, company.name, company.logo_disabled, needsNameSearch]);
+  }, [company.id, company.name, company.logo_disabled, shouldSearchByName]);
+
+  useEffect(() => {
+    if (
+      !shouldDiscoverLogo
+      || !nameSearchComplete
+      || availableSources.length > 0
+      || exhaustedResultSaved
+    ) {
+      return;
+    }
+
+    setExhaustedResultSaved(true);
+    onLogoSearchExhausted?.();
+  }, [
+    availableSources.length,
+    exhaustedResultSaved,
+    nameSearchComplete,
+    onLogoSearchExhausted,
+    shouldDiscoverLogo,
+  ]);
 
   function handleLogoLoaded(source: LogoSource, logoBlob?: Blob) {
     if (!shouldDiscoverLogo || savedResolvedSource === source.src) {
@@ -186,7 +218,7 @@ export function CompanyLogo({
       />
 
       <p className="max-w-28 text-xs text-slate-500">
-        Logo hentet fra {company.logo_disabled ? "fallback" : currentSource?.label ?? "fallback"}.
+        Opprinnelig kilde: {company.logo_disabled ? "bokstav-fallback" : currentSource?.label ?? "bokstav-fallback"}.
       </p>
 
       {onToggleLogoDisabled && (
@@ -224,10 +256,17 @@ function LogoMark({
   const boxClass = size === "detail" ? "h-20 w-20" : "h-11 w-11";
   const imageClass = size === "detail" ? "max-h-14 max-w-14" : "max-h-8 max-w-8";
   const textClass = size === "detail" ? "text-2xl" : "text-base";
-  const sourceIsVerified = currentSource?.src === verifiedSourceUrl;
+  const sourceIsVerified = Boolean(
+    currentSource?.trusted || currentSource?.src === verifiedSourceUrl,
+  );
 
   function handleCandidateLoaded(image: HTMLImageElement, source: LogoSource) {
     try {
+      if (image.naturalWidth <= 16 && image.naturalHeight <= 16) {
+        onSourceRejected(source);
+        return;
+      }
+
       const hash = calculateLogoHash(image);
       if (isBlacklistedHash(hash)) {
         onSourceRejected(source);
@@ -264,7 +303,11 @@ function LogoMark({
             height={size === "detail" ? 64 : 32}
             className={`col-start-1 row-start-1 object-contain ${imageClass} ${sourceIsVerified ? "" : "invisible"}`}
             onError={() => onSourceRejected(currentSource)}
-            onLoad={(event) => handleCandidateLoaded(event.currentTarget, currentSource)}
+            onLoad={(event) => {
+              if (!currentSource.trusted) {
+                handleCandidateLoaded(event.currentTarget, currentSource);
+              }
+            }}
           />
         </>
       ) : (
@@ -309,53 +352,83 @@ function logoPngBlob(image: HTMLImageElement) {
   });
 }
 
-function logoSourcesForCompany(company: Company, exactNameDomain: string | null): LogoSource[] {
+function knownDomainLogoSources(company: Company): LogoSource[] {
   const websiteDomain = domainFromWebsite(company.website);
   const emailDomain = domainFromEmail(company.email);
-  const lookupName = companyNameWithoutLegalSuffix(company.name);
-  const shouldUseNameFallback = !websiteDomain && !emailDomain;
-  const guessedDomains = guessedDomainsForCompanyName(company.name);
-  const preciseDomains = uniqueValues(
-    [websiteDomain, emailDomain, exactNameDomain].filter(isPresent),
-  );
-  const faviconDomains = uniqueValues([...preciseDomains, ...guessedDomains]);
-  const logoDevBaseParams = `token=${LOGO_DEV_TOKEN}&size=128&format=png&theme=light&retina=true&fallback=404`;
 
-  return [
-    ...preciseDomains.map((domain): LogoSource => ({
-      src: `https://img.logo.dev/${domain}?${logoDevBaseParams}`,
-      label: logoSourceLabel(domain, websiteDomain, emailDomain, company.website_from_brreg),
-    })),
-    ...(shouldUseNameFallback ? [{
-      src: `https://img.logo.dev/name/${encodeURIComponent(lookupName)}?${logoDevBaseParams}`,
-      label: "Logo.dev navneoppslag",
-    }] : []),
-    ...faviconDomains.flatMap((faviconDomain): LogoSource[] => [
-      {
-        src: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(faviconDomain)}&sz=128`,
-        label: logoSourceLabel(faviconDomain, websiteDomain, emailDomain, company.website_from_brreg),
-      },
-      {
-        src: `https://${faviconDomain}/favicon.ico`,
-        label: logoSourceLabel(faviconDomain, websiteDomain, emailDomain, company.website_from_brreg),
-      },
-      {
-        src: `https://www.${faviconDomain}/favicon.ico`,
-        label: logoSourceLabel(faviconDomain, websiteDomain, emailDomain, company.website_from_brreg),
-      },
-    ]),
-  ];
+  return uniqueLogoSources([
+    websiteDomain
+      ? domainLogoSource(
+          websiteDomain,
+          company.website_from_brreg
+            ? `Logo.dev via nettside fra BRREG (${websiteDomain})`
+            : `Logo.dev via registrert nettside (${websiteDomain})`,
+        )
+      : null,
+    emailDomain
+      ? domainLogoSource(emailDomain, `Logo.dev via maildomene (${emailDomain})`)
+      : null,
+  ]);
 }
 
-function logoSourceLabel(
-  domain: string,
-  websiteDomain: string | null,
-  emailDomain: string | null,
-  websiteFromBrreg: boolean,
-) {
-  if (domain === websiteDomain) return websiteFromBrreg ? "BRREG-nettside" : "nettside-domene";
-  if (domain === emailDomain) return "maildomene";
-  return "eksakt navnetreff";
+function nameBasedLogoSources(
+  company: Company,
+  exactNameDomain: string | null,
+): LogoSource[] {
+  const knownDomains = new Set(
+    [domainFromWebsite(company.website), domainFromEmail(company.email)].filter(isPresent),
+  );
+  const sources: Array<LogoSource | null> = [
+    exactNameDomain && !knownDomains.has(exactNameDomain)
+      ? domainLogoSource(
+          exactNameDomain,
+          `Logo.dev – eksakt navnetreff (${exactNameDomain})`,
+        )
+      : null,
+  ];
+
+  const guessedDomains = guessedDomainsForCompanyName(company.name)
+    .filter((domain) => domain !== exactNameDomain && !knownDomains.has(domain));
+  sources.push(
+    ...guessedDomains.map((domain) =>
+      domainLogoSource(
+        domain,
+        `Logo.dev – gjettet nettsidedomene (${domain})`,
+      )),
+    {
+      src: logoDevNameUrl(companyNameWithoutLegalSuffix(company.name)),
+      label: "Logo.dev – usikkert navnetreff",
+    },
+  );
+
+  return uniqueLogoSources(sources);
+}
+
+function domainLogoSource(domain: string, label: string): LogoSource {
+  return {
+    src: `https://img.logo.dev/${domain}?${logoDevBaseParams()}`,
+    label,
+  };
+}
+
+function logoDevNameUrl(companyName: string) {
+  return `https://img.logo.dev/name/${encodeURIComponent(companyName)}?${logoDevBaseParams()}`;
+}
+
+function logoDevBaseParams() {
+  return `token=${LOGO_DEV_TOKEN}&size=128&format=png&theme=light&retina=true&fallback=404`;
+}
+
+function uniqueLogoSources(sources: Array<LogoSource | null>) {
+  const seenUrls = new Set<string>();
+  return sources.filter((source): source is LogoSource => {
+    if (!source || seenUrls.has(source.src)) {
+      return false;
+    }
+
+    seenUrls.add(source.src);
+    return true;
+  });
 }
 
 function domainFromWebsite(website: string | null) {

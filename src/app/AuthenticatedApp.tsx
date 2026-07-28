@@ -27,7 +27,13 @@ type AuthenticatedAppProps = {
 
 export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
   const navigate = useNavigate();
-  const { data, isLoading, error, refreshData } = useAppData(session.user.id);
+  const {
+    data,
+    isLoading,
+    error,
+    refreshData,
+    updateCompanyInData,
+  } = useAppData(session.user.id);
 
   async function handleCreateCompany(input: CompanyInput) {
     await createCompany(session.user.id, input);
@@ -43,8 +49,8 @@ export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
     companyId: string,
     input: CompanyLogoPreferenceInput,
   ) {
-    await updateCompanyLogoPreference(companyId, input);
-    await refreshData();
+    const savedPreference = await updateCompanyLogoPreference(companyId, input);
+    updateCompanyInData(companyId, savedPreference);
   }
 
   async function handleCreateInvoice(input: Omit<InvoiceInput, "ownerUserId">) {

@@ -3,7 +3,10 @@ import { Panel } from "../../../components/layout/Panel";
 import { countryLabel } from "../../../lib/countries";
 import type { CompanyLogoPreferenceInput } from "../../../lib/data";
 import type { Company } from "../../../types";
-import { CompanyLogo } from "../../Company/components/CompanyLogo";
+import {
+  CompanyLogo,
+  NO_LOGO_FOUND_SOURCE,
+} from "../../Company/components/CompanyLogo";
 
 type CompanyListPanelProps = {
   companies: Company[];
@@ -57,6 +60,11 @@ export function CompanyListPanel({
                     logo_url: source.src,
                     logo_source: source.label,
                     logo_blob: logoBlob,
+                  })}
+                  onLogoSearchExhausted={() => void onUpdateCompanyLogoPreference(company.id, {
+                    logo_disabled: false,
+                    logo_url: null,
+                    logo_source: NO_LOGO_FOUND_SOURCE,
                   })}
                 />
                 <div className="min-w-0 flex-1">

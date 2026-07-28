@@ -35,5 +35,19 @@ export function useAppData(userId: string) {
     void refreshData();
   }, [refreshData]);
 
-  return { data, isLoading, error, refreshData };
+  const updateCompanyInData = useCallback((
+    companyId: string,
+    companyPatch: Partial<AppData["companies"][number]>,
+  ) => {
+    setData((currentData) => ({
+      ...currentData,
+      companies: currentData.companies.map((company) =>
+        company.id === companyId
+          ? { ...company, ...companyPatch }
+          : company
+      ),
+    }));
+  }, []);
+
+  return { data, isLoading, error, refreshData, updateCompanyInData };
 }

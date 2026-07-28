@@ -24,6 +24,11 @@ export type CompanyLogoPreferenceInput = {
   logo_blob?: Blob;
 };
 
+export type CompanyLogoPreference = Pick<
+  Company,
+  "logo_disabled" | "logo_url" | "logo_source"
+>;
+
 const COMPANY_LOGOS_BUCKET = "company-logos";
 
 export async function fetchCompanies() {
@@ -72,7 +77,7 @@ function normalizeWebsite(value: string) {
 export async function updateCompanyLogoPreference(
   companyId: string,
   input: CompanyLogoPreferenceInput,
-) {
+): Promise<CompanyLogoPreference> {
   let logoUrl = input.logo_url;
   if (input.logo_blob) {
     try {
@@ -94,6 +99,12 @@ export async function updateCompanyLogoPreference(
   if (error) {
     throw error;
   }
+
+  return {
+    logo_disabled: input.logo_disabled,
+    logo_url: logoUrl,
+    logo_source: input.logo_source,
+  };
 }
 
 async function uploadCompanyLogo(companyId: string, logoBlob: Blob) {
