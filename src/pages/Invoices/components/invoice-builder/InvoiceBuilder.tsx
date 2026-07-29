@@ -48,6 +48,7 @@ type InvoiceBuilderProps = {
   onDiscardDraft: () => void;
   onOpenCompanies: () => void;
   initialCompanyId?: string;
+  initialInvoiceKind?: InvoiceKind;
 };
 
 export function InvoiceBuilder({
@@ -58,8 +59,9 @@ export function InvoiceBuilder({
   onDiscardDraft,
   onOpenCompanies,
   initialCompanyId = "",
+  initialInvoiceKind = "single",
 }: InvoiceBuilderProps) {
-  const [invoiceKind, setInvoiceKind] = useState<InvoiceKind>("single");
+  const [invoiceKind, setInvoiceKind] = useState<InvoiceKind>(initialInvoiceKind);
   const [companyId, setCompanyId] = useState(initialCompanyId);
   const [recipientMode, setRecipientMode] = useState<RecipientMode>("company");
   const [recipientName, setRecipientName] = useState("");

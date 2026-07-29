@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import type {
   Company,
   InvoiceScheduleWithDetails,
@@ -18,11 +18,17 @@ import { InvoiceBuilder } from "./components/invoice-builder/InvoiceBuilder";
 import { InvoiceDetails } from "./components/view/InvoiceDetails";
 import { InvoiceList } from "./components/view/InvoiceList";
 import { scheduleToPreviewInvoice } from "../../lib/schedulePreview";
+import type { InvoiceKind } from "./invoiceBuilderModel";
 import {
   prepareInvoiceEmailDelivery,
   type InvoiceDeliveryAction,
 } from "./invoiceDelivery";
 import { getVisibleInvoices } from "./invoicePresentation";
+
+type InvoicesLocationState = {
+  openCreateForm?: boolean;
+  invoiceKind?: InvoiceKind;
+};
 
 type InvoicesPageProps = {
   companies: Company[];
@@ -49,12 +55,20 @@ export default function InvoicesPage({
   onRefreshInvoices,
   onDeleteInvoice,
 }: InvoicesPageProps) {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const companyFilterId = searchParams.get("companyId") ?? "";
   const requestedInvoiceId = searchParams.get("invoiceId") ?? "";
+  const routeState = location.state as InvoicesLocationState | null;
+  const requestedCreateForm = routeState?.openCreateForm;
+  const requestedInvoiceKind = routeState?.invoiceKind === "recurring"
+    ? "recurring"
+    : "single";
   const [selectedInvoiceId, setSelectedInvoiceId] = useState(searchParams.get("invoiceId") ?? "");
   const [deletingInvoiceId, setDeletingInvoiceId] = useState("");
-  const [showCreateForm, setShowCreateForm] = useState(searchParams.get("create") === "true");
+  const [showCreateForm, setShowCreateForm] = useState(
+    requestedCreateForm ?? searchParams.get("create") === "true",
+  );
   const [sendingInvoiceId, setSendingInvoiceId] = useState("");
   const [updatingPaidInvoiceId, setUpdatingPaidInvoiceId] = useState("");
   const [actionMessage, setActionMessage] = useState("");
@@ -80,6 +94,12 @@ export default function InvoicesPage({
     ),
     [scheduledPreviews, visibleInvoices],
   );
+
+  useEffect(() => {
+    if (typeof requestedCreateForm === "boolean") {
+      setShowCreateForm(requestedCreateForm);
+    }
+  }, [location.key, requestedCreateForm]);
 
   useEffect(() => {
     if (!requestedInvoiceId) {
@@ -122,6 +142,7 @@ export default function InvoicesPage({
   function updateInvoiceSelection(invoiceId: string) {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
+
       if (invoiceId) {
         next.set("invoiceId", invoiceId);
       } else {
@@ -271,6 +292,7 @@ export default function InvoicesPage({
           bankAccounts={bankAccounts}
           products={products}
           initialCompanyId={companyFilterId}
+          initialInvoiceKind={requestedInvoiceKind}
           onCreateInvoice={async (input) => {
             const createdId = await onCreateInvoice(input);
             setShowCreateForm(false);

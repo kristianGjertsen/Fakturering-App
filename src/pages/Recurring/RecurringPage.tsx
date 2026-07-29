@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { DocumentBrowser, type DocumentBrowserItem } from "../../components/DocumentBrowser";
 import { EmptyState } from "../../components/EmptyState";
 import { SectionHeader } from "../../components/SectionHeader";
@@ -9,6 +9,8 @@ import { calculateScheduleTotals } from "../../lib/schedulePreview";
 import type { InvoiceScheduleWithDetails } from "../../types";
 import { RecurringDetails } from "./components/RecurringDetails";
 import { getScheduleDisplayTitle } from "./schedulePresentation";
+import { Button } from "../../components/Button";
+import setShowCreateForm from "../Invoices/InvoicesPage";
 
 type RecurringPageProps = {
   schedules: InvoiceScheduleWithDetails[];
@@ -60,27 +62,50 @@ export default function RecurringPage({ schedules }: RecurringPageProps) {
     updateSelection(selectedScheduleId === scheduleId ? "" : scheduleId);
   }
 
+  function moveAndOpenForm() {
+    navigate("/invoices=true");
+  }
+
+  const navigate = useNavigate();
+
   return (
     <>
       <SectionHeader
         title="Gjentakende fakturaer"
         description="Finn en plan etter bedrift, eller vis alle. Klikk på en plan for detaljer og PDF-forhåndsvisning."
+        action={
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => {
+              navigate("/invoices", {
+                state: {
+                  openCreateForm: true,
+                  invoiceKind: "recurring",
+                },
+              });
+            }
+            }
+          >
+            + Nytt Gjentagende faktura
+          </Button >}
       />
-
-      {schedules.length === 0 ? (
-        <EmptyState
-          title="Ingen gjentakelser"
-          description="Når du lager en faktura og slår på gjentakelse, vises planen her."
-        />
-      ) : (
-        <DocumentBrowser
-          items={browserItems}
-          selectedId={selectedScheduleId}
-          onSelect={selectSchedule}
-          searchPlaceholder="Søk etter plan eller bedrift"
-          itemLabel="planer"
-        />
-      )}
+      {
+        schedules.length === 0 ? (
+          <EmptyState
+            title="Ingen gjentakelser"
+            description="Når du lager en faktura og slår på gjentakelse, vises planen her."
+          />
+        ) : (
+          <DocumentBrowser
+            items={browserItems}
+            selectedId={selectedScheduleId}
+            onSelect={selectSchedule}
+            searchPlaceholder="Søk etter plan eller bedrift"
+            itemLabel="planer"
+          />
+        )
+      }
 
       <DetailModal
         open={Boolean(selectedSchedule)}
