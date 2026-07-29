@@ -205,7 +205,10 @@ function InvoiceOverview({
               {sending ? "Sender..." : "Send faktura"}
             </Button>
           )}
-          {!scheduled && invoice.status === "sent" && (
+
+         
+          {!scheduled && invoice.status === "sent" && invoice.paid != true && (
+            //Show "Purre" button only if the invoice is sent and not paid yet
             <Button variant="danger" onClick={() => onSend("remind")} disabled={sending}>
               {sending ? "Sender..." : "Purre"}
             </Button>
