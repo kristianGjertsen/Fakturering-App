@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { Button } from "../Button";
 import { formatCurrency } from "../../lib/format";
-import { statusToneClasses } from "./DocumentList";
-import type { DocumentBrowserItem } from "./types";
+import { getStatusColorClasses } from "./statusColors";
+import type { DocumentBrowserItem, StatusTone } from "./types";
 
 type DocumentCalendarProps = {
   items: DocumentBrowserItem[];
@@ -15,11 +15,33 @@ const monthFormatter = new Intl.DateTimeFormat("nb-NO", {
   month: "long",
   year: "numeric",
 });
-
+const STATUS_ORDER = [
+  "Utkast",
+  "Klar",
+  "Planlagt",
+  "Sendt",
+  "Purret",
+  "Betalt",
+  "Forfalt",
+  "Kansellert",
+];
 export function DocumentCalendar({ items, selectedId, onSelect }: DocumentCalendarProps) {
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const itemsByDate = useMemo(() => groupItemsByDate(items), [items]);
   const days = useMemo(() => calendarDays(visibleMonth), [visibleMonth]);
+  const legendItems = useMemo(() => {
+    const statuses = new Map<string, StatusTone>();
+
+    for (const item of items) {
+      if (!statuses.has(item.statusLabel)) {
+        statuses.set(item.statusLabel, item.statusTone ?? "neutral");
+      }
+    }
+
+    return [...statuses].sort(
+      ([left], [right]) => statusOrder(left) - statusOrder(right),
+    );
+  }, [items]);
 
   function changeMonth(offset: number) {
     setVisibleMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
@@ -27,14 +49,32 @@ export function DocumentCalendar({ items, selectedId, onSelect }: DocumentCalend
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 px-2 pb-4 pt-1">
-        <div>
-          <h3 className="text-base font-semibold capitalize text-slate-950">
-            {monthFormatter.format(visibleMonth)}
-          </h3>
-          <p className="text-xs text-slate-500">
-            Fakturadatoer og planlagte utsendinger
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-2 pb-3 pt-1">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-5 gap-y-2">
+          <div>
+            <h3 className="text-base font-semibold capitalize text-slate-950">
+              {monthFormatter.format(visibleMonth)}
+            </h3>
+            <p className="text-xs text-slate-500">
+              Fakturadatoer og planlagte utsendinger
+            </p>
+          </div>
+          {legendItems.length > 0 && (
+            <div
+              aria-label="Fargeforklaring for statuser"
+              className="flex flex-wrap items-center gap-x-3 gap-y-1"
+            >
+              {legendItems.map(([label, tone]) => (
+                <span key={label} className="flex items-center gap-1 text-[10px] font-medium text-slate-600">
+                  <span
+                    aria-hidden="true"
+                    className={`size-2.5 rounded-sm border ${getStatusColorClasses(tone).surface}`}
+                  />
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="xs" aria-label="Forrige måned" onClick={() => changeMonth(-1)}>
@@ -53,7 +93,7 @@ export function DocumentCalendar({ items, selectedId, onSelect }: DocumentCalend
         <div className="min-w-[700px]">
           <div className="grid grid-cols-7 border-b border-blue-100 bg-slate-50">
             {WEEKDAYS.map((weekday) => (
-              <div key={weekday} className="px-2 py-2 text-center text-xs font-semibold text-slate-500">
+              <div key={weekday} className="px-2 py-1.5 text-center text-[11px] font-semibold text-slate-500">
                 {weekday}
               </div>
             ))}
@@ -69,10 +109,10 @@ export function DocumentCalendar({ items, selectedId, onSelect }: DocumentCalend
               return (
                 <div
                   key={dateKey}
-                  className={`min-h-28 bg-white p-1.5 ${inVisibleMonth ? "" : "bg-slate-50/80"}`}
+                  className={`min-h-[84px] bg-white p-1 ${inVisibleMonth ? "" : "bg-slate-50/80"}`}
                 >
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className={`flex size-6 items-center justify-center rounded-full text-xs font-semibold ${
+                  <div className="mb-0.5 flex items-center justify-between">
+                    <span className={`flex size-5 items-center justify-center rounded-full text-[10px] font-semibold ${
                       today
                         ? "bg-blue-700 text-white"
                         : inVisibleMonth
@@ -86,31 +126,26 @@ export function DocumentCalendar({ items, selectedId, onSelect }: DocumentCalend
                     )}
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     {dayItems.slice(0, 3).map((item) => (
                       <button
                         key={item.id}
                         type="button"
-                        className={`w-full rounded border px-1.5 py-1 text-left transition ${
+                        className={`flex h-7 w-full items-center gap-1 rounded border px-1 text-left transition ${
+                          getStatusColorClasses(item.statusTone).surface
+                        } ${
                           selectedId === item.id
-                            ? "border-blue-500 bg-blue-50 ring-1 ring-blue-300"
-                            : "border-blue-100 bg-white hover:border-blue-300 hover:bg-blue-50/50"
+                            ? "ring-2 ring-blue-500"
+                            : "hover:brightness-95"
                         }`}
                         title={`${item.title} – ${item.statusLabel}`}
                         onClick={() => onSelect(item.id)}
                       >
-                        <span className="block truncate text-[11px] font-semibold text-slate-900">
+                        <span className="min-w-0 flex-1 truncate text-[9px] font-semibold leading-none text-slate-900">
                           {item.title}
                         </span>
-                        <span className="mt-0.5 flex items-center justify-between gap-1">
-                          <span className={`truncate rounded px-1 py-0.5 text-[9px] font-semibold ring-1 ${
-                            statusToneClasses[item.statusTone ?? "neutral"]
-                          }`}>
-                            {item.statusLabel}
-                          </span>
-                          <span className="truncate text-[9px] text-slate-500">
-                            {formatCurrency(item.amount)}
-                          </span>
+                        <span className="shrink-0 text-[8px] leading-none text-slate-500">
+                          {formatCurrency(item.amount)}
                         </span>
                       </button>
                     ))}
@@ -137,6 +172,11 @@ function groupItemsByDate(items: DocumentBrowserItem[]) {
   }
 
   return groups;
+}
+
+function statusOrder(label: string) {
+  const index = STATUS_ORDER.indexOf(label);
+  return index === -1 ? STATUS_ORDER.length : index;
 }
 
 function calendarDays(month: Date) {

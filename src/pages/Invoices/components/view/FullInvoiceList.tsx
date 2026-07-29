@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  getStatusColorClasses,
   type DocumentBrowserItem,
-  statusToneClasses,
 } from "../../../../components/DocumentBrowser";
 import { Input } from "../../../../components/Input";
 import { Panel } from "../../../../components/layout/Panel";
@@ -115,7 +115,7 @@ export function FullInvoiceList({
         </td>
         <td className="whitespace-nowrap px-4 py-3">
           <span className={`rounded-md px-2 py-1 text-[11px] font-semibold ring-1 ${
-            statusToneClasses[item.statusTone ?? "neutral"]
+            getStatusColorClasses(item.statusTone).badge
           }`}>
             {item.statusLabel}
           </span>

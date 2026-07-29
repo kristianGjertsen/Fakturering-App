@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "../../../../components/Button";
-import { statusToneClasses } from "../../../../components/DocumentBrowser";
+import { getStatusColorClasses } from "../../../../components/DocumentBrowser";
 import {
   attachmentFileName,
   formatFileSize,
@@ -16,9 +16,7 @@ import type {
   InvoiceWithDetails,
 } from "../../../../types";
 import {
-  getInvoiceStatusTone,
-  INVOICE_STATUS_LABELS,
-  isInvoiceOverdue,
+  getInvoiceStatusPresentation,
 } from "../../invoicePresentation";
 import { InvoicePdfPreviewPanel } from "../preview/InvoicePdfPreviewPanel";
 import { Panel } from "../../../../components/layout/Panel";
@@ -126,19 +124,7 @@ function InvoiceOverview({
   onSend,
   onTogglePaid,
 }: InvoiceOverviewProps) {
-  const overdue = !scheduled && isInvoiceOverdue(invoice);
-  const statusTone = scheduled
-    ? "purple"
-    : overdue
-      ? "danger"
-      : getInvoiceStatusTone(invoice.status, invoice.paid);
-  const statusLabel = scheduled
-    ? "Planlagt"
-    : overdue
-      ? "Forfalt"
-      : invoice.paid
-        ? "Betalt"
-        : INVOICE_STATUS_LABELS[invoice.status];
+  const status = getInvoiceStatusPresentation(invoice, scheduled);
   const canTogglePaid = invoice.paid || ["sent", "reminded", "paid"].includes(invoice.status);
 
   return (
@@ -180,9 +166,9 @@ function InvoiceOverview({
           {formatCurrency(invoice.total)}
         </p>
         <span className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${
-          statusToneClasses[statusTone]
+          getStatusColorClasses(status.tone).badge
         }`}>
-          {statusLabel}
+          {status.label}
         </span>
         <div className="flex flex-wrap gap-2">
           {scheduled ? (

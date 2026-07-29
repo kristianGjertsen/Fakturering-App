@@ -41,9 +41,6 @@ export function AuthenticatedRoutes({
   onSignOut,
 }: AuthenticatedRoutesProps) {
   const navigate = useNavigate();
-  const oneTimeSchedules = data.schedules.filter(
-    (schedule) => schedule.schedule_type === "once",
-  );
   const recurringSchedules = data.schedules.filter(
     (schedule) => schedule.schedule_type !== "once",
   );
@@ -93,7 +90,7 @@ export function AuthenticatedRoutes({
             bankAccounts={data.bankAccounts}
             products={data.products}
             invoices={data.invoices}
-            schedules={oneTimeSchedules}
+            schedules={data.schedules}
             currentUserEmail={session.user.email}
             onCreateInvoice={onCreateInvoice}
             onOpenCompanies={() => navigate("/companies")}

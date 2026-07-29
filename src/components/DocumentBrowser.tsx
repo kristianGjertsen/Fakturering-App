@@ -22,7 +22,8 @@ import type {
 
 type ViewMode = "companies" | "all" | "calendar";
 
-export { statusToneClasses } from "./document-browser/DocumentList";
+export { getStatusColorClasses } from "./document-browser/statusColors";
+export type { StatusColorClasses } from "./document-browser/statusColors";
 export type { DocumentBrowserItem, StatusTone } from "./document-browser/types";
 
 type DocumentBrowserProps = {

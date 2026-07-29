@@ -1,5 +1,6 @@
 import { formatCurrency, formatDate } from "../../lib/format";
-import type { DocumentBrowserItem, DocumentGroup, StatusTone } from "./types";
+import { getStatusColorClasses } from "./statusColors";
+import type { DocumentBrowserItem, DocumentGroup } from "./types";
 
 type DocumentRowProps = {
   item: DocumentBrowserItem;
@@ -14,15 +15,6 @@ type CompanyDocumentGroupProps = {
   selectedId: string;
   onSelect: (id: string) => void;
   onToggle: () => void;
-};
-
-export const statusToneClasses: Record<StatusTone, string> = {
-  neutral: "bg-slate-100 text-slate-700 ring-slate-200",
-  info: "bg-blue-50 text-blue-800 ring-blue-200",
-  warning: "bg-amber-50 text-amber-800 ring-amber-200",
-  success: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  danger: "bg-red-50 text-red-800 ring-red-200",
-  purple: "bg-violet-50 text-violet-800 ring-violet-200",
 };
 
 export function CompanyDocumentGroup({
@@ -98,7 +90,7 @@ export function DocumentRow({
         </span>
         <span
           className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ring-1 ${
-            statusToneClasses[item.statusTone ?? "neutral"]
+            getStatusColorClasses(item.statusTone).badge
           }`}
         >
           {item.statusLabel}
