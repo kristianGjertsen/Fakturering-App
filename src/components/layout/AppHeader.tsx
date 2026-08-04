@@ -1,11 +1,12 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Button } from "../Button";
+import { Repeat, Store, LayoutDashboard, User, Files } from "@animateicons/react/lucide";
+import { AnimatedIconButton } from "../AnimatedIconButton";
 
 const navigationItems = [
-  { to: "/", label: "Oversikt" },
-  { to: "/companies", label: "Selskaper" },
-  { to: "/invoices", label: "Fakturaer" },
-  { to: "/recurring", label: "Gjentakelser" },
+  { to: "/", label: "Oversikt", icon: LayoutDashboard },
+  { to: "/companies", label: "Selskaper", icon: Store },
+  { to: "/invoices", label: "Fakturaer", icon: Files },
+  { to: "/recurring", label: "Gjentakelser", icon: Repeat },
 ];
 
 export function AppHeader() {
@@ -21,26 +22,31 @@ export function AppHeader() {
             <span className="text-blue-700">Faktura</span>
           </div>
 
-          <Button
+          <AnimatedIconButton
+            icon={User}
             variant={location.pathname === "/profile" ? "primary" : "secondary"}
             size="sm"
             onClick={() => navigate("/profile")}
           >
             Profil
-          </Button>
+          </AnimatedIconButton>
         </div>
 
-        <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="Hovednavigasjon">
+        <nav
+          className="flex w-full gap-2 overflow-x-auto pb-1 sm:justify-center"
+          aria-label="Hovednavigasjon"
+        >
           {navigationItems.map((item) => (
-            <Button
+            <AnimatedIconButton
               key={item.to}
-              className="shrink-0"
+              icon={item.icon}
+              className="w-40 shrink-0"
               variant={isCurrentRoute(location.pathname, item.to) ? "primary" : "ghost"}
               size="sm"
               onClick={() => navigate(item.to)}
             >
               {item.label}
-            </Button>
+            </AnimatedIconButton>
           ))}
         </nav>
       </div>

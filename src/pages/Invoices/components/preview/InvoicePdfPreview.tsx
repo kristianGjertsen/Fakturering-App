@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { ArrowRight } from "@animateicons/react/lucide";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import type { PDFDocumentLoadingTask, RenderTask } from "pdfjs-dist";
 import type { InvoiceWithDetails } from "../../../../types";
 import { createInvoicePdfBlob, openInvoicePdf } from "../../../../lib/invoicePdf";
 import { Button } from "../../../../components/Button";
+import { AnimatedIconButton } from "../../../../components/AnimatedIconButton";
 
 type InvoicePdfPreviewProps = {
   invoice: InvoiceWithDetails;
@@ -198,7 +200,9 @@ function PdfPageNavigation({
       >
         Side {currentPage} av {totalPages}
       </span>
-      <Button
+      <AnimatedIconButton
+        icon={ArrowRight}
+        iconSize={16}
         variant="secondary"
         size="xs"
         onClick={onNext}
@@ -206,8 +210,8 @@ function PdfPageNavigation({
         aria-label="Neste side"
         title="Neste side"
       >
-        &gt;
-      </Button>
+        <span className="sr-only">Neste side</span>
+      </AnimatedIconButton>
     </nav>
   );
 }

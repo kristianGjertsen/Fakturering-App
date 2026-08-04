@@ -1,3 +1,5 @@
+import { Plus } from "@animateicons/react/lucide";
+import { AnimatedIconButton } from "../../../components/AnimatedIconButton";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 
@@ -45,14 +47,15 @@ export function BankAccountFields({ accounts, onChange }: BankAccountFieldsProps
     <div>
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-medium text-slate-700">Kontonumre</span>
-        <Button
+        <AnimatedIconButton
+          icon={Plus}
           type="button"
           variant="secondary"
           size="xs"
           onClick={() => onChange([...accounts, createBankAccountFormRow()])}
         >
           Legg til
-        </Button>
+        </AnimatedIconButton>
       </div>
       <div className="mt-2 space-y-2">
         {accounts.map((account, index) => (

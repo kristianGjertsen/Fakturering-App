@@ -1,3 +1,5 @@
+import { Plus } from "@animateicons/react/lucide";
+import { AnimatedIconButton } from "../../../components/AnimatedIconButton";
 import { Button } from "../../../components/Button";
 import { Panel } from "../../../components/layout/Panel";
 import type { InvoiceWithDetails } from "../../../types";
@@ -31,7 +33,9 @@ export function CompanyInvoicesPanel({
           <Button variant="secondary" onClick={onOpenAllInvoices}>
             Se alle fakturaer
           </Button>
-          <Button onClick={onCreateInvoice}>Ny faktura</Button>
+          <AnimatedIconButton icon={Plus} onClick={onCreateInvoice}>
+            Ny faktura
+          </AnimatedIconButton>
         </div>
       </div>
       <InvoiceList

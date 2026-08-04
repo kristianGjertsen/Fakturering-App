@@ -1,4 +1,5 @@
-import { Button } from "../../../components/Button";
+import { Plus } from "@animateicons/react/lucide";
+import { AnimatedIconButton } from "../../../components/AnimatedIconButton";
 import { EmptyState } from "../../../components/EmptyState";
 import { Panel } from "../../../components/layout/Panel";
 import { formatCurrency } from "../../../lib/format";
@@ -18,7 +19,9 @@ export function RecentInvoicesPanel({ invoices, onCreateInvoice }: RecentInvoice
           <h2 className="text-lg font-semibold text-slate-950">Siste fakturaer</h2>
           <p className="text-sm text-slate-600">De nyeste fakturaene du har opprettet.</p>
         </div>
-        <Button onClick={onCreateInvoice}>Ny faktura</Button>
+        <AnimatedIconButton icon={Plus} onClick={onCreateInvoice}>
+          Ny faktura
+        </AnimatedIconButton>
       </div>
 
       <div className="mt-5 overflow-x-auto">

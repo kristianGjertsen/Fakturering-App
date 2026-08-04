@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
+import { Plus } from "@animateicons/react/lucide";
 import type {
   Company,
   InvoiceScheduleWithDetails,
@@ -11,6 +12,7 @@ import type { InvoiceInput } from "../../lib/data";
 import { sendInvoiceEmail, updateInvoicePaid } from "../../lib/data";
 import { EmptyState } from "../../components/EmptyState";
 import { Button } from "../../components/Button";
+import { AnimatedIconButton } from "../../components/AnimatedIconButton";
 import { SectionHeader } from "../../components/SectionHeader";
 import { Notice } from "../../components/layout/Notice";
 import { DetailModal } from "../../components/layout/DetailModal";
@@ -276,9 +278,9 @@ export default function InvoicesPage({
         ? "Viser fakturaer for valgt selskap."
         : "Finn fakturaer etter bedrift, sorter listen og åpne en faktura for detaljer og PDF-forhåndsvisning."}
       action={!showCreateForm ? (
-        <Button onClick={() => setShowCreateForm((value) => !value)}>
+        <AnimatedIconButton icon={Plus} onClick={() => setShowCreateForm((value) => !value)}>
           Ny faktura
-        </Button>
+        </AnimatedIconButton>
       ) : undefined}
     />
   );

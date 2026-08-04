@@ -1,4 +1,5 @@
-import { Button } from "../../../components/Button";
+import { Plus } from "@animateicons/react/lucide";
+import { AnimatedIconButton } from "../../../components/AnimatedIconButton";
 import { EmptyState } from "../../../components/EmptyState";
 import { Panel, PanelHeader } from "../../../components/layout/Panel";
 import { formatCurrency } from "../../../lib/format";
@@ -16,20 +17,9 @@ export function CompanyProducts({ products, onAddProduct }: CompanyProductsProps
         title="Produkter og tjenester"
         description="Produkter som kan brukes på fakturaer til dette selskapet."
         action={
-          <Button onClick={onAddProduct}>
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 20 20"
-              fill="none"
-              className="h-4 w-4"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
-              <path d="M10 4v12M4 10h12" />
-            </svg>
+          <AnimatedIconButton icon={Plus} onClick={onAddProduct}>
             Nytt produkt
-          </Button>
+          </AnimatedIconButton>
         }
       />
 

@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { ArrowLeft, ArrowRight } from "@animateicons/react/lucide";
+import { AnimatedIconButton } from "../AnimatedIconButton";
 import { Button } from "../Button";
 import { formatCurrency } from "../../lib/format";
 import { getStatusColorClasses } from "./statusColors";
@@ -77,15 +79,29 @@ export function DocumentCalendar({ items, selectedId, onSelect }: DocumentCalend
           )}
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="xs" aria-label="Forrige måned" onClick={() => changeMonth(-1)}>
-            ←
-          </Button>
+          <AnimatedIconButton
+            icon={ArrowLeft}
+            iconSize={16}
+            variant="ghost"
+            size="xs"
+            aria-label="Forrige måned"
+            onClick={() => changeMonth(-1)}
+          >
+            <span className="sr-only">Forrige måned</span>
+          </AnimatedIconButton>
           <Button variant="secondary" size="xs" onClick={() => setVisibleMonth(startOfMonth(new Date()))}>
             I dag
           </Button>
-          <Button variant="ghost" size="xs" aria-label="Neste måned" onClick={() => changeMonth(1)}>
-            →
-          </Button>
+          <AnimatedIconButton
+            icon={ArrowRight}
+            iconSize={16}
+            variant="ghost"
+            size="xs"
+            aria-label="Neste måned"
+            onClick={() => changeMonth(1)}
+          >
+            <span className="sr-only">Neste måned</span>
+          </AnimatedIconButton>
         </div>
       </div>
 

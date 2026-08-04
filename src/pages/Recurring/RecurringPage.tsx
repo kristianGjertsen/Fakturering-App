@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Plus } from "@animateicons/react/lucide";
+import { AnimatedIconButton } from "../../components/AnimatedIconButton";
 import { DocumentBrowser, type DocumentBrowserItem } from "../../components/DocumentBrowser";
 import { EmptyState } from "../../components/EmptyState";
 import { SectionHeader } from "../../components/SectionHeader";
@@ -9,7 +11,6 @@ import { calculateScheduleTotals } from "../../lib/schedulePreview";
 import type { InvoiceScheduleWithDetails } from "../../types";
 import { RecurringDetails } from "./components/RecurringDetails";
 import { getScheduleDisplayTitle } from "./schedulePresentation";
-import { Button } from "../../components/Button";
 import setShowCreateForm from "../Invoices/InvoicesPage";
 
 type RecurringPageProps = {
@@ -74,7 +75,8 @@ export default function RecurringPage({ schedules }: RecurringPageProps) {
         title="Gjentakende fakturaer"
         description="Finn en plan etter bedrift, eller vis alle. Klikk på en plan for detaljer og PDF-forhåndsvisning."
         action={
-          <Button
+          <AnimatedIconButton
+            icon={Plus}
             variant="primary"
             size="sm"
             onClick={() => {
@@ -87,8 +89,8 @@ export default function RecurringPage({ schedules }: RecurringPageProps) {
             }
             }
           >
-            + Nytt Gjentagende faktura
-          </Button >}
+            Nytt Gjentagende faktura
+          </AnimatedIconButton>}
       />
       {
         schedules.length === 0 ? (

@@ -1,3 +1,4 @@
+import { Plus } from "@animateicons/react/lucide";
 import type { InvoiceDraftLine, Product } from "../../../../types";
 import {
   ATTACHMENT_ACCEPT,
@@ -8,6 +9,7 @@ import {
 import { formatCurrency } from "../../../../lib/format";
 import { calculateLine, toNumber } from "../../../../lib/invoiceMath";
 import { Button } from "../../../../components/Button";
+import { AnimatedIconButton } from "../../../../components/AnimatedIconButton";
 import { FormField } from "../../../../components/FormField";
 import { Input, inputClass } from "../../../../components/Input";
 import { Select } from "../../../../components/Select";
@@ -52,9 +54,9 @@ export function InvoiceLinesEditor({
           <p className="text-sm text-slate-600">Velg lagrede produkter eller skriv inn manuelle linjer.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={onAddLine}>
+          <AnimatedIconButton icon={Plus} variant="secondary" onClick={onAddLine}>
             Legg til linje
-          </Button>
+          </AnimatedIconButton>
           <input
             id="new-line-attachments"
             className="sr-only"
@@ -66,12 +68,13 @@ export function InvoiceLinesEditor({
               event.currentTarget.value = "";
             }}
           />
-          <Button
+          <AnimatedIconButton
+            icon={Plus}
             variant="secondary"
             onClick={() => document.getElementById("new-line-attachments")?.click()}
           >
             Legg til linje med vedlegg
-          </Button>
+          </AnimatedIconButton>
         </div>
       </div>
 
@@ -251,13 +254,14 @@ function LineAttachments({
             event.currentTarget.value = "";
           }}
         />
-        <Button
+        <AnimatedIconButton
+          icon={Plus}
           variant="secondary"
           size="sm"
           onClick={() => document.getElementById(inputId)?.click()}
         >
           Legg til vedlegg
-        </Button>
+        </AnimatedIconButton>
       </div>
 
       {line.attachments.length > 0 && (

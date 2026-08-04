@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Button } from "../../components/Button";
+import { Plus } from "@animateicons/react/lucide";
+import { AnimatedIconButton } from "../../components/AnimatedIconButton";
 import { SectionHeader } from "../../components/SectionHeader";
 import { Notice } from "../../components/layout/Notice";
 import type { CompanyInput, CompanyLogoPreferenceInput } from "../../lib/data";
@@ -32,20 +33,9 @@ export default function CompaniesPage({
         title="Selskaper"
         description="Åpne et selskap for å se informasjon, produkter og fakturaer."
         action={
-          <Button onClick={() => setShowNewCompany(true)}>
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 20 20"
-              fill="none"
-              className="h-4 w-4"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
-              <path d="M10 4v12M4 10h12" />
-            </svg>
+          <AnimatedIconButton icon={Plus} onClick={() => setShowNewCompany(true)}>
             Nytt selskap
-          </Button>
+          </AnimatedIconButton>
         }
       />
 

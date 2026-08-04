@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { ArrowRight } from "@animateicons/react/lucide";
+import { AnimatedIconButton } from "../../../../components/AnimatedIconButton";
 import {
   getStatusColorClasses,
   type DocumentBrowserItem,
@@ -344,14 +346,17 @@ export function FullInvoiceList({
               Forrige
             </button>
             <p className="text-xs text-slate-500">Side {page} av {pageCount}</p>
-            <button
+            <AnimatedIconButton
+              icon={ArrowRight}
+              iconPosition="end"
+              variant="secondary"
+              size="xs"
               type="button"
-              className="rounded-md border border-blue-100 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               disabled={page === pageCount}
               onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
             >
               Neste
-            </button>
+            </AnimatedIconButton>
           </div>
           )}
         </>
