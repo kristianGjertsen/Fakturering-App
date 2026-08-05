@@ -272,23 +272,24 @@ export default function InvoicesPage({
   }
 
   const pageHeader = (
-    <SectionHeader
-      title="Fakturaer"
-      description={companyFilterId
-        ? "Viser fakturaer for valgt selskap."
-        : "Finn fakturaer etter bedrift, sorter listen og åpne en faktura for detaljer og PDF-forhåndsvisning."}
-      action={!showCreateForm ? (
-        <AnimatedIconButton icon={Plus} onClick={() => setShowCreateForm((value) => !value)}>
-          Ny faktura
-        </AnimatedIconButton>
-      ) : undefined}
-    />
+    <div>
+      
+      <SectionHeader
+        title="Fakturaer"
+        description={"Finn fakturaer etter bedrift, sorter listen og åpne en faktura for detaljer og PDF-forhåndsvisning."}
+        action={!showCreateForm ? (
+          <AnimatedIconButton icon={Plus} onClick={() => setShowCreateForm((value) => !value)}>
+            Ny faktura
+          </AnimatedIconButton>
+        ) : undefined}
+      />
+    </div>
   );
 
   if (showCreateForm) {
     return (
       <>
-        {pageHeader}
+        {showCreateForm ? null : pageHeader}
         <InvoiceBuilder
           companies={companies}
           bankAccounts={bankAccounts}

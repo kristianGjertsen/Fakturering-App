@@ -5,6 +5,7 @@ import { Button } from "../../../../components/Button";
 import { FormField } from "../../../../components/FormField";
 import { Input } from "../../../../components/Input";
 import { Select } from "../../../../components/Select";
+import { Modal } from "../../../../components/layout/Modal";
 import { Panel } from "../../../../components/layout/Panel";
 import type { InvoiceKind, InvoiceTotals } from "../../invoiceBuilderModel";
 import {
@@ -14,8 +15,10 @@ import {
 
 type InvoiceTypePanelProps = {
   value: InvoiceKind;
+  open: boolean;
   recurringDisabled: boolean;
   onChange: (invoiceKind: InvoiceKind) => void;
+  onClose: () => void;
 };
 
 type InvoiceCreationTimingProps = {
@@ -46,46 +49,56 @@ const WEEKDAY_OPTIONS = [
 
 export function InvoiceTypePanel({
   value,
+  open,
   recurringDisabled,
   onChange,
+  onClose,
 }: InvoiceTypePanelProps) {
+  function selectInvoiceKind(invoiceKind: InvoiceKind) {
+    onChange(invoiceKind);
+    onClose();
+  }
+
   return (
-    <Panel>
-      <h3 className="text-base font-semibold text-slate-950">Type faktura</h3>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <label className={`cursor-pointer rounded-lg border p-4 ${
-          value === "single" ? "border-blue-500 bg-blue-50" : "border-blue-100"
-        }`}>
-          <Input
-            className="mr-3"
-            type="radio"
-            name="invoiceKind"
-            checked={value === "single"}
-            onChange={() => onChange("single")}
-          />
-          <span className="font-semibold text-slate-950">Enkeltfaktura</span>
-          <span className="mt-1 block text-sm text-slate-600">
-            Opprettes nå med valgt fakturadato og betalingsfrist.
-          </span>
-        </label>
-        <label className={`cursor-pointer rounded-lg border p-4 ${
-          value === "recurring" ? "border-blue-500 bg-blue-50" : "border-blue-100"
-        }`}>
-          <Input
-            className="mr-3"
-            type="radio"
-            name="invoiceKind"
-            checked={value === "recurring"}
+    <>
+      <Modal
+        open={open}
+        onClose={onClose}
+        title="Velg fakturatype"
+        description="Velg om fakturaen skal opprettes én gang eller gjentas automatisk."
+        labelledBy="invoice-type-dialog-title"
+      >
+        <div className="grid gap-3">
+          <button
+            type="button"
+            className={`rounded-lg border p-4 text-left transition hover:border-blue-400 hover:bg-blue-50 ${
+              value === "single" ? "border-blue-500 bg-blue-50" : "border-blue-100"
+            }`}
+            onClick={() => selectInvoiceKind("single")}
+          >
+            <span className="block font-semibold text-slate-950">Enkeltfaktura</span>
+            <span className="mt-1 block text-sm text-slate-600">
+              Opprettes nå med valgt fakturadato og betalingsfrist.
+            </span>
+          </button>
+          <button
+            type="button"
+            className={`rounded-lg border p-4 text-left transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 ${
+              value === "recurring" ? "border-blue-500 bg-blue-50" : "border-blue-100"
+            }`}
             disabled={recurringDisabled}
-            onChange={() => onChange("recurring")}
-          />
-          <span className="font-semibold text-slate-950">Gjentakende faktura</span>
-          <span className="mt-1 block text-sm text-slate-600">
-            Lagrer bare planen. Fakturaen opprettes og dateres ved utsending.
-          </span>
-        </label>
-      </div>
-    </Panel>
+            onClick={() => selectInvoiceKind("recurring")}
+          >
+            <span className="block font-semibold text-slate-950">Gjentakende faktura</span>
+            <span className="mt-1 block text-sm text-slate-600">
+              {recurringDisabled
+                ? "Krever at du velger et registrert selskap."
+                : "Lagrer planen. Fakturaen opprettes og dateres ved utsending."}
+            </span>
+          </button>
+        </div>
+      </Modal>
+    </>
   );
 }
 
@@ -97,26 +110,15 @@ export function InvoiceCreationTiming({
     <div className={`mt-5 rounded-lg border p-4 ${
       scheduled ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-slate-50"
     }`}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h4 className="text-sm font-semibold text-slate-950">Når skal fakturaen opprettes?</h4>
-          <p className="mt-1 text-sm text-slate-600">
-            Lagre den med en gang, eller opprett og send den automatisk på fakturadatoen.
-          </p>
-        </div>
-        <div
-          className="grid shrink-0 grid-cols-2 gap-2 sm:flex"
-          aria-label="Velg når fakturaen skal opprettes"
-        >
+      <div className="flex flex-col gap-4 lg:flex-row lg:justify-center lg:items-center">
           <Button variant={!scheduled ? "primary" : "secondary"} onClick={() => onChange(false)}>
-            Lagre faktura uten å sende
+            Lagre faktura som utkast uten å sende
           </Button>
           <Button variant={scheduled ? "primary" : "secondary"} onClick={() => onChange(true)}>
-            Send på fakturadato
+            Send faktura automatisk på fakturadato
           </Button>
         </div>
       </div>
-    </div>
   );
 }
 

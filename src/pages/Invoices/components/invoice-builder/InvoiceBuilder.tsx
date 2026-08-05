@@ -69,6 +69,7 @@ export function InvoiceBuilder({
   const [showUnregisteredRecipientDialog, setShowUnregisteredRecipientDialog] = useState(
     () => companies.length === 0,
   );
+  const [showInvoiceTypeDialog, setShowInvoiceTypeDialog] = useState(false);
   const [invoiceTitle, setInvoiceTitle] = useState("");
   const [issueDate, setIssueDate] = useState(todayInputValue);
   const [paymentTermsDays, setPaymentTermsDays] = useState(14);
@@ -355,15 +356,25 @@ export function InvoiceBuilder({
         onContinue={continueWithUnregisteredRecipient}
       />
       <SectionHeader
-        title="Ny faktura"
-        description="Velg mottaker, fakturalinjer, betalingsinfo og PDF-stil."
+        title={invoiceKind === "recurring" ? "Ny gjentakende faktura" : "Ny enkeltfaktura"}
+        description={invoiceKind === "recurring"
+          ? "Opprett en fakturaplan som gjentas automatisk. Faktura opprettes og sendes ut ved utsending."
+          : "Opprett en faktura som lagres som utkast eller sendes på satt fakturadato."}
+          
+        action={
+          <Button variant="secondary" onClick={() => setShowInvoiceTypeDialog(true)}>
+            {invoiceKind === "recurring" ? "Endre til enkeltfaktura" : "Endre til gjentakende faktura"}
+          </Button>
+        }
       />
 
       {message && <Notice>{message}</Notice>}
 
       <InvoiceTypePanel
         value={invoiceKind}
+        open={showInvoiceTypeDialog}
         recurringDisabled={recipientMode === "guest"}
+        onClose={() => setShowInvoiceTypeDialog(false)}
         onChange={(nextInvoiceKind) => {
           setInvoiceKind(nextInvoiceKind);
           if (nextInvoiceKind === "recurring") setScheduleOnce(false);

@@ -131,7 +131,6 @@ export function InvoicePdfPreview({ invoice, compact = false }: InvoicePdfPrevie
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-slate-950">PDF-forhåndsvisning</h3>
-          <p className="text-xs text-slate-500">Valgt side tilpasses automatisk til forhåndsvisningen.</p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {totalPages > 1 && (
