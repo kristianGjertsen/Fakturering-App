@@ -23,7 +23,6 @@ import { UnregisteredRecipientDialog } from "./UnregisteredRecipientDialog";
 import { InvoiceLinesEditor } from "./InvoiceLinesEditor";
 import { InvoiceInformationPanel } from "./InvoiceInformationPanel";
 import {
-  InvoiceRecurrencePanel,
   InvoiceTotalsPanel,
   InvoiceTypePanel,
 } from "./InvoiceBuilderSections";
@@ -394,6 +393,7 @@ export function InvoiceBuilder({
             recipientEmail={recipientEmail}
             recipientMode={recipientMode}
             recipientName={recipientName}
+            repeat={repeat}
             scheduleOnce={scheduleOnce}
             onCompanyChange={handleCompanyChange}
             onInvoiceTitleChange={setInvoiceTitle}
@@ -402,6 +402,7 @@ export function InvoiceBuilder({
             onRecipientEmailChange={setRecipientEmail}
             onRecipientNameChange={setRecipientName}
             onRequestUnregisteredRecipient={() => setShowUnregisteredRecipientDialog(true)}
+            onRepeatChange={setRepeat}
             onScheduleOnceChange={setScheduleOnce}
           />
           <InvoiceLinesEditor
@@ -482,9 +483,6 @@ export function InvoiceBuilder({
 
           <InvoiceTotalsPanel totals={totals} />
 
-          {invoiceKind === "recurring" && (
-            <InvoiceRecurrencePanel repeat={repeat} onChange={setRepeat} />
-          )}
         </aside>
       </section>
 

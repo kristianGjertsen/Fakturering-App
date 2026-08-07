@@ -8,10 +8,6 @@ import { Select } from "../../../../components/Select";
 import { Modal } from "../../../../components/layout/Modal";
 import { Panel } from "../../../../components/layout/Panel";
 import type { InvoiceKind, InvoiceTotals } from "../../invoiceBuilderModel";
-import {
-  getRepeatIntervalHint,
-  getRepeatIntervalLabel,
-} from "../../invoiceBuilderModel";
 
 type InvoiceTypePanelProps = {
   value: InvoiceKind;
@@ -27,14 +23,18 @@ type InvoiceCreationTimingProps = {
 };
 
 type InvoiceRecurrencePanelProps = {
+  embedded?: boolean;
   repeat: RepeatDraft;
   onChange: Dispatch<SetStateAction<RepeatDraft>>;
 };
 
-const FREQUENCY_OPTIONS = [
-  { value: "daily", label: "Daglig" },
-  { value: "weekly", label: "Ukentlig" },
-  { value: "monthly", label: "Månedlig" },
+const RECURRENCE_OPTIONS = [
+  { value: "weekly:1", label: "Hver uke" },
+  { value: "monthly:1", label: "Hver måned" },
+  { value: "monthly:2", label: "Annenhver måned" },
+  { value: "monthly:3", label: "Hver 3. måned" },
+  { value: "monthly:6", label: "Hver 6. måned" },
+  { value: "monthly:12", label: "Hvert år" },
 ] as const;
 
 const WEEKDAY_OPTIONS = [
@@ -150,6 +150,7 @@ export function InvoiceTotalsPanel({ totals }: { totals: InvoiceTotals }) {
 }
 
 export function InvoiceRecurrencePanel({
+  embedded = false,
   repeat,
   onChange,
 }: InvoiceRecurrencePanelProps) {
@@ -157,35 +158,31 @@ export function InvoiceRecurrencePanel({
     onChange((currentRepeat) => ({ ...currentRepeat, ...patch }));
   }
 
-  return (
-    <Panel>
-      <h3 className="text-base font-semibold text-slate-950">Gjentakelse</h3>
-      <p className="text-sm text-slate-600">
-        Fakturaen opprettes og sendes automatisk på neste dato.
+  function updateRecurrence(value: string) {
+    const [frequency, intervalCount] = value.split(":");
+
+    updateRepeat({
+      frequency: frequency as RepeatDraft["frequency"],
+      intervalCount: Number(intervalCount),
+    });
+  }
+
+  const recurrenceValue = `${repeat.frequency}:${repeat.intervalCount}`;
+
+  const content = (
+    <>
+      <h3 className="text-sm font-semibold text-slate-950">Gjentakelse</h3>
+      <p className="mt-1 text-sm text-slate-600">
+        Velg hvor ofte fakturaen skal opprettes og sendes automatisk.
       </p>
 
-      <div className="mt-4 space-y-4">
-        <div className="rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-slate-800">
-          {getRepeatIntervalLabel(repeat.frequency, repeat.intervalCount)}
-        </div>
-        <FormField label="Frekvens">
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <FormField label="Hvor ofte">
           <Select
-            ariaLabel="Frekvens"
-            value={repeat.frequency}
-            options={FREQUENCY_OPTIONS}
-            onChange={(frequency) => updateRepeat({
-              frequency: frequency as RepeatDraft["frequency"],
-            })}
-          />
-        </FormField>
-        <FormField label="Gjentas hver" helper={getRepeatIntervalHint(repeat.frequency)}>
-          <Input
-            min={1}
-            type="number"
-            value={repeat.intervalCount}
-            onChange={(event) => updateRepeat({
-              intervalCount: Math.max(1, Number(event.target.value)),
-            })}
+            ariaLabel="Hvor ofte fakturaen skal gjentas"
+            value={recurrenceValue}
+            options={RECURRENCE_OPTIONS}
+            onChange={updateRecurrence}
           />
         </FormField>
         {repeat.frequency === "weekly" && (
@@ -233,6 +230,16 @@ export function InvoiceRecurrencePanel({
           />
         </FormField>
       </div>
-    </Panel>
+    </>
   );
+
+  if (embedded) {
+    return (
+      <section className="mt-5 border-t border-blue-100 pt-5">
+        {content}
+      </section>
+    );
+  }
+
+  return <Panel>{content}</Panel>;
 }
