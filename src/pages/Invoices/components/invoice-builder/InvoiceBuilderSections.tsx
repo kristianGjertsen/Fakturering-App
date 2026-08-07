@@ -107,21 +107,22 @@ export function InvoiceCreationTiming({
   return (
     <div className={`mt-5 rounded-lg border p-4 ${scheduled ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-slate-50"
       }`}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:justify-center lg:items-center">
-         <p className="text-sm mt-4 text-slate-600">
-        {scheduled
-          ? "Fakturaen opprettes og sendes automatisk på neste dato."
-          : "Fakturaen lagres som utkast og kan sendes manuelt senere."}
-      </p>
-        <Button variant={!scheduled ? "primary" : "secondary"} onClick={() => onChange(false)}>
-          Lagre som utkast
-        </Button>
-        <Button variant={scheduled ? "primary" : "secondary"} onClick={() => onChange(true)}>
-          Planlegg utsendelse
-        </Button>
-
+      <div className="flex flex-col gap-4 lg:flex-row justify-between lg:items-center">
+        <p className="text-sm mt-4 text-slate-600">
+          {scheduled
+            ? "Fakturaen opprettes og sendes automatisk på neste dato."
+            : "Fakturaen lagres som utkast og kan sendes manuelt senere."}
+        </p>
+        <div className="flex gap-2">
+          <Button variant={!scheduled ? "primary" : "secondary"} onClick={() => onChange(false)}>
+            Lagre som utkast
+          </Button>
+          <Button variant={scheduled ? "primary" : "secondary"} onClick={() => onChange(true)}>
+            Planlegg utsendelse
+          </Button>
+        </div>
       </div>
-     
+
     </div>
   );
 }
