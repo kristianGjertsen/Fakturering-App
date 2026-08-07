@@ -28,9 +28,7 @@ export function CompanyListPanel({
         <div className="flex items-center justify-between gap-4">
           <div>
             <h3 className="text-base font-semibold text-slate-950">Registrerte selskaper</h3>
-            <p className="mt-1 text-sm text-slate-600">
-              Klikk på et selskap for å åpne all informasjon.
-            </p>
+         
           </div>
           <span className="text-sm text-slate-500">{companies.length} totalt</span>
         </div>

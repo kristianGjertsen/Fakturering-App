@@ -71,9 +71,8 @@ export function InvoiceTypePanel({
         <div className="grid gap-3">
           <button
             type="button"
-            className={`rounded-lg border p-4 text-left transition hover:border-blue-400 hover:bg-blue-50 ${
-              value === "single" ? "border-blue-500 bg-blue-50" : "border-blue-100"
-            }`}
+            className={`rounded-lg border p-4 text-left transition hover:border-blue-400 hover:bg-blue-50 ${value === "single" ? "border-blue-500 bg-blue-50" : "border-blue-100"
+              }`}
             onClick={() => selectInvoiceKind("single")}
           >
             <span className="block font-semibold text-slate-950">Enkeltfaktura</span>
@@ -83,9 +82,8 @@ export function InvoiceTypePanel({
           </button>
           <button
             type="button"
-            className={`rounded-lg border p-4 text-left transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 ${
-              value === "recurring" ? "border-blue-500 bg-blue-50" : "border-blue-100"
-            }`}
+            className={`rounded-lg border p-4 text-left transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 ${value === "recurring" ? "border-blue-500 bg-blue-50" : "border-blue-100"
+              }`}
             disabled={recurringDisabled}
             onClick={() => selectInvoiceKind("recurring")}
           >
@@ -107,18 +105,24 @@ export function InvoiceCreationTiming({
   onChange,
 }: InvoiceCreationTimingProps) {
   return (
-    <div className={`mt-5 rounded-lg border p-4 ${
-      scheduled ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-slate-50"
-    }`}>
+    <div className={`mt-5 rounded-lg border p-4 ${scheduled ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-slate-50"
+      }`}>
       <div className="flex flex-col gap-4 lg:flex-row lg:justify-center lg:items-center">
-          <Button variant={!scheduled ? "primary" : "secondary"} onClick={() => onChange(false)}>
-            Lagre faktura som utkast uten å sende
-          </Button>
-          <Button variant={scheduled ? "primary" : "secondary"} onClick={() => onChange(true)}>
-            Send faktura automatisk på fakturadato
-          </Button>
-        </div>
+         <p className="text-sm mt-4 text-slate-600">
+        {scheduled
+          ? "Fakturaen opprettes og sendes automatisk på neste dato."
+          : "Fakturaen lagres som utkast og kan sendes manuelt senere."}
+      </p>
+        <Button variant={!scheduled ? "primary" : "secondary"} onClick={() => onChange(false)}>
+          Lagre som utkast
+        </Button>
+        <Button variant={scheduled ? "primary" : "secondary"} onClick={() => onChange(true)}>
+          Planlegg utsendelse
+        </Button>
+
       </div>
+     
+    </div>
   );
 }
 

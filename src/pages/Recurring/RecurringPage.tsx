@@ -73,7 +73,7 @@ export default function RecurringPage({ schedules }: RecurringPageProps) {
     <>
       <SectionHeader
         title="Gjentakende fakturaer"
-        description="Finn en plan etter bedrift, eller vis alle. Klikk på en plan for detaljer og PDF-forhåndsvisning."
+        description="Gjentakende fakturaer lar deg sette opp automatiske faktureringer for kunder på faste intervaller."
         action={
           <AnimatedIconButton
             icon={Plus}
@@ -89,7 +89,7 @@ export default function RecurringPage({ schedules }: RecurringPageProps) {
             }
             }
           >
-            Nytt Gjentagende faktura
+            Ny gjentagende faktura
           </AnimatedIconButton>}
       />
       {
