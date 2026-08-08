@@ -56,6 +56,7 @@ export function AuthenticatedRoutes({
             invoices={data.invoices}
             schedules={recurringSchedules}
             onCreateInvoice={() => navigate("/invoices?create=true")}
+            onOpenInvoice={(invoiceId) => navigate(`/invoices?invoiceId=${invoiceId}`)}
           />
         }
       />

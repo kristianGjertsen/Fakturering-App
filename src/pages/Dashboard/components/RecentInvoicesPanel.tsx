@@ -2,16 +2,20 @@ import { Plus } from "@animateicons/react/lucide";
 import { AnimatedIconButton } from "../../../components/AnimatedIconButton";
 import { EmptyState } from "../../../components/EmptyState";
 import { Panel } from "../../../components/layout/Panel";
-import { formatCurrency } from "../../../lib/format";
 import type { InvoiceWithDetails } from "../../../types";
-import { INVOICE_STATUS_LABELS } from "../../Invoices/invoicePresentation";
+import { InvoiceList } from "../../Invoices/components/view/InvoiceList";
 
 type RecentInvoicesPanelProps = {
   invoices: InvoiceWithDetails[];
   onCreateInvoice: () => void;
+  onOpenInvoice: (invoiceId: string) => void;
 };
 
-export function RecentInvoicesPanel({ invoices, onCreateInvoice }: RecentInvoicesPanelProps) {
+export function RecentInvoicesPanel({
+  invoices,
+  onCreateInvoice,
+  onOpenInvoice,
+}: RecentInvoicesPanelProps) {
   return (
     <Panel as="div">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -24,46 +28,20 @@ export function RecentInvoicesPanel({ invoices, onCreateInvoice }: RecentInvoice
         </AnimatedIconButton>
       </div>
 
-      <div className="mt-5 overflow-x-auto">
+      <div className="mt-5">
         {invoices.length === 0 ? (
           <EmptyState
             title="Ingen fakturaer ennå"
             description="Opprett den første fakturaen når selskap og produkter er registrert."
           />
         ) : (
-          <table className="w-full min-w-[620px] text-left text-sm">
-            <thead className="border-b border-blue-100 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="py-3 pr-4 font-semibold">Faktura</th>
-                <th className="py-3 pr-4 font-semibold">Selskap</th>
-                <th className="py-3 pr-4 font-semibold">Status</th>
-                <th className="py-3 pr-4 text-right font-semibold">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-blue-50">
-              {invoices.slice(0, 6).map((invoice) => (
-                <tr key={invoice.id}>
-                  <td className="py-3 pr-4">
-                    <span className="block font-medium text-slate-950">
-                      {invoice.title || invoice.invoice_number}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-slate-500">
-                      {invoice.invoice_number}
-                    </span>
-                  </td>
-                  <td className="py-3 pr-4 text-slate-600">
-                    {invoice.company?.name ?? "Ukjent"}
-                  </td>
-                  <td className="py-3 pr-4 text-slate-600">
-                    {invoice.paid ? "Betalt" : INVOICE_STATUS_LABELS[invoice.status] || invoice.status}
-                  </td>
-                  <td className="py-3 pr-4 text-right font-medium text-slate-950">
-                    {formatCurrency(invoice.total)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <InvoiceList
+            invoices={invoices}
+            selectedId=""
+            onSelect={onOpenInvoice}
+            compact
+            limit={6}
+          />
         )}
       </div>
     </Panel>

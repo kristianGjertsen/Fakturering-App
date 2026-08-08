@@ -17,6 +17,7 @@ type DashboardPageProps = {
   invoices: InvoiceWithDetails[];
   schedules: InvoiceScheduleWithDetails[];
   onCreateInvoice: () => void;
+  onOpenInvoice: (invoiceId: string) => void;
 };
 
 export default function DashboardPage({
@@ -25,6 +26,7 @@ export default function DashboardPage({
   invoices,
   schedules,
   onCreateInvoice,
+  onOpenInvoice,
 }: DashboardPageProps) {
   const totalOutstanding = invoices
     .filter((invoice) => !invoice.paid && invoice.status !== "cancelled")
@@ -62,7 +64,11 @@ export default function DashboardPage({
       </StatisticsGrid>
 
       <section className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <RecentInvoicesPanel invoices={invoices} onCreateInvoice={onCreateInvoice} />
+        <RecentInvoicesPanel
+          invoices={invoices}
+          onCreateInvoice={onCreateInvoice}
+          onOpenInvoice={onOpenInvoice}
+        />
         <NextSchedulePanel schedule={nextSchedule} />
       </section>
     </>

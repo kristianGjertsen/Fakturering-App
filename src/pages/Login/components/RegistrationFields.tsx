@@ -15,6 +15,7 @@ type RegistrationFormState = {
   country: string;
   orgNumber: string;
   hasSentInvoicesBefore: boolean;
+  invoiceNumberPrefix: string;
   lastInvoiceNumber: string;
   bankAccounts: BankAccountFormRow[];
 };
@@ -36,6 +37,7 @@ export function createRegistrationFormState(): RegistrationFormState {
     country: "NO",
     orgNumber: "",
     hasSentInvoicesBefore: false,
+    invoiceNumberPrefix: "",
     lastInvoiceNumber: "",
     bankAccounts: [createBankAccountFormRow()],
   };
@@ -49,11 +51,14 @@ export function RegistrationFields({ value, onChange }: RegistrationFieldsProps)
     onChange({ ...value, [field]: fieldValue });
   }
 
-  const parsedLastInvoiceNumber = Number(value.lastInvoiceNumber);
-  const nextInvoiceNumber =
-    value.lastInvoiceNumber !== "" && Number.isSafeInteger(parsedLastInvoiceNumber)
-      ? parsedLastInvoiceNumber + 1
-      : "…";
+  const parsedLastInvoiceNumber = parseInvoiceNumberInput(value.lastInvoiceNumber);
+  const nextInvoiceNumber = parsedLastInvoiceNumber
+    ? formatInvoiceNumber(
+        value.invoiceNumberPrefix,
+        parsedLastInvoiceNumber.number + 1,
+        parsedLastInvoiceNumber.paddingWidth,
+      )
+    : "…";
 
   return (
     <>
@@ -84,6 +89,7 @@ export function RegistrationFields({ value, onChange }: RegistrationFieldsProps)
               onChange={() => onChange({
                 ...value,
                 hasSentInvoicesBefore: false,
+                invoiceNumberPrefix: "",
                 lastInvoiceNumber: "",
               })}
             />
@@ -100,21 +106,32 @@ export function RegistrationFields({ value, onChange }: RegistrationFieldsProps)
           </label>
         </div>
         {value.hasSentInvoicesBefore ? (
-          <label className="mt-3 block">
-            <span className="text-sm font-medium text-slate-700">Siste brukte fakturanummer</span>
-            <Input
-              className={inputClassName}
-              type="number"
-              min={0}
-              step={1}
-              value={value.lastInvoiceNumber}
-              onChange={(event) => updateField("lastInvoiceNumber", event.target.value)}
-              required
-            />
-            <span className="mt-1 block text-xs text-slate-500">
-              Neste faktura får nummer {nextInvoiceNumber}.
+          <div className="mt-3 grid gap-3 sm:grid-cols-[120px_minmax(0,1fr)]">
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">Prefix</span>
+              <Input
+                className={inputClassName}
+                type="text"
+                value={value.invoiceNumberPrefix}
+                onChange={(event) => updateField("invoiceNumberPrefix", event.target.value)}
+                placeholder="INV-"
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">Siste brukte fakturanummer</span>
+              <Input
+                className={inputClassName}
+                type="text"
+                value={value.lastInvoiceNumber}
+                onChange={(event) => updateField("lastInvoiceNumber", event.target.value)}
+                placeholder="10000"
+                required
+              />
+            </label>
+            <span className="text-xs text-slate-500 sm:col-span-2">
+              Neste faktura får nummer {nextInvoiceNumber}. Prefix er valgfritt, og ledende nuller beholdes.
             </span>
-          </label>
+          </div>
         ) : (
           <p className="mt-3 text-xs text-slate-500">Første faktura får nummer 10000.</p>
         )}
@@ -179,4 +196,28 @@ function RegistrationTextField({ label, value, onChange }: RegistrationTextField
       />
     </label>
   );
+}
+
+function parseInvoiceNumberInput(value: string) {
+  const match = value.trim().match(/^(\d+)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, numberText] = match;
+  const number = Number(numberText);
+
+  if (!Number.isSafeInteger(number) || number < 0) {
+    return null;
+  }
+
+  return {
+    number,
+    paddingWidth: numberText.length,
+  };
+}
+
+function formatInvoiceNumber(prefix: string, number: number, paddingWidth: number) {
+  return `${prefix}${String(number).padStart(Math.max(paddingWidth, String(number).length), "0")}`;
 }

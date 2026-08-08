@@ -44,13 +44,13 @@ export default function LoginPage() {
         return;
       }
 
-      const normalizedLastInvoiceNumber = Number(registrationForm.lastInvoiceNumber);
+      const parsedLastInvoiceNumber = parseInvoiceNumberInput(registrationForm.lastInvoiceNumber);
       if (
         isRegistering &&
         registrationForm.hasSentInvoicesBefore &&
-        (!Number.isSafeInteger(normalizedLastInvoiceNumber) || normalizedLastInvoiceNumber < 0)
+        !parsedLastInvoiceNumber
       ) {
-        setMessage("Oppgi siste brukte fakturanummer som et heltall.");
+        setMessage("Oppgi siste brukte fakturanummer som tall, for eksempel 10000 eller 000001.");
         return;
       }
 
@@ -68,9 +68,15 @@ export default function LoginPage() {
                 org_number: registrationForm.orgNumber.trim(),
                 bank_accounts: normalizedBankAccounts,
                 has_sent_invoices_before: registrationForm.hasSentInvoicesBefore,
-                last_invoice_number: registrationForm.hasSentInvoicesBefore
-                  ? normalizedLastInvoiceNumber
+                last_invoice_number: registrationForm.hasSentInvoicesBefore && parsedLastInvoiceNumber
+                  ? parsedLastInvoiceNumber.number
                   : 9999,
+                invoice_number_prefix: registrationForm.hasSentInvoicesBefore
+                  ? registrationForm.invoiceNumberPrefix
+                  : "",
+                invoice_number_padding_width: registrationForm.hasSentInvoicesBefore && parsedLastInvoiceNumber
+                  ? parsedLastInvoiceNumber.paddingWidth
+                  : 0,
               },
             },
           })
@@ -170,4 +176,24 @@ function AuthField({ label, type, value, onChange, minLength }: AuthFieldProps) 
       />
     </label>
   );
+}
+
+function parseInvoiceNumberInput(value: string) {
+  const match = value.trim().match(/^(\d+)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, numberText] = match;
+  const number = Number(numberText);
+
+  if (!Number.isSafeInteger(number) || number < 0) {
+    return null;
+  }
+
+  return {
+    number,
+    paddingWidth: numberText.length,
+  };
 }
