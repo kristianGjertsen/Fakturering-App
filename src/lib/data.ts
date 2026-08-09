@@ -2,6 +2,7 @@ import type {
   Company,
   InvoiceScheduleWithDetails,
   InvoiceWithDetails,
+  Profile,
   ProfileBankAccount,
   Product,
 } from "../types";
@@ -49,6 +50,7 @@ export type AppData = {
   products: Product[];
   invoices: InvoiceWithDetails[];
   schedules: InvoiceScheduleWithDetails[];
+  profile: Profile;
   bankAccounts: ProfileBankAccount[];
 };
 
@@ -66,6 +68,7 @@ export async function fetchAppData(userId: string): Promise<AppData> {
     products,
     invoices,
     schedules,
+    profile: profileDetails.profile,
     bankAccounts: profileDetails.bankAccounts,
   };
 }

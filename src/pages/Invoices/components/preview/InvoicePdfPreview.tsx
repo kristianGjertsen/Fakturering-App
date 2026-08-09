@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight } from "@animateicons/react/lucide";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import type { PDFDocumentLoadingTask, RenderTask } from "pdfjs-dist";
-import type { InvoiceWithDetails } from "../../../../types";
+import type { InvoiceWithDetails, Profile } from "../../../../types";
 import { createInvoicePdfBlob, openInvoicePdf } from "../../../../lib/invoicePdf";
 import { Button } from "../../../../components/Button";
 import { AnimatedIconButton } from "../../../../components/AnimatedIconButton";
 
 type InvoicePdfPreviewProps = {
   invoice: InvoiceWithDetails;
+  sellerProfile: Profile;
   compact?: boolean;
 };
 
@@ -17,7 +18,7 @@ type PdfPreviewSize = {
   height: number;
 };
 
-export function InvoicePdfPreview({ invoice, compact = false }: InvoicePdfPreviewProps) {
+export function InvoicePdfPreview({ invoice, sellerProfile, compact = false }: InvoicePdfPreviewProps) {
   const renderPadding = compact ? 6 : 0;
   const containerPaddingClass = compact ? "p-[6px]" : "p-4";
   const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
@@ -37,7 +38,7 @@ export function InvoicePdfPreview({ invoice, compact = false }: InvoicePdfPrevie
     setTotalPages(0);
 
     const timeout = window.setTimeout(() => {
-      void createInvoicePdfBytes(invoice)
+      void createInvoicePdfBytes(invoice, sellerProfile)
         .then((bytes) => {
           if (!cancelled) setPdfBytes(bytes);
         })
@@ -53,7 +54,7 @@ export function InvoicePdfPreview({ invoice, compact = false }: InvoicePdfPrevie
       cancelled = true;
       window.clearTimeout(timeout);
     };
-  }, [invoice, compact]);
+  }, [invoice, sellerProfile, compact]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -142,7 +143,7 @@ export function InvoicePdfPreview({ invoice, compact = false }: InvoicePdfPrevie
               onNext={showNextPage}
             />
           )}
-          <Button variant="secondary" size="sm" onClick={() => void openInvoicePdf(invoice)}>
+          <Button variant="secondary" size="sm" onClick={() => void openInvoicePdf(invoice, sellerProfile)}>
             Åpne PDF
           </Button>
         </div>
@@ -215,7 +216,7 @@ function PdfPageNavigation({
   );
 }
 
-async function createInvoicePdfBytes(invoice: InvoiceWithDetails) {
-  const pdfBlob = await createInvoicePdfBlob(invoice);
+async function createInvoicePdfBytes(invoice: InvoiceWithDetails, sellerProfile: Profile) {
+  const pdfBlob = await createInvoicePdfBlob(invoice, sellerProfile);
   return new Uint8Array(await pdfBlob.arrayBuffer());
 }

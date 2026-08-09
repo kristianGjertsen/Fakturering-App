@@ -218,7 +218,7 @@ export function CompanyLogo({
       />
 
       <p className="max-w-28 text-xs text-slate-500">
-        Opprinnelig kilde: {company.logo_disabled ? "bokstav-fallback" : currentSource?.label ?? "bokstav-fallback"}.
+        Logo: {company.logo_disabled ? "fallback" : shortLogoSourceLabel(currentSource?.label)}.
       </p>
 
       {onToggleLogoDisabled && (
@@ -360,13 +360,11 @@ function knownDomainLogoSources(company: Company): LogoSource[] {
     websiteDomain
       ? domainLogoSource(
           websiteDomain,
-          company.website_from_brreg
-            ? `Logo.dev via nettside fra BRREG (${websiteDomain})`
-            : `Logo.dev via registrert nettside (${websiteDomain})`,
+          company.website_from_brreg ? "fra BRREG-nettside" : "fra nettside",
         )
       : null,
     emailDomain
-      ? domainLogoSource(emailDomain, `Logo.dev via maildomene (${emailDomain})`)
+      ? domainLogoSource(emailDomain, "fra e-postdomene")
       : null,
   ]);
 }
@@ -382,7 +380,7 @@ function nameBasedLogoSources(
     exactNameDomain && !knownDomains.has(exactNameDomain)
       ? domainLogoSource(
           exactNameDomain,
-          `Logo.dev – eksakt navnetreff (${exactNameDomain})`,
+          "fra navnesøk",
         )
       : null,
   ];
@@ -393,11 +391,11 @@ function nameBasedLogoSources(
     ...guessedDomains.map((domain) =>
       domainLogoSource(
         domain,
-        `Logo.dev – gjettet nettsidedomene (${domain})`,
+        "fra domenesøk",
       )),
     {
       src: logoDevNameUrl(companyNameWithoutLegalSuffix(company.name)),
-      label: "Logo.dev – usikkert navnetreff",
+      label: "fra navnesøk",
     },
   );
 
@@ -409,6 +407,40 @@ function domainLogoSource(domain: string, label: string): LogoSource {
     src: `https://img.logo.dev/${domain}?${logoDevBaseParams()}`,
     label,
   };
+}
+
+function shortLogoSourceLabel(label: string | null | undefined) {
+  if (!label || label === NO_LOGO_FOUND_SOURCE) {
+    return "fallback";
+  }
+
+  const normalized = label.toLowerCase();
+
+  if (normalized.includes("maildomene") || normalized.includes("e-postdomene")) {
+    return "fra e-postdomene";
+  }
+
+  if (normalized.includes("brreg")) {
+    return "fra BRREG-nettside";
+  }
+
+  if (normalized.includes("registrert nettside") || normalized.includes("nettside")) {
+    return "fra nettside";
+  }
+
+  if (normalized.includes("gjettet") || normalized.includes("domenesøk")) {
+    return "fra domenesøk";
+  }
+
+  if (normalized.includes("navnetreff") || normalized.includes("navnesøk")) {
+    return "fra navnesøk";
+  }
+
+  if (normalized.includes("lagret")) {
+    return "lagret";
+  }
+
+  return label;
 }
 
 function logoDevNameUrl(companyName: string) {

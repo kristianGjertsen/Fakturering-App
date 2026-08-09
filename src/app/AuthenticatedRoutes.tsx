@@ -89,6 +89,7 @@ export function AuthenticatedRoutes({
           <InvoicesPage
             companies={data.companies}
             bankAccounts={data.bankAccounts}
+            sellerProfile={data.profile}
             products={data.products}
             invoices={data.invoices}
             schedules={data.schedules}
@@ -102,13 +103,14 @@ export function AuthenticatedRoutes({
       />
       <Route
         path="/recurring"
-        element={<RecurringPage schedules={recurringSchedules} />}
+        element={<RecurringPage schedules={recurringSchedules} sellerProfile={data.profile} />}
       />
       <Route
         path="/profile"
         element={
           <ProfilePage
             session={session}
+            profile={data.profile}
             invoices={data.invoices}
             onSignOut={onSignOut}
           />

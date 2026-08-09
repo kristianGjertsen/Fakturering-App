@@ -146,15 +146,6 @@ export default function CompanyPage({
             onToggleLogoDisabled={(logoDisabled) => void handleToggleLogoDisabled(logoDisabled)}
           />
 
-          <div className="rounded-md border border-dashed border-amber-300 bg-amber-50 p-2 text-[10px] leading-4 text-amber-950">
-            <p className="font-semibold uppercase tracking-wide">Temp – bildenavn</p>
-            <p className="break-all font-mono">
-              {displayedLogoUrl ? imageNameFromUrl(displayedLogoUrl) : "fallback (ingen bildefil)"}
-            </p>
-            {displayedLogoUrl && (
-              <p className="mt-1 break-all font-mono text-amber-800">{displayedLogoUrl}</p>
-            )}
-          </div>
         </div>
         <div className="min-w-0 flex-1">
           <SectionHeader

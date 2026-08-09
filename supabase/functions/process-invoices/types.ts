@@ -43,6 +43,19 @@ export type ClaimedInvoice = {
   company: {
     name: string;
     email: string | null;
+    address?: string | null;
+    postal_address?: string | null;
+    org_number?: string | null;
+    country?: string | null;
+  } | null;
+  seller?: {
+    email?: string | null;
+    full_name?: string | null;
+    company_name?: string | null;
+    address?: string | null;
+    postal_address?: string | null;
+    country?: string | null;
+    org_number?: string | null;
   } | null;
   invoice_items: InvoiceItem[];
   invoice_attachments: StoredAttachment[];

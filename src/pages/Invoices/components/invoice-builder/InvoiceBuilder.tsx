@@ -5,6 +5,7 @@ import type {
   InvoiceDraftLine,
   PdfTemplate,
   Product,
+  Profile,
   ProfileBankAccount,
 } from "../../../../types";
 import type { InvoiceInput } from "../../../../lib/data";
@@ -42,6 +43,7 @@ import { Select } from "../../../../components/Select";
 type InvoiceBuilderProps = {
   companies: Company[];
   bankAccounts: ProfileBankAccount[];
+  sellerProfile: Profile;
   products: Product[];
   onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<string>;
   onDiscardDraft: () => void;
@@ -53,6 +55,7 @@ type InvoiceBuilderProps = {
 export function InvoiceBuilder({
   companies,
   bankAccounts,
+  sellerProfile,
   products,
   onCreateInvoice,
   onDiscardDraft,
@@ -478,7 +481,7 @@ export function InvoiceBuilder({
         <aside className="space-y-5">
           <Panel className="space-y-4">
             <InvoicePdfTemplateSelector value={pdfTemplate} onChange={setPdfTemplate} />
-            <InvoicePdfPreview invoice={previewInvoice} compact />
+            <InvoicePdfPreview invoice={previewInvoice} sellerProfile={sellerProfile} compact />
           </Panel>
 
           <InvoiceTotalsPanel totals={totals} />

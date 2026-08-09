@@ -1,4 +1,4 @@
-import type { InvoiceWithDetails } from "../../types";
+import type { InvoiceWithDetails, Profile } from "../../types";
 import { blobToBase64 } from "../../lib/base64";
 import {
   fetchInvoices,
@@ -13,6 +13,7 @@ export type InvoiceDeliveryAction = "send" | "remind";
 
 export async function prepareInvoiceEmailDelivery(
   invoice: InvoiceWithDetails,
+  sellerProfile: Profile,
   action: InvoiceDeliveryAction,
   recipientName: string,
 ) {
@@ -22,7 +23,7 @@ export async function prepareInvoiceEmailDelivery(
     throw new Error("Fakturaen mangler fakturanummer.");
   }
 
-  const pdfBlob = await loadOrCreateInvoicePdf(invoiceToSend);
+  const pdfBlob = await loadOrCreateInvoicePdf(invoiceToSend, sellerProfile);
   const attachmentContent = await blobToBase64(pdfBlob);
   const storedAttachments = await loadInvoiceEmailAttachments(
     invoiceToSend.invoice_attachments ?? [],
@@ -63,7 +64,7 @@ async function resolveInvoiceForDelivery(
   return finalizedInvoice;
 }
 
-async function loadOrCreateInvoicePdf(invoice: InvoiceWithDetails) {
+async function loadOrCreateInvoicePdf(invoice: InvoiceWithDetails, sellerProfile: Profile) {
   if (invoice.pdf_storage_path) {
     const { data, error } = await supabase.storage
       .from("invoice-pdfs")
@@ -73,7 +74,7 @@ async function loadOrCreateInvoicePdf(invoice: InvoiceWithDetails) {
     return data;
   }
 
-  const pdfBlob = await createInvoicePdfBlob(invoice);
+  const pdfBlob = await createInvoicePdfBlob(invoice, sellerProfile);
   await lockInvoicePdf(invoice.id, invoice.owner_user_id, pdfBlob);
   return pdfBlob;
 }

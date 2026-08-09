@@ -6,6 +6,22 @@ const EMPTY_APP_DATA: AppData = {
   products: [],
   invoices: [],
   schedules: [],
+  profile: {
+    id: "",
+    email: null,
+    full_name: null,
+    company_name: null,
+    address: null,
+    postal_address: null,
+    country: "NO",
+    org_number: null,
+    has_sent_invoices_before: false,
+    last_invoice_number: 9999,
+    invoice_number_prefix: "",
+    invoice_number_padding_width: 0,
+    created_at: "",
+    updated_at: "",
+  },
   bankAccounts: [],
 };
 

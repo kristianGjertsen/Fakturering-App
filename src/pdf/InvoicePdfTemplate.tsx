@@ -42,6 +42,16 @@ export type InvoicePdfData = {
   invoice_attachments?: InvoicePdfAttachment[];
 };
 
+export type InvoicePdfSeller = {
+  email?: string | null;
+  full_name?: string | null;
+  company_name?: string | null;
+  address?: string | null;
+  postal_address?: string | null;
+  country?: string | null;
+  org_number?: string | null;
+};
+
 const INVOICE_PDF_DEFAULTS = {
   seller: {
     name: "Kristian Gjertsen ENK",
@@ -49,13 +59,6 @@ const INVOICE_PDF_DEFAULTS = {
     postalAddress: "0001 Oslo",
     country: "NO",
     orgNumber: "123 456 789",
-  },
-  customer: {
-    name: "Testfirma Kristian AS",
-    address: "Kundegata 2",
-    postalAddress: "0123 Oslo",
-    country: "NO",
-    orgNumber: "987 654 321",
   },
   invoiceNumber: "1001",
   issueDate: "2026-07-18",
@@ -116,7 +119,13 @@ const styles = StyleSheet.create({
   minimalFooter: { left: 52, right: 52 },
 });
 
-export function InvoicePdfTemplate({ invoice }: { invoice: InvoicePdfData }) {
+export function InvoicePdfTemplate({
+  invoice,
+  seller,
+}: {
+  invoice: InvoicePdfData;
+  seller: InvoicePdfSeller;
+}) {
   const template = invoice.pdf_template ?? "classic";
   const items = [...(invoice.invoice_items ?? [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const { noteText, paymentText } = splitInvoiceNotes(invoice.notes);
@@ -125,22 +134,22 @@ export function InvoicePdfTemplate({ invoice }: { invoice: InvoicePdfData }) {
   const dueDate = invoice.due_date || INVOICE_PDF_DEFAULTS.dueDate;
   const deliveryDate = invoice.delivery_date || issueDate;
   const deliveryPlace = invoice.delivery_place || INVOICE_PDF_DEFAULTS.deliveryPlace;
-  const customerName = invoice.company?.name || INVOICE_PDF_DEFAULTS.customer.name;
-  const customerDetails = [
-    invoice.company?.address || INVOICE_PDF_DEFAULTS.customer.address,
-    invoice.company?.postal_address || INVOICE_PDF_DEFAULTS.customer.postalAddress,
-    invoice.company?.org_number
-      ? `Org.nr. ${invoice.company.org_number}`
-      : `Org.nr. ${INVOICE_PDF_DEFAULTS.customer.orgNumber}`,
-    invoice.company?.email,
-    countryLabel(invoice.company?.country ?? INVOICE_PDF_DEFAULTS.customer.country),
-  ].filter(Boolean);
-  const sellerDetails = [
-    INVOICE_PDF_DEFAULTS.seller.address,
-    INVOICE_PDF_DEFAULTS.seller.postalAddress,
-    countryLabel(INVOICE_PDF_DEFAULTS.seller.country),
-    `Org.nr. ${INVOICE_PDF_DEFAULTS.seller.orgNumber}`,
-  ];
+  const customerName = invoice.company?.name || "Kunde";
+  const customerDetails = partyDetails({
+    address: invoice.company?.address,
+    postalAddress: invoice.company?.postal_address,
+    country: invoice.company?.country,
+    orgNumber: invoice.company?.org_number,
+    email: invoice.company?.email,
+  });
+  const sellerName = seller.company_name || seller.full_name || seller.email || INVOICE_PDF_DEFAULTS.seller.name;
+  const sellerDetails = partyDetails({
+    address: seller.address,
+    postalAddress: seller.postal_address,
+    country: seller.country,
+    orgNumber: seller.org_number,
+    email: seller.email,
+  });
   const pageStyles = [
     styles.page,
     ...(template === "modern"
@@ -197,7 +206,7 @@ export function InvoicePdfTemplate({ invoice }: { invoice: InvoicePdfData }) {
           <InvoiceParty
             template={template}
             label="Selger"
-            name={INVOICE_PDF_DEFAULTS.seller.name}
+            name={sellerName}
             details={sellerDetails}
           />
           <InvoiceParty
@@ -255,6 +264,28 @@ function InvoiceMetadataItem({ label, value }: { label: string; value: string })
       <Text style={styles.value}>{value}</Text>
     </View>
   );
+}
+
+function partyDetails({
+  address,
+  postalAddress,
+  country,
+  orgNumber,
+  email,
+}: {
+  address?: string | null;
+  postalAddress?: string | null;
+  country?: string | null;
+  orgNumber?: string | null;
+  email?: string | null;
+}) {
+  return [
+    address,
+    postalAddress,
+    country ? countryLabel(country) : "",
+    orgNumber ? `Org.nr. ${orgNumber}` : "",
+    email,
+  ].filter(Boolean) as string[];
 }
 
 function splitInvoiceNotes(notes: string | null | undefined) {

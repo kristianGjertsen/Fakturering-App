@@ -14,6 +14,7 @@ import type {
   InvoiceItem,
   InvoiceScheduleWithDetails,
   InvoiceWithDetails,
+  Profile,
 } from "../../../../types";
 import {
   getInvoiceStatusPresentation,
@@ -24,6 +25,7 @@ import type { InvoiceDeliveryAction } from "../../invoiceDelivery";
 
 type InvoiceDetailsProps = {
   invoice: InvoiceWithDetails;
+  sellerProfile: Profile;
   schedule: InvoiceScheduleWithDetails | null;
   deleting: boolean;
   sending: boolean;
@@ -38,12 +40,13 @@ type ReferencedAttachment = {
   reference: string;
 };
 
-type InvoiceOverviewProps = Omit<InvoiceDetailsProps, "schedule"> & {
+type InvoiceOverviewProps = Omit<InvoiceDetailsProps, "schedule" | "sellerProfile"> & {
   scheduled: boolean;
 };
 
 export function InvoiceDetails({
   invoice,
+  sellerProfile,
   schedule,
   deleting,
   sending,
@@ -109,7 +112,7 @@ export function InvoiceDetails({
         )}
       </Panel>
 
-      <InvoicePdfPreviewPanel invoice={invoice} className="lg:sticky lg:top-12" />
+      <InvoicePdfPreviewPanel invoice={invoice} sellerProfile={sellerProfile} className="lg:sticky lg:top-12" />
     </div>
   );
 }

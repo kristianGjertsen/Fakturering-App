@@ -22,6 +22,15 @@ export type PdfInvoice = {
     email: string | null;
     country?: string | null;
   } | null;
+  seller?: {
+    email?: string | null;
+    full_name?: string | null;
+    company_name?: string | null;
+    address?: string | null;
+    postal_address?: string | null;
+    country?: string | null;
+    org_number?: string | null;
+  } | null;
   invoice_items: Array<{
     id?: string;
     description: string;
@@ -44,13 +53,6 @@ const fallbackInvoice = {
     postalAddress: "0001 Oslo",
     country: "NO",
     orgNumber: "123 456 789",
-  },
-  customer: {
-    name: "Testfirma Kristian AS",
-    address: "Kundegata 2",
-    postalAddress: "0123 Oslo",
-    country: "NO",
-    orgNumber: "987 654 321",
   },
   invoiceNumber: "1001",
   issueDate: "2026-07-18",
@@ -136,11 +138,25 @@ function createPage(
   const dueDate = invoice.due_date || fallbackInvoice.dueDate;
   const deliveryDate = invoice.delivery_date || issueDate || fallbackInvoice.deliveryDate;
   const deliveryPlace = invoice.delivery_place || fallbackInvoice.deliveryPlace;
-  const customerName = invoice.company?.name || fallbackInvoice.customer.name;
-  const customerAddress = invoice.company?.address || fallbackInvoice.customer.address;
-  const customerPostalAddress = invoice.company?.postal_address || fallbackInvoice.customer.postalAddress;
-  const customerCountry = countryLabel(invoice.company?.country ?? fallbackInvoice.customer.country);
-  const customerOrgNumber = invoice.company?.org_number || fallbackInvoice.customer.orgNumber;
+  const sellerName = invoice.seller?.company_name
+    || invoice.seller?.full_name
+    || invoice.seller?.email
+    || fallbackInvoice.seller.name;
+  const sellerDetails = partyDetails({
+    address: invoice.seller?.address,
+    postalAddress: invoice.seller?.postal_address,
+    country: invoice.seller?.country,
+    orgNumber: invoice.seller?.org_number,
+    email: invoice.seller?.email,
+  });
+  const customerName = invoice.company?.name || "Kunde";
+  const customerDetails = partyDetails({
+    address: invoice.company?.address,
+    postalAddress: invoice.company?.postal_address,
+    country: invoice.company?.country,
+    orgNumber: invoice.company?.org_number,
+    email: invoice.company?.email,
+  });
   const { noteText, paymentText } = splitInvoiceNotes(invoice.notes);
 
   if (theme.pageBackground) {
@@ -176,19 +192,18 @@ function createPage(
     text(475, 752, 9, "Forfallsdato", theme.muted),
     text(475, 733, 11, formatDate(dueDate)),
     text(45, 690, 9, "Selger", theme.muted),
-    text(45, 671, 13, fallbackInvoice.seller.name),
-    text(45, 653, 10, fallbackInvoice.seller.address, "0.12 0.18 0.28"),
-    text(45, 637, 10, fallbackInvoice.seller.postalAddress, "0.12 0.18 0.28"),
-    text(45, 621, 10, countryLabel(fallbackInvoice.seller.country), "0.12 0.18 0.28"),
-    text(45, 605, 10, `Org.nr. ${fallbackInvoice.seller.orgNumber}`, "0.12 0.18 0.28"),
+    text(45, 671, 13, sellerName),
     text(310, 690, 9, "Kunde", theme.muted),
     text(310, 671, 13, customerName),
-    text(310, 653, 10, customerAddress, "0.12 0.18 0.28"),
-    text(310, 637, 10, customerPostalAddress, "0.12 0.18 0.28"),
-    text(310, 621, 10, customerCountry, "0.12 0.18 0.28"),
-    text(310, 605, 10, `Org.nr. ${customerOrgNumber}`, "0.12 0.18 0.28"),
-    text(310, 589, 10, invoice.company?.email ?? "", "0.12 0.18 0.28"),
   );
+
+  sellerDetails.forEach((detail, index) => {
+    commands.push(text(45, 653 - index * 16, 10, detail, "0.12 0.18 0.28"));
+  });
+
+  customerDetails.forEach((detail, index) => {
+    commands.push(text(310, 653 - index * 16, 10, detail, "0.12 0.18 0.28"));
+  });
 
   if (theme.tableHeaderBackground) {
     commands.push(`${theme.tableHeaderBackground} rg 45 540 505 28 re f`);
@@ -458,6 +473,28 @@ function countryLabel(value: string | null | undefined) {
   };
 
   return value ? labels[value] ?? value : "";
+}
+
+function partyDetails({
+  address,
+  postalAddress,
+  country,
+  orgNumber,
+  email,
+}: {
+  address?: string | null;
+  postalAddress?: string | null;
+  country?: string | null;
+  orgNumber?: string | null;
+  email?: string | null;
+}) {
+  return [
+    address,
+    postalAddress,
+    country ? countryLabel(country) : "",
+    orgNumber ? `Org.nr. ${orgNumber}` : "",
+    email,
+  ].filter(Boolean) as string[];
 }
 
 function truncate(value: string, length: number) {

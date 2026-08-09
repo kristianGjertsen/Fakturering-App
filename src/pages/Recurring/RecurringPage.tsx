@@ -8,16 +8,17 @@ import { SectionHeader } from "../../components/SectionHeader";
 import { DetailModal } from "../../components/layout/DetailModal";
 import { formatDate, frequencyLabel } from "../../lib/format";
 import { calculateScheduleTotals } from "../../lib/schedulePreview";
-import type { InvoiceScheduleWithDetails } from "../../types";
+import type { InvoiceScheduleWithDetails, Profile } from "../../types";
 import { RecurringDetails } from "./components/RecurringDetails";
 import { getScheduleDisplayTitle } from "./schedulePresentation";
 import setShowCreateForm from "../Invoices/InvoicesPage";
 
 type RecurringPageProps = {
   schedules: InvoiceScheduleWithDetails[];
+  sellerProfile: Profile;
 };
 
-export default function RecurringPage({ schedules }: RecurringPageProps) {
+export default function RecurringPage({ schedules, sellerProfile }: RecurringPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedScheduleId = searchParams.get("scheduleId") ?? "";
   const [selectedScheduleId, setSelectedScheduleId] = useState(requestedScheduleId);
@@ -116,7 +117,7 @@ export default function RecurringPage({ schedules }: RecurringPageProps) {
           ? `Detaljer for ${getScheduleDisplayTitle(selectedSchedule)}`
           : "Detaljer for gjentakende plan"}
       >
-        {selectedSchedule && <RecurringDetails schedule={selectedSchedule} />}
+        {selectedSchedule && <RecurringDetails schedule={selectedSchedule} sellerProfile={sellerProfile} />}
       </DetailModal>
     </>
   );

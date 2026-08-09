@@ -8,7 +8,7 @@ import {
   calculateScheduleTotals,
   scheduleToPreviewInvoice,
 } from "../../../lib/schedulePreview";
-import type { InvoiceScheduleWithDetails } from "../../../types";
+import type { InvoiceScheduleWithDetails, Profile } from "../../../types";
 import { InvoicePdfPreviewPanel } from "../../Invoices/components/preview/InvoicePdfPreviewPanel";
 import { getScheduleDisplayTitle } from "../schedulePresentation";
 import { ScheduleAttachmentList } from "./ScheduleAttachmentList";
@@ -16,9 +16,10 @@ import { ScheduleLineItemsTable } from "./ScheduleLineItemsTable";
 
 type RecurringDetailsProps = {
   schedule: InvoiceScheduleWithDetails;
+  sellerProfile: Profile;
 };
 
-export function RecurringDetails({ schedule }: RecurringDetailsProps) {
+export function RecurringDetails({ schedule, sellerProfile }: RecurringDetailsProps) {
   const lines = useMemo(
     () => [...(schedule.invoice_schedule_lines ?? [])].sort(
       (left, right) => left.sort_order - right.sort_order,
@@ -92,7 +93,7 @@ export function RecurringDetails({ schedule }: RecurringDetailsProps) {
         </div>
       </Panel>
 
-      <InvoicePdfPreviewPanel invoice={previewInvoice} />
+      <InvoicePdfPreviewPanel invoice={previewInvoice} sellerProfile={sellerProfile} />
     </ContentStack>
   );
 }

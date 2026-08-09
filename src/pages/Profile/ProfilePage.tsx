@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import type { InvoiceWithDetails } from "../../types";
+import type { InvoiceWithDetails, Profile } from "../../types";
 import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
 import { Notice } from "../../components/layout/Notice";
 import { Modal } from "../../components/layout/Modal";
 import { Panel } from "../../components/layout/Panel";
+import { ConfirmDialog } from "../../components/layout/ConfirmDialog";
 import { downloadAccountingExport } from "../../lib/accountingExport";
 import { deleteCurrentUser } from "../../lib/data";
 import {
@@ -15,6 +16,7 @@ import {
 
 type ProfilePageProps = {
   session: Session;
+  profile: Profile;
   invoices: InvoiceWithDetails[];
   onSignOut: () => Promise<void>;
 };
@@ -24,11 +26,13 @@ type Feedback = {
   tone: ProfileFeedbackTone;
 };
 
-export default function ProfilePage({ session, invoices, onSignOut }: ProfilePageProps) {
+export default function ProfilePage({ session, profile, invoices, onSignOut }: ProfilePageProps) {
   const [feedback, setFeedback] = useState<Feedback>({ message: "", tone: "info" });
   const [deleting, setDeleting] = useState(false);
   const [exportingAccounting, setExportingAccounting] = useState(false);
   const [showAccountingExportDialog, setShowAccountingExportDialog] = useState(false);
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
+  const [showDeleteUserDialog, setShowDeleteUserDialog] = useState(false);
   const paidInvoiceCount = invoices.filter((invoice) => invoice.paid || invoice.status === "paid").length;
 
   const showFeedback = useCallback((message: string, tone: ProfileFeedbackTone) => {
@@ -36,19 +40,12 @@ export default function ProfilePage({ session, invoices, onSignOut }: ProfilePag
   }, []);
 
   async function handleDeleteUser() {
-    const confirmed = window.confirm(
-      "Er du sikker på at du vil slette brukeren? Dette sletter kontoen og tilhørende data.",
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
     setDeleting(true);
     showFeedback("", "danger");
 
     try {
       await deleteCurrentUser();
+      setShowDeleteUserDialog(false);
       await onSignOut();
     } catch (error) {
       showFeedback(
@@ -65,7 +62,7 @@ export default function ProfilePage({ session, invoices, onSignOut }: ProfilePag
     showFeedback("", "info");
 
     try {
-      const exportedCount = await downloadAccountingExport(invoices);
+      const exportedCount = await downloadAccountingExport(invoices, profile);
       setShowAccountingExportDialog(false);
       showFeedback(`Regnskapsgrunnlag er lastet ned med ${exportedCount} betalte fakturaer.`, "info");
     } catch (error) {
@@ -120,12 +117,12 @@ export default function ProfilePage({ session, invoices, onSignOut }: ProfilePag
         </dl>
 
         <div className="mt-6 flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => void onSignOut()}>
+          <Button variant="secondary" onClick={() => setShowSignOutDialog(true)}>
             Logg ut
           </Button>
           <Button
             variant="danger"
-            onClick={() => void handleDeleteUser()}
+            onClick={() => setShowDeleteUserDialog(true)}
             disabled={deleting}
           >
             {deleting ? "Sletter..." : "Slett bruker"}
@@ -161,6 +158,27 @@ export default function ProfilePage({ session, invoices, onSignOut }: ProfilePag
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={showSignOutDialog}
+        title="Logg ut"
+        message="Er du sikker på at du vil logge ut?"
+        confirmLabel="Logg ut"
+        tone="info"
+        onCancel={() => setShowSignOutDialog(false)}
+        onConfirm={() => void onSignOut()}
+      />
+
+      <ConfirmDialog
+        open={showDeleteUserDialog}
+        title="Slett bruker og all tilhørende data"
+        message="Er du sikker på at du vil slette brukeren? Dette sletter kontoen og tilhørende data."
+        confirmLabel={deleting ? "Sletter..." : "Slett bruker"}
+        tone="danger"
+        loading={deleting}
+        onCancel={() => setShowDeleteUserDialog(false)}
+        onConfirm={() => void handleDeleteUser()}
+      />
     </>
   );
 }

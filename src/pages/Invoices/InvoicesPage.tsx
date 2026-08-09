@@ -6,6 +6,7 @@ import type {
   InvoiceScheduleWithDetails,
   InvoiceWithDetails,
   Product,
+  Profile,
   ProfileBankAccount,
 } from "../../types";
 import type { InvoiceInput } from "../../lib/data";
@@ -16,6 +17,7 @@ import { AnimatedIconButton } from "../../components/AnimatedIconButton";
 import { SectionHeader } from "../../components/SectionHeader";
 import { Notice } from "../../components/layout/Notice";
 import { DetailModal } from "../../components/layout/DetailModal";
+import { ConfirmDialog } from "../../components/layout/ConfirmDialog";
 import { InvoiceBuilder } from "./components/invoice-builder/InvoiceBuilder";
 import { InvoiceDetails } from "./components/view/InvoiceDetails";
 import { InvoiceList } from "./components/view/InvoiceList";
@@ -35,6 +37,7 @@ type InvoicesLocationState = {
 type InvoicesPageProps = {
   companies: Company[];
   bankAccounts: ProfileBankAccount[];
+  sellerProfile: Profile;
   products: Product[];
   invoices: InvoiceWithDetails[];
   schedules: InvoiceScheduleWithDetails[];
@@ -48,6 +51,7 @@ type InvoicesPageProps = {
 export default function InvoicesPage({
   companies,
   bankAccounts,
+  sellerProfile,
   products,
   invoices,
   schedules,
@@ -74,6 +78,7 @@ export default function InvoicesPage({
   const [sendingInvoiceId, setSendingInvoiceId] = useState("");
   const [updatingPaidInvoiceId, setUpdatingPaidInvoiceId] = useState("");
   const [actionMessage, setActionMessage] = useState("");
+  const [showDeleteInvoiceDialog, setShowDeleteInvoiceDialog] = useState(false);
 
   const filteredInvoices = useMemo(
     () => companyFilterId ? invoices.filter((invoice) => invoice.company_id === companyFilterId) : invoices,
@@ -156,11 +161,11 @@ export default function InvoicesPage({
 
   async function handleDeleteSelectedInvoice() {
     if (!selectedInvoice || selectedInvoiceSchedule) return;
-    if (!window.confirm(`Slette ${selectedInvoice.invoice_number ? `faktura ${selectedInvoice.invoice_number}` : "utkastet"}?`)) return;
 
     setDeletingInvoiceId(selectedInvoice.id);
     try {
       await onDeleteInvoice(selectedInvoice.id);
+      setShowDeleteInvoiceDialog(false);
       closeInvoiceDetails();
     } finally {
       setDeletingInvoiceId("");
@@ -194,6 +199,7 @@ export default function InvoicesPage({
     try {
       const { attachments, html, subject } = await prepareInvoiceEmailDelivery(
         selectedInvoice,
+        sellerProfile,
         action,
         recipientName,
       );
@@ -293,6 +299,7 @@ export default function InvoicesPage({
         <InvoiceBuilder
           companies={companies}
           bankAccounts={bankAccounts}
+          sellerProfile={sellerProfile}
           products={products}
           initialCompanyId={companyFilterId}
           initialInvoiceKind={requestedInvoiceKind}
@@ -347,16 +354,28 @@ export default function InvoicesPage({
         {selectedInvoice && (
           <InvoiceDetails
             invoice={selectedInvoice}
+            sellerProfile={sellerProfile}
             schedule={selectedInvoiceSchedule}
             deleting={deletingInvoiceId === selectedInvoice.id}
             sending={sendingInvoiceId === selectedInvoice.id}
             updatingPaid={updatingPaidInvoiceId === selectedInvoice.id}
-            onDelete={() => void handleDeleteSelectedInvoice()}
+            onDelete={() => setShowDeleteInvoiceDialog(true)}
             onSend={(action) => void handleSendSelectedInvoice(action)}
             onTogglePaid={() => void handleTogglePaid()}
           />
         )}
       </DetailModal>
+
+      <ConfirmDialog
+        open={Boolean(selectedInvoice && showDeleteInvoiceDialog)}
+        title="Slett faktura"
+        message={`Slette ${selectedInvoice?.invoice_number ? `faktura ${selectedInvoice.invoice_number}` : "utkastet"}?`}
+        confirmLabel={deletingInvoiceId ? "Sletter..." : "Slett"}
+        tone="danger"
+        loading={Boolean(deletingInvoiceId)}
+        onCancel={() => setShowDeleteInvoiceDialog(false)}
+        onConfirm={() => void handleDeleteSelectedInvoice()}
+      />
     </>
   );
 }
