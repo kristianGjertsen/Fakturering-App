@@ -196,8 +196,8 @@ export default function CompanyPage({
         </div>
         <div className="min-w-0 flex-1">
           <SectionHeader
-            title={currentCompany.name}
-            description="Selskapsinformasjon, produkter og tjenester."
+            title={currentCompany.name} 
+            description={currentCompany.is_active ? "": "Firmaet er inaktivt og kan ikke brukes i fakturaer."}
             action={
               <div className="flex flex-wrap justify-end gap-2">
                 {currentCompany.is_active ? (
