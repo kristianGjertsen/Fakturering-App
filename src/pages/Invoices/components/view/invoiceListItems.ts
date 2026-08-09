@@ -36,6 +36,13 @@ function scheduleToListItem(schedule: InvoiceScheduleWithDetails): DocumentBrows
     date: schedule.next_run_at,
     createdAt: schedule.created_at,
     dueDate: previewInvoice.due_date,
+    recurrence: schedule.schedule_type === "recurring" && schedule.frequency
+      ? {
+        frequency: schedule.frequency,
+        intervalCount: schedule.interval_count,
+        dayOfMonth: schedule.day_of_month,
+      }
+      : undefined,
   };
 }
 

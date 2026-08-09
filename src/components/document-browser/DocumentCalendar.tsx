@@ -29,7 +29,7 @@ const STATUS_ORDER = [
 ];
 export function DocumentCalendar({ items, selectedId, onSelect }: DocumentCalendarProps) {
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
-  const itemsByDate = useMemo(() => groupItemsByDate(items), [items]);
+  const itemsByDate = useMemo(() => groupItemsByDate(items, visibleMonth), [items, visibleMonth]);
   const days = useMemo(() => calendarDays(visibleMonth), [visibleMonth]);
   const legendItems = useMemo(() => {
     const statuses = new Map<string, StatusTone>();
@@ -155,12 +155,12 @@ export function DocumentCalendar({ items, selectedId, onSelect }: DocumentCalend
                         className={`flex h-9 w-full items-center gap-2 rounded-md border-2 px-2 text-left shadow-sm transition ${
                           getStatusColorClasses(item.statusTone).surface
                         } ${
-                          selectedId === item.id
+                          selectedId === (item.selectId ?? item.id)
                             ? "ring-2 ring-blue-500"
                             : "hover:brightness-95"
                         }`}
                         title={`${item.title} – ${item.statusLabel}`}
-                        onClick={() => onSelect(item.id)}
+                        onClick={() => onSelect(item.selectId ?? item.id)}
                       >
                         <span className="min-w-0 flex-1 truncate text-xs font-semibold leading-none text-slate-950">
                           {item.title}
@@ -181,18 +181,86 @@ export function DocumentCalendar({ items, selectedId, onSelect }: DocumentCalend
   );
 }
 
-function groupItemsByDate(items: DocumentBrowserItem[]) {
+function groupItemsByDate(items: DocumentBrowserItem[], visibleMonth: Date) {
   const groups = new Map<string, DocumentBrowserItem[]>();
+  const days = calendarDays(visibleMonth);
+  const rangeStart = startOfDay(days[0]);
+  const rangeEnd = startOfDay(days[days.length - 1]);
 
   for (const item of items) {
-    const dateKey = item.date ? dateValueToKey(item.date) : null;
-    if (!dateKey) continue;
-    const dateItems = groups.get(dateKey) ?? [];
-    dateItems.push(item);
-    groups.set(dateKey, dateItems);
+    const occurrences = calendarOccurrences(item, rangeStart, rangeEnd);
+
+    for (const occurrence of occurrences) {
+      const dateItems = groups.get(occurrence.dateKey) ?? [];
+      dateItems.push(occurrence.item);
+      groups.set(occurrence.dateKey, dateItems);
+    }
   }
 
   return groups;
+}
+
+function calendarOccurrences(
+  item: DocumentBrowserItem,
+  rangeStart: Date,
+  rangeEnd: Date,
+) {
+  const start = item.date ? dateValueToDate(item.date) : null;
+  if (!start) return [];
+
+  if (!item.recurrence) {
+    const dateKey = toDateKey(start);
+    return [{ dateKey, item }];
+  }
+
+  const occurrences: { dateKey: string; item: DocumentBrowserItem }[] = [];
+  let occurrence = startOfDay(start);
+  let guard = 0;
+
+  while (occurrence < rangeStart && guard < 500) {
+    occurrence = nextOccurrence(occurrence, item.recurrence);
+    guard += 1;
+  }
+
+  while (occurrence <= rangeEnd && guard < 600) {
+    const dateKey = toDateKey(occurrence);
+    occurrences.push({
+      dateKey,
+      item: {
+        ...item,
+        id: `${item.id}:${dateKey}`,
+        selectId: item.id,
+        date: dateKey,
+      },
+    });
+    occurrence = nextOccurrence(occurrence, item.recurrence);
+    guard += 1;
+  }
+
+  return occurrences;
+}
+
+function nextOccurrence(
+  date: Date,
+  recurrence: NonNullable<DocumentBrowserItem["recurrence"]>,
+) {
+  const interval = Math.max(1, recurrence.intervalCount);
+  const next = new Date(date);
+
+  if (recurrence.frequency === "daily") {
+    next.setDate(next.getDate() + interval);
+    return next;
+  }
+
+  if (recurrence.frequency === "weekly") {
+    next.setDate(next.getDate() + interval * 7);
+    return next;
+  }
+
+  const dayOfMonth = recurrence.dayOfMonth ?? next.getDate();
+  next.setMonth(next.getMonth() + interval, 1);
+  next.setDate(Math.min(dayOfMonth, daysInMonth(next)));
+  return next;
 }
 
 function statusOrder(label: string) {
@@ -204,8 +272,10 @@ function calendarDays(month: Date) {
   const firstDay = startOfMonth(month);
   const mondayOffset = (firstDay.getDay() + 6) % 7;
   const firstCalendarDay = new Date(firstDay.getFullYear(), firstDay.getMonth(), 1 - mondayOffset);
+  const numberOfDays = daysInMonth(firstDay);
+  const weekCount = Math.ceil((mondayOffset + numberOfDays) / 7);
 
-  return Array.from({ length: 42 }, (_, index) => (
+  return Array.from({ length: weekCount * 7 }, (_, index) => (
     new Date(firstCalendarDay.getFullYear(), firstCalendarDay.getMonth(), firstCalendarDay.getDate() + index)
   ));
 }
@@ -214,10 +284,14 @@ function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
-function dateValueToKey(value: string) {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+function dateValueToDate(value: string) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }
+
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : toDateKey(date);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function toDateKey(date: Date) {
@@ -225,4 +299,12 @@ function toDateKey(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function daysInMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
 }
