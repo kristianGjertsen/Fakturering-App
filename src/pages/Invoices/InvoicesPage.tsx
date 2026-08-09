@@ -346,6 +346,7 @@ export default function InvoicesPage({
       <DetailModal
         open={Boolean(selectedInvoice)}
         onClose={closeInvoiceDetails}
+        title={selectedInvoiceSchedule ? "Gjentagende fakturaplan" : "Faktura"}
         ariaLabel={selectedInvoice
           ? `Fakturadetaljer for ${selectedInvoice.title || selectedInvoice.invoice_number}`
           : "Fakturadetaljer"}

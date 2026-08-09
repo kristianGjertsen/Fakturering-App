@@ -4,6 +4,7 @@ import { AnimatedIconButton } from "../../../components/AnimatedIconButton";
 import { EmptyState } from "../../../components/EmptyState";
 import { ConfirmDialog } from "../../../components/layout/ConfirmDialog";
 import { Panel, PanelHeader } from "../../../components/layout/Panel";
+import { Tag } from "../../../components/Tag";
 import { formatCurrency } from "../../../lib/format";
 import type { Product } from "../../../types";
 
@@ -83,15 +84,9 @@ export function CompanyProducts({
                   </td>
                   <td className="py-3 pr-4 text-right text-slate-600">{product.vat_rate}%</td>
                   <td className="py-3 pr-4 text-right">
-                    <span
-                      className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                        product.is_active
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
+                    <Tag tone={product.is_active ? "success" : "neutral"}>
                       {product.is_active ? "Aktiv" : "Inaktiv"}
-                    </span>
+                    </Tag>
                   </td>
                   <td className="py-3 text-right">
                     <AnimatedIconButton

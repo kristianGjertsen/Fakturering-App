@@ -1,5 +1,5 @@
 import { formatCurrency, formatDate } from "../../lib/format";
-import { getStatusColorClasses } from "./statusColors";
+import { Tag } from "../Tag";
 import type { DocumentBrowserItem, DocumentGroup } from "./types";
 
 type DocumentRowProps = {
@@ -88,13 +88,9 @@ export function DocumentRow({
             {[showCompany ? item.companyName : null, item.subtitle].filter(Boolean).join(" · ")}
           </span>
         </span>
-        <span
-          className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ring-1 ${
-            getStatusColorClasses(item.statusTone).badge
-          }`}
-        >
+        <Tag tone={item.statusTone} className="shrink-0">
           {item.statusLabel}
-        </span>
+        </Tag>
       </span>
       <span className="mt-2 flex items-center justify-between gap-3 text-xs">
         <span className="text-slate-500">{item.dateLabel ?? formatDate(item.date)}</span>

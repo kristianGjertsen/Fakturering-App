@@ -1,7 +1,5 @@
-import {
-  getStatusColorClasses,
-  type DocumentBrowserItem,
-} from "../../../../components/DocumentBrowser";
+import type { DocumentBrowserItem } from "../../../../components/DocumentBrowser";
+import { Tag } from "../../../../components/Tag";
 import { formatCurrency, formatDate } from "../../../../lib/format";
 
 type CompactInvoiceListProps = {
@@ -55,11 +53,9 @@ export function CompactInvoiceList({ items, onSelect }: CompactInvoiceListProps)
                 {item.invoiceNumber ?? item.subtitle ?? "–"}
               </td>
               <td className="whitespace-nowrap px-4 py-3">
-                <span className={`rounded-md px-2 py-1 text-[11px] font-semibold ring-1 ${
-                  getStatusColorClasses(item.statusTone).badge
-                }`}>
+                <Tag tone={item.statusTone}>
                   {item.statusLabel}
-                </span>
+                </Tag>
               </td>
               <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-950">
                 {formatCurrency(item.amount)}

@@ -64,13 +64,18 @@ export function DocumentCalendar({ items, selectedId, onSelect }: DocumentCalend
           {legendItems.length > 0 && (
             <div
               aria-label="Fargeforklaring for statuser"
-              className="flex flex-wrap items-center gap-x-3 gap-y-1"
+              className="flex flex-wrap items-center gap-2"
             >
               {legendItems.map(([label, tone]) => (
-                <span key={label} className="flex items-center gap-1 text-[10px] font-medium text-slate-600">
+                <span
+                  key={label}
+                  className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm font-semibold text-slate-800 shadow-sm ${
+                    getStatusColorClasses(tone).surface
+                  }`}
+                >
                   <span
                     aria-hidden="true"
-                    className={`size-2.5 rounded-sm border ${getStatusColorClasses(tone).surface}`}
+                    className={`size-4 rounded border-2 border-current bg-current`}
                   />
                   {label}
                 </span>
@@ -147,7 +152,7 @@ export function DocumentCalendar({ items, selectedId, onSelect }: DocumentCalend
                       <button
                         key={item.id}
                         type="button"
-                        className={`flex h-7 w-full items-center gap-1 rounded border px-1 text-left transition ${
+                        className={`flex h-9 w-full items-center gap-2 rounded-md border-2 px-2 text-left shadow-sm transition ${
                           getStatusColorClasses(item.statusTone).surface
                         } ${
                           selectedId === item.id
@@ -157,10 +162,10 @@ export function DocumentCalendar({ items, selectedId, onSelect }: DocumentCalend
                         title={`${item.title} – ${item.statusLabel}`}
                         onClick={() => onSelect(item.id)}
                       >
-                        <span className="min-w-0 flex-1 truncate text-[9px] font-semibold leading-none text-slate-900">
+                        <span className="min-w-0 flex-1 truncate text-xs font-semibold leading-none text-slate-950">
                           {item.title}
                         </span>
-                        <span className="shrink-0 text-[8px] leading-none text-slate-500">
+                        <span className="shrink-0 text-[10px] font-semibold leading-none text-slate-600">
                           {formatCurrency(item.amount)}
                         </span>
                       </button>

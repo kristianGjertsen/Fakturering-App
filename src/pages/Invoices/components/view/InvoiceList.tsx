@@ -15,6 +15,7 @@ type InvoiceListProps = {
   onMarkPaid?: (invoiceId: string) => void;
   markingPaidId?: string;
   compact?: boolean;
+  itemLabel?: string;
   limit?: number;
 };
 
@@ -26,6 +27,7 @@ export function InvoiceList({
   onMarkPaid,
   markingPaidId = "",
   compact = false,
+  itemLabel = "fakturaer",
   limit,
 }: InvoiceListProps) {
   const visibleInvoices = getVisibleInvoices(invoices);
@@ -43,6 +45,7 @@ export function InvoiceList({
       onSelect={onSelect}
       onMarkPaid={onMarkPaid}
       markingPaidId={markingPaidId}
+      itemLabel={itemLabel}
     />
   );
 }

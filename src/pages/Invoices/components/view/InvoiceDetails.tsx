@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "../../../../components/Button";
-import { getStatusColorClasses } from "../../../../components/DocumentBrowser";
+import { Tag } from "../../../../components/Tag";
 import {
   attachmentFileName,
   formatFileSize,
@@ -168,15 +168,11 @@ function InvoiceOverview({
         <p className="text-2xl font-semibold text-slate-950">
           {formatCurrency(invoice.total)}
         </p>
-        <span className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${
-          getStatusColorClasses(status.tone).badge
-        }`}>
+        <Tag tone={status.tone} className="px-3 py-1.5 text-xs">
           {status.label}
-        </span>
+        </Tag>
         <div className="flex flex-wrap gap-2">
-          {scheduled ? (
-            <Button variant="secondary" disabled>Planlagt</Button>
-          ) : canTogglePaid && (
+          {!scheduled && canTogglePaid && (
             <Button
               variant={invoice.paid ? "secondary" : "success"}
               onClick={onTogglePaid}

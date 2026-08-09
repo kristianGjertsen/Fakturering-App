@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight } from "@animateicons/react/lucide";
 import { AnimatedIconButton } from "../../../../components/AnimatedIconButton";
-import {
-  getStatusColorClasses,
-  type DocumentBrowserItem,
-} from "../../../../components/DocumentBrowser";
+import type { DocumentBrowserItem } from "../../../../components/DocumentBrowser";
 import { Input } from "../../../../components/Input";
 import { Panel } from "../../../../components/layout/Panel";
 import { Select } from "../../../../components/Select";
+import { Tag } from "../../../../components/Tag";
 import {
   filterAndSortDocuments,
   groupDocumentsByCompany,
@@ -25,6 +23,7 @@ type FullInvoiceListProps = {
   onSelect: (invoiceId: string) => void;
   onMarkPaid?: (invoiceId: string) => void;
   markingPaidId: string;
+  itemLabel: string;
 };
 
 const PAGE_SIZE = 10;
@@ -36,6 +35,7 @@ export function FullInvoiceList({
   onSelect,
   onMarkPaid,
   markingPaidId,
+  itemLabel,
 }: FullInvoiceListProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [search, setSearch] = useState("");
@@ -116,11 +116,9 @@ export function FullInvoiceList({
           {item.invoiceNumber ?? item.subtitle ?? "–"}
         </td>
         <td className="whitespace-nowrap px-4 py-3">
-          <span className={`rounded-md px-2 py-1 text-[11px] font-semibold ring-1 ${
-            getStatusColorClasses(item.statusTone).badge
-          }`}>
+          <Tag tone={item.statusTone}>
             {item.statusLabel}
-          </span>
+          </Tag>
         </td>
         <td className="whitespace-nowrap px-2 py-3 text-center">
           {item.canMarkPaid && onMarkPaid && (
@@ -163,7 +161,7 @@ export function FullInvoiceList({
           <div>
             <p className="text-sm font-semibold text-slate-950">Oversikt</p>
             <p className="text-xs text-slate-500">
-              {filteredItems.length} fakturaer ·{" "}
+              {filteredItems.length} {itemLabel} ·{" "}
               {formatCurrency(filteredItems.reduce((sum, item) => sum + item.amount, 0))}
             </p>
           </div>
@@ -322,7 +320,7 @@ export function FullInvoiceList({
                             </span>
                             <span className="font-semibold text-slate-950">{group.companyName}</span>
                             <span className="text-xs text-slate-500">
-                              {group.items.length} fakturaer · {formatCurrency(groupTotal)}
+                              {group.items.length} {itemLabel} · {formatCurrency(groupTotal)}
                             </span>
                           </button>
                         </td>
