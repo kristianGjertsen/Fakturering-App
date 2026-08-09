@@ -89,8 +89,12 @@ export function InvoiceBuilder({
   const defaultsAppliedForCompanyId = useRef("");
 
   useEffect(() => {
-    if (recipientMode === "company" && !companyId && companies[0]) {
-      setCompanyId(companies[0].id);
+    if (recipientMode !== "company") {
+      return;
+    }
+
+    if (!companies.some((company) => company.id === companyId)) {
+      setCompanyId(companies[0]?.id ?? "");
     }
   }, [companies, companyId, recipientMode]);
 

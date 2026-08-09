@@ -14,6 +14,7 @@ export type Company = {
   invoice_notes: string | null;
   website: string | null;
   website_from_brreg: boolean;
+  is_active: boolean;
   logo_disabled: boolean;
   logo_url: string | null;
   logo_source: string | null;

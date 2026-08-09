@@ -39,3 +39,14 @@ export async function createProduct(input: ProductInput) {
     throw error;
   }
 }
+
+export async function deleteProduct(productId: string) {
+  const { error } = await supabase
+    .from("products")
+    .update({ is_active: false })
+    .eq("id", productId);
+
+  if (error) {
+    throw error;
+  }
+}

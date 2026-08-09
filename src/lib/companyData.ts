@@ -41,7 +41,10 @@ export async function fetchCompanies() {
     throw error;
   }
 
-  return (data ?? []) as Company[];
+  return (data ?? []).map((company) => ({
+    ...company,
+    is_active: company.is_active ?? true,
+  })) as Company[];
 }
 
 export async function createCompany(ownerUserId: string, input: CompanyInput) {
@@ -60,7 +63,31 @@ export async function createCompany(ownerUserId: string, input: CompanyInput) {
     invoice_notes: input.invoice_notes.trim() || null,
     website: normalizeWebsite(input.website),
     website_from_brreg: Boolean(input.website.trim() && input.website_from_brreg),
+    is_active: true,
   });
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function deleteCompany(companyId: string) {
+  const { error } = await supabase.rpc("delete_company", {
+    p_company_id: companyId,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  await removeCompanyLogo(companyId);
+}
+
+export async function updateCompanyActive(companyId: string, isActive: boolean) {
+  const { error } = await supabase
+    .from("companies")
+    .update({ is_active: isActive })
+    .eq("id", companyId);
 
   if (error) {
     throw error;
@@ -132,4 +159,15 @@ async function uploadCompanyLogo(companyId: string, logoBlob: Blob) {
   const publicUrl = new URL(data.publicUrl);
   publicUrl.searchParams.set("v", Date.now().toString());
   return publicUrl.toString();
+}
+
+async function removeCompanyLogo(companyId: string) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user.id) {
+    return;
+  }
+
+  await supabase.storage
+    .from(COMPANY_LOGOS_BUCKET)
+    .remove([`${session.user.id}/${companyId}/logo.png`]);
 }

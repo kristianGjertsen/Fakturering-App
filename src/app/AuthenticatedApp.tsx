@@ -6,11 +6,14 @@ import {
   createCompany,
   createInvoice,
   createProduct,
+  deleteCompany,
   deleteInvoice,
+  deleteProduct,
   type CompanyInput,
   type CompanyLogoPreferenceInput,
   type InvoiceInput,
   type ProductInput,
+  updateCompanyActive,
   updateCompanyLogoPreference,
 } from "../lib/data";
 import { supabase } from "../supabaseClient";
@@ -40,8 +43,24 @@ export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
     await refreshData();
   }
 
+  async function handleDeleteCompany(companyId: string) {
+    await deleteCompany(companyId);
+    await refreshData();
+    navigate("/companies");
+  }
+
+  async function handleUpdateCompanyActive(companyId: string, isActive: boolean) {
+    await updateCompanyActive(companyId, isActive);
+    await refreshData();
+  }
+
   async function handleCreateProduct(input: ProductInput) {
     await createProduct(input);
+    await refreshData();
+  }
+
+  async function handleDeleteProduct(productId: string) {
+    await deleteProduct(productId);
     await refreshData();
   }
 
@@ -91,7 +110,10 @@ export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
             session={session}
             data={data}
             onCreateCompany={handleCreateCompany}
+            onDeleteCompany={handleDeleteCompany}
+            onUpdateCompanyActive={handleUpdateCompanyActive}
             onCreateProduct={handleCreateProduct}
+            onDeleteProduct={handleDeleteProduct}
             onUpdateCompanyLogoPreference={handleUpdateCompanyLogoPreference}
             onCreateInvoice={handleCreateInvoice}
             onDeleteInvoice={handleDeleteInvoice}

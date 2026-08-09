@@ -13,7 +13,9 @@ import { fetchProfileDetails } from "./profileData";
 
 export {
   createCompany,
+  deleteCompany,
   fetchCompanies,
+  updateCompanyActive,
   updateCompanyLogoPreference,
 } from "./companyData";
 export type { CompanyInput, CompanyLogoPreferenceInput } from "./companyData";
@@ -41,6 +43,7 @@ export {
 export type { ProfileDetailsInput } from "./profileData";
 export {
   createProduct,
+  deleteProduct,
   fetchProducts,
 } from "./productData";
 export type { ProductInput } from "./productData";
