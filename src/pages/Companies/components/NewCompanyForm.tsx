@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from "react";
+import { ArrowRight } from "@animateicons/react/lucide";
+import { AnimatedIconButton } from "../../../components/AnimatedIconButton";
 import { Button } from "../../../components/Button";
 import type { CompanyInput } from "../../../lib/data";
 import { CompanySearchStep } from "./company-form/CompanySearchStep";
@@ -144,9 +146,15 @@ export function NewCompanyForm({
           )}
         </div>
         {currentStep < 3 ? (
-          <Button type="button" onClick={goToNextStep} disabled={savingCompany || !canContinue(currentStep, companyForm)}>
+          <AnimatedIconButton
+            icon={ArrowRight}
+            iconPosition="end"
+            type="button"
+            onClick={goToNextStep}
+            disabled={savingCompany || !canContinue(currentStep, companyForm)}
+          >
             Neste
-          </Button>
+          </AnimatedIconButton>
         ) : (
           <Button type="submit" disabled={savingCompany}>
             {savingCompany ? "Oppretter…" : "Opprett kunde"}

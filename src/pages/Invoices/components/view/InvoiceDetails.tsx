@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "../../../../components/Button";
-import { statusToneClasses } from "../../../../components/DocumentBrowser";
+import { Tag } from "../../../../components/Tag";
 import {
   attachmentFileName,
   formatFileSize,
@@ -14,11 +14,10 @@ import type {
   InvoiceItem,
   InvoiceScheduleWithDetails,
   InvoiceWithDetails,
+  Profile,
 } from "../../../../types";
 import {
-  getInvoiceStatusTone,
-  INVOICE_STATUS_LABELS,
-  isInvoiceOverdue,
+  getInvoiceStatusPresentation,
 } from "../../invoicePresentation";
 import { InvoicePdfPreviewPanel } from "../preview/InvoicePdfPreviewPanel";
 import { Panel } from "../../../../components/layout/Panel";
@@ -26,6 +25,7 @@ import type { InvoiceDeliveryAction } from "../../invoiceDelivery";
 
 type InvoiceDetailsProps = {
   invoice: InvoiceWithDetails;
+  sellerProfile: Profile;
   schedule: InvoiceScheduleWithDetails | null;
   deleting: boolean;
   sending: boolean;
@@ -40,12 +40,13 @@ type ReferencedAttachment = {
   reference: string;
 };
 
-type InvoiceOverviewProps = Omit<InvoiceDetailsProps, "schedule"> & {
+type InvoiceOverviewProps = Omit<InvoiceDetailsProps, "schedule" | "sellerProfile"> & {
   scheduled: boolean;
 };
 
 export function InvoiceDetails({
   invoice,
+  sellerProfile,
   schedule,
   deleting,
   sending,
@@ -111,7 +112,7 @@ export function InvoiceDetails({
         )}
       </Panel>
 
-      <InvoicePdfPreviewPanel invoice={invoice} className="lg:sticky lg:top-12" />
+      <InvoicePdfPreviewPanel invoice={invoice} sellerProfile={sellerProfile} className="lg:sticky lg:top-12" />
     </div>
   );
 }
@@ -126,19 +127,7 @@ function InvoiceOverview({
   onSend,
   onTogglePaid,
 }: InvoiceOverviewProps) {
-  const overdue = !scheduled && isInvoiceOverdue(invoice);
-  const statusTone = scheduled
-    ? "purple"
-    : overdue
-      ? "danger"
-      : getInvoiceStatusTone(invoice.status, invoice.paid);
-  const statusLabel = scheduled
-    ? "Planlagt"
-    : overdue
-      ? "Forfalt"
-      : invoice.paid
-        ? "Betalt"
-        : INVOICE_STATUS_LABELS[invoice.status];
+  const status = getInvoiceStatusPresentation(invoice, scheduled);
   const canTogglePaid = invoice.paid || ["sent", "reminded", "paid"].includes(invoice.status);
 
   return (
@@ -179,15 +168,11 @@ function InvoiceOverview({
         <p className="text-2xl font-semibold text-slate-950">
           {formatCurrency(invoice.total)}
         </p>
-        <span className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${
-          statusToneClasses[statusTone]
-        }`}>
-          {statusLabel}
-        </span>
+        <Tag tone={status.tone} className="px-3 py-1.5 text-xs">
+          {status.label}
+        </Tag>
         <div className="flex flex-wrap gap-2">
-          {scheduled ? (
-            <Button variant="secondary" disabled>Planlagt</Button>
-          ) : canTogglePaid && (
+          {!scheduled && canTogglePaid && (
             <Button
               variant={invoice.paid ? "secondary" : "success"}
               onClick={onTogglePaid}
@@ -205,7 +190,10 @@ function InvoiceOverview({
               {sending ? "Sender..." : "Send faktura"}
             </Button>
           )}
-          {!scheduled && invoice.status === "sent" && (
+
+         
+          {!scheduled && invoice.status === "sent" && invoice.paid != true && (
+            //Show "Purre" button only if the invoice is sent and not paid yet
             <Button variant="danger" onClick={() => onSend("remind")} disabled={sending}>
               {sending ? "Sender..." : "Purre"}
             </Button>

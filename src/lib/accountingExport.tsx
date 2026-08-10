@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import type { InvoiceWithDetails } from "../types";
+import type { InvoiceWithDetails, Profile } from "../types";
 import {
   ATTACHMENT_BUCKET,
   attachmentFileName,
@@ -15,7 +15,7 @@ type ZipFile = {
 
 const encoder = new TextEncoder();
 
-export async function downloadAccountingExport(invoices: InvoiceWithDetails[]) {
+export async function downloadAccountingExport(invoices: InvoiceWithDetails[], sellerProfile: Profile) {
   const paidInvoices = invoices
     .filter((invoice) => invoice.paid || invoice.status === "paid")
     .sort((left, right) => left.issue_date.localeCompare(right.issue_date));
@@ -133,7 +133,7 @@ Antall betalte fakturaer i eksporten: ${paidInvoices.length}
     const invoicePrefix = Number(invoice.total) < 0 ? "Kreditnota" : "Faktura";
     files.push({
       path: `Fakturaer/${invoicePrefix}-${safePathPart(number)}.pdf`,
-      data: await createInvoicePdfBlob(invoice),
+      data: await createInvoicePdfBlob(invoice, sellerProfile),
     });
 
     const referencedAttachments = referenceInvoiceAttachments(

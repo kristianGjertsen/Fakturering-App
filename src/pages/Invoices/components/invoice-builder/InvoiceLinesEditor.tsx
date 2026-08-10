@@ -1,3 +1,5 @@
+import { Plus, Trash2 } from "@animateicons/react/lucide";
+import { useEffect, useRef, useState } from "react";
 import type { InvoiceDraftLine, Product } from "../../../../types";
 import {
   ATTACHMENT_ACCEPT,
@@ -8,6 +10,7 @@ import {
 import { formatCurrency } from "../../../../lib/format";
 import { calculateLine, toNumber } from "../../../../lib/invoiceMath";
 import { Button } from "../../../../components/Button";
+import { AnimatedIconButton } from "../../../../components/AnimatedIconButton";
 import { FormField } from "../../../../components/FormField";
 import { Input, inputClass } from "../../../../components/Input";
 import { Select } from "../../../../components/Select";
@@ -32,6 +35,8 @@ type InvoiceLineCardProps = Pick<
   attachmentLineIndex: number;
   line: InvoiceDraftLine;
   lineIndex: number;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 };
 
 export function InvoiceLinesEditor({
@@ -44,6 +49,23 @@ export function InvoiceLinesEditor({
   onRemoveLine,
   onUpdateLine,
 }: InvoiceLinesEditorProps) {
+  const [openLineId, setOpenLineId] = useState<string | null>(lines[0]?.localId ?? null);
+  const knownLineIds = useRef(new Set(lines.map((line) => line.localId)));
+
+  useEffect(() => {
+    const addedLine = lines.find((line) => !knownLineIds.current.has(line.localId));
+
+    if (addedLine) {
+      setOpenLineId(addedLine.localId);
+    } else {
+      setOpenLineId((current) =>
+        current && lines.some((line) => line.localId === current) ? current : null
+      );
+    }
+
+    knownLineIds.current = new Set(lines.map((line) => line.localId));
+  }, [lines]);
+
   return (
     <Panel>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -52,9 +74,9 @@ export function InvoiceLinesEditor({
           <p className="text-sm text-slate-600">Velg lagrede produkter eller skriv inn manuelle linjer.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={onAddLine}>
+          <AnimatedIconButton icon={Plus} variant="secondary" onClick={onAddLine}>
             Legg til linje
-          </Button>
+          </AnimatedIconButton>
           <input
             id="new-line-attachments"
             className="sr-only"
@@ -66,12 +88,13 @@ export function InvoiceLinesEditor({
               event.currentTarget.value = "";
             }}
           />
-          <Button
+          <AnimatedIconButton
+            icon={Plus}
             variant="secondary"
             onClick={() => document.getElementById("new-line-attachments")?.click()}
           >
             Legg til linje med vedlegg
-          </Button>
+          </AnimatedIconButton>
         </div>
       </div>
 
@@ -81,6 +104,8 @@ export function InvoiceLinesEditor({
             key={line.localId}
             line={line}
             lineIndex={lineIndex}
+            open={openLineId === line.localId}
+            onOpenChange={(open) => setOpenLineId(open ? line.localId : null)}
             attachmentLineIndex={countSubmittableLines(lines.slice(0, lineIndex))}
             products={products}
             onAddAttachments={onAddAttachments}
@@ -98,13 +123,18 @@ function InvoiceLineCard({
   attachmentLineIndex,
   line,
   lineIndex,
+  open,
   products,
   onAddAttachments,
+  onOpenChange,
   onRemoveAttachment,
   onRemoveLine,
   onUpdateLine,
 }: InvoiceLineCardProps) {
   const calculatedLine = calculateLine(line);
+  const editorId = `invoice-line-editor-${line.localId}`;
+  const selectedProduct = products.find((product) => product.id === line.productId);
+  const lineName = (selectedProduct?.name ?? line.description.trim()) || `Ny fakturalinje ${lineIndex + 1}`;
 
   function handleProductSelect(productId: string) {
     if (!productId) {
@@ -125,19 +155,80 @@ function InvoiceLineCard({
   }
 
   return (
-    <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-      <div className="min-w-0 space-y-3">
-        <FormField label="Produkt">
-          <Select
-            ariaLabel={`Produkt for fakturalinje ${lineIndex + 1}`}
-            value={line.productId ?? ""}
-            options={[
-              { value: "", label: "Manuell" },
-              ...products.map((product) => ({ value: product.id, label: product.name })),
-            ]}
-            onChange={handleProductSelect}
-          />
-        </FormField>
+    <div className="overflow-hidden rounded-lg border border-blue-100 bg-white">
+      <div className={`flex items-center ${open ? "bg-blue-50" : "bg-white"}`}>
+        <button
+          type="button"
+          className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]"
+          aria-expanded={open}
+          aria-controls={editorId}
+          onClick={() => onOpenChange(!open)}
+        >
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold text-slate-950">
+              {lineName}
+            </span>
+            <span className="mt-0.5 block text-xs text-slate-500 sm:hidden">
+              {line.quantity} {line.unit || "stk"} · {formatCurrency(line.unitPrice)} · MVA {line.vatRate}%
+            </span>
+            {line.attachments.length > 0 && (
+              <span className="mt-0.5 block text-xs text-slate-500">
+                {line.attachments.length} vedlegg
+              </span>
+            )}
+          </span>
+          <span className="hidden whitespace-nowrap text-sm text-slate-600 sm:block">
+            {line.quantity} {line.unit || "stk"}
+          </span>
+          <span className="hidden whitespace-nowrap text-sm text-slate-600 sm:block">
+            {formatCurrency(line.unitPrice)}
+          </span>
+          <span className="hidden whitespace-nowrap text-sm text-slate-600 sm:block">
+            MVA {line.vatRate}%
+          </span>
+          <span className="flex items-center gap-3">
+            <span className="whitespace-nowrap text-sm font-semibold text-slate-950">
+              {formatCurrency(calculatedLine.line_total)}
+            </span>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="m5 7.5 5 5 5-5" />
+            </svg>
+          </span>
+        </button>
+        <AnimatedIconButton
+          icon={Trash2}
+          iconSize={18}
+          variant="danger"
+          size="xs"
+          className="mr-3 h-9 w-9 shrink-0 !p-0 shadow-sm"
+          onClick={() => onRemoveLine(line.localId)}
+          aria-label={`Fjern linje ${lineIndex + 1}`}
+          title="Fjern linje"
+        >
+          <span className="sr-only">Slett</span>
+        </AnimatedIconButton>
+      </div>
+
+      {open && (
+        <div id={editorId} className="min-w-0 space-y-3 border-t border-blue-100 bg-blue-50 p-4">
+          <FormField label="Produkt">
+            <Select
+              ariaLabel={`Produkt for fakturalinje ${lineIndex + 1}`}
+              value={line.productId ?? ""}
+              options={[
+                { value: "", label: "Skriv inn produkt manuelt" },
+                ...products.map((product) => ({ value: product.id, label: product.name })),
+              ]}
+              onChange={handleProductSelect}
+            />
+          </FormField>
         <FormField label="Tekst">
           <textarea
             className={`${inputClass} resize-y`}
@@ -179,36 +270,13 @@ function InvoiceLineCard({
               required
             />
           </FormField>
-          <div className="flex items-end justify-between gap-2">
+          <div className="flex items-end">
             <div>
               <span className="text-sm font-medium text-slate-700">Sum</span>
               <p className="mt-3 text-sm font-semibold text-slate-950">
                 {formatCurrency(calculatedLine.line_total)}
               </p>
             </div>
-            <Button
-              variant="danger"
-              size="xs"
-              className="h-9 w-9 shrink-0 rounded-md !bg-red-500 !p-0 !text-black hover:!bg-red-600"
-              onClick={() => onRemoveLine(line.localId)}
-              aria-label={`Fjern linje ${lineIndex + 1}`}
-              title="Fjern linje"
-            >
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="h-5 w-5 text-black"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5"
-                />
-              </svg>
-            </Button>
           </div>
         </div>
 
@@ -218,7 +286,14 @@ function InvoiceLineCard({
           onAddAttachments={onAddAttachments}
           onRemoveAttachment={onRemoveAttachment}
         />
-      </div>
+
+          <div className="flex justify-end">
+            <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
+              Ferdig
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -251,13 +326,14 @@ function LineAttachments({
             event.currentTarget.value = "";
           }}
         />
-        <Button
+        <AnimatedIconButton
+          icon={Plus}
           variant="secondary"
           size="sm"
           onClick={() => document.getElementById(inputId)?.click()}
         >
           Legg til vedlegg
-        </Button>
+        </AnimatedIconButton>
       </div>
 
       {line.attachments.length > 0 && (

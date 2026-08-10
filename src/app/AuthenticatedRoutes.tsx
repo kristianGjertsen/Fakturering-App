@@ -18,7 +18,10 @@ type AuthenticatedRoutesProps = {
   session: Session;
   data: AppData;
   onCreateCompany: (input: CompanyInput) => Promise<void>;
+  onDeleteCompany: (companyId: string) => Promise<void>;
+  onUpdateCompanyActive: (companyId: string, isActive: boolean) => Promise<void>;
   onCreateProduct: (input: ProductInput) => Promise<void>;
+  onDeleteProduct: (productId: string) => Promise<void>;
   onUpdateCompanyLogoPreference: (
     companyId: string,
     input: CompanyLogoPreferenceInput,
@@ -33,7 +36,10 @@ export function AuthenticatedRoutes({
   session,
   data,
   onCreateCompany,
+  onDeleteCompany,
+  onUpdateCompanyActive,
   onCreateProduct,
+  onDeleteProduct,
   onUpdateCompanyLogoPreference,
   onCreateInvoice,
   onDeleteInvoice,
@@ -41,9 +47,9 @@ export function AuthenticatedRoutes({
   onSignOut,
 }: AuthenticatedRoutesProps) {
   const navigate = useNavigate();
-  const oneTimeSchedules = data.schedules.filter(
-    (schedule) => schedule.schedule_type === "once",
-  );
+  const activeCompanies = data.companies.filter((company) => company.is_active !== false);
+  const activeCompanyIds = new Set(activeCompanies.map((company) => company.id));
+  const activeProducts = data.products.filter((product) => activeCompanyIds.has(product.company_id));
   const recurringSchedules = data.schedules.filter(
     (schedule) => schedule.schedule_type !== "once",
   );
@@ -54,11 +60,12 @@ export function AuthenticatedRoutes({
         path="/"
         element={
           <DashboardPage
-            companies={data.companies}
-            products={data.products}
+            companies={activeCompanies}
+            products={activeProducts}
             invoices={data.invoices}
             schedules={recurringSchedules}
             onCreateInvoice={() => navigate("/invoices?create=true")}
+            onOpenInvoice={(invoiceId) => navigate(`/invoices?invoiceId=${invoiceId}`)}
           />
         }
       />
@@ -81,6 +88,9 @@ export function AuthenticatedRoutes({
             products={data.products}
             invoices={data.invoices}
             onCreateProduct={onCreateProduct}
+            onDeleteCompany={onDeleteCompany}
+            onUpdateCompanyActive={onUpdateCompanyActive}
+            onDeleteProduct={onDeleteProduct}
             onUpdateCompanyLogoPreference={onUpdateCompanyLogoPreference}
           />
         }
@@ -89,11 +99,12 @@ export function AuthenticatedRoutes({
         path="/invoices"
         element={
           <InvoicesPage
-            companies={data.companies}
+            companies={activeCompanies}
             bankAccounts={data.bankAccounts}
-            products={data.products}
+            sellerProfile={data.profile}
+            products={activeProducts}
             invoices={data.invoices}
-            schedules={oneTimeSchedules}
+            schedules={data.schedules}
             currentUserEmail={session.user.email}
             onCreateInvoice={onCreateInvoice}
             onOpenCompanies={() => navigate("/companies")}
@@ -104,13 +115,14 @@ export function AuthenticatedRoutes({
       />
       <Route
         path="/recurring"
-        element={<RecurringPage schedules={recurringSchedules} />}
+        element={<RecurringPage schedules={recurringSchedules} sellerProfile={data.profile} />}
       />
       <Route
         path="/profile"
         element={
           <ProfilePage
             session={session}
+            profile={data.profile}
             invoices={data.invoices}
             onSignOut={onSignOut}
           />

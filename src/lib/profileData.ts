@@ -130,6 +130,18 @@ export async function deleteCurrentUser() {
   });
 
   if (error) {
-    throw error;
+    let message = error.message;
+    const context = (error as { context?: Response }).context;
+
+    if (context) {
+      try {
+        const body = (await context.clone().json()) as { error?: string };
+        message = body.error ?? message;
+      } catch {
+        // Keep the Supabase client error when the function did not return JSON.
+      }
+    }
+
+    throw new Error(message);
   }
 }

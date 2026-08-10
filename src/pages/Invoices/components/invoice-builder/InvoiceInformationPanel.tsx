@@ -1,11 +1,12 @@
-import type { Company } from "../../../../types";
+import type { Dispatch, SetStateAction } from "react";
+import type { Company, RepeatDraft } from "../../../../types";
 import { Button } from "../../../../components/Button";
 import { FormField } from "../../../../components/FormField";
 import { Input } from "../../../../components/Input";
 import { Select } from "../../../../components/Select";
 import { Panel } from "../../../../components/layout/Panel";
 import type { InvoiceKind, RecipientMode } from "../../invoiceBuilderModel";
-import { InvoiceCreationTiming } from "./InvoiceBuilderSections";
+import { InvoiceCreationTiming, InvoiceRecurrencePanel } from "./InvoiceBuilderSections";
 
 type InvoiceInformationPanelProps = {
   companies: Company[];
@@ -18,6 +19,7 @@ type InvoiceInformationPanelProps = {
   recipientEmail: string;
   recipientMode: RecipientMode;
   recipientName: string;
+  repeat: RepeatDraft;
   scheduleOnce: boolean;
   onCompanyChange: (companyId: string) => void;
   onInvoiceTitleChange: (title: string) => void;
@@ -26,10 +28,10 @@ type InvoiceInformationPanelProps = {
   onRecipientEmailChange: (email: string) => void;
   onRecipientNameChange: (name: string) => void;
   onRequestUnregisteredRecipient: () => void;
+  onRepeatChange: Dispatch<SetStateAction<RepeatDraft>>;
   onScheduleOnceChange: (scheduled: boolean) => void;
 };
 
-const UNREGISTERED_RECIPIENT_OPTION = "__guest__";
 const PAYMENT_TERM_OPTIONS = [7, 14, 30];
 
 export function InvoiceInformationPanel({
@@ -43,6 +45,7 @@ export function InvoiceInformationPanel({
   recipientEmail,
   recipientMode,
   recipientName,
+  repeat,
   scheduleOnce,
   onCompanyChange,
   onInvoiceTitleChange,
@@ -51,20 +54,13 @@ export function InvoiceInformationPanel({
   onRecipientEmailChange,
   onRecipientNameChange,
   onRequestUnregisteredRecipient,
+  onRepeatChange,
   onScheduleOnceChange,
 }: InvoiceInformationPanelProps) {
-  function handleCompanyChange(nextCompanyId: string) {
-    if (nextCompanyId === UNREGISTERED_RECIPIENT_OPTION) {
-      onRequestUnregisteredRecipient();
-      return;
-    }
-
-    onCompanyChange(nextCompanyId);
-  }
-
   return (
     <Panel>
       <h3 className="text-base font-semibold text-slate-950">Fakturainfo</h3>
+
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <FormField
           label="Tittel"
@@ -77,20 +73,28 @@ export function InvoiceInformationPanel({
           />
         </FormField>
         <FormField label="Selskap">
-          <Select
-            ariaLabel="Selskap"
-            value={recipientMode === "guest" ? UNREGISTERED_RECIPIENT_OPTION : companyId}
-            options={[
-              ...companies.map((company) => ({ value: company.id, label: company.name })),
-              {
-                value: UNREGISTERED_RECIPIENT_OPTION,
-                label: companies.length === 0
-                  ? "Ingen registrerte selskaper (engangskunde)"
-                  : "Ingen selskap (engangskunde)",
-              },
-            ]}
-            onChange={handleCompanyChange}
-          />
+          {recipientMode === "guest" ? (
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={() => onCompanyChange(companies[0]?.id ?? "")}
+            >
+              Velg selskap
+            </Button>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <Select
+                ariaLabel="Selskap"
+                value={companyId}
+                options={companies.map((company) => ({ value: company.id, label: company.name }))}
+                onChange={onCompanyChange}
+                disabled={companies.length === 0}
+              />
+              <Button variant="secondary" onClick={onRequestUnregisteredRecipient}>
+                Engangsselskap
+              </Button>
+            </div>
+          )}
         </FormField>
 
         {recipientMode === "guest" && (
@@ -162,6 +166,14 @@ export function InvoiceInformationPanel({
           </FormField>
         )}
       </div>
+
+      {invoiceKind === "recurring" && (
+        <InvoiceRecurrencePanel
+          embedded
+          repeat={repeat}
+          onChange={onRepeatChange}
+        />
+      )}
 
       {invoiceKind === "single" && recipientMode === "company" && (
         <InvoiceCreationTiming

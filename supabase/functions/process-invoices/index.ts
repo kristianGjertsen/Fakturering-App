@@ -120,6 +120,18 @@ Deno.serve(async (request) => {
           throw new Error("Kunden mangler e-postadresse.");
         }
 
+        const { data: sellerProfile, error: sellerProfileError } = await supabase
+          .from("profiles")
+          .select("email,full_name,company_name,address,postal_address,country,org_number")
+          .eq("id", invoice.owner_user_id)
+          .single();
+
+        if (sellerProfileError) {
+          throw sellerProfileError;
+        }
+
+        invoice.seller = sellerProfile;
+
         let attachmentContent: string;
 
         if (invoice.pdf_storage_path) {

@@ -1,16 +1,16 @@
-import type { InvoiceWithDetails } from "../types";
+import type { InvoiceWithDetails, Profile } from "../types";
 
-export async function createInvoicePdfBlob(invoice: InvoiceWithDetails) {
+export async function createInvoicePdfBlob(invoice: InvoiceWithDetails, sellerProfile: Profile) {
   const [{ pdf }, { InvoicePdfTemplate }] = await Promise.all([
     import("@react-pdf/renderer"),
     import("../pdf/InvoicePdfTemplate"),
   ]);
 
-  return pdf(<InvoicePdfTemplate invoice={invoice} />).toBlob();
+  return pdf(<InvoicePdfTemplate invoice={invoice} seller={sellerProfile} />).toBlob();
 }
 
-export async function openInvoicePdf(invoice: InvoiceWithDetails) {
-  const blob = await createInvoicePdfBlob(invoice);
+export async function openInvoicePdf(invoice: InvoiceWithDetails, sellerProfile: Profile) {
+  const blob = await createInvoicePdfBlob(invoice, sellerProfile);
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank", "noopener,noreferrer");
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);

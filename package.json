@@ -9,8 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@animateicons/react": "^0.4.3",
     "@react-pdf/renderer": "^4.5.1",
     "@supabase/supabase-js": "latest",
+    "lucide-react": "^1.28.0",
     "pdfjs-dist": "^6.1.200",
     "react": "latest",
     "react-dom": "latest",

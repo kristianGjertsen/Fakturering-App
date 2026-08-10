@@ -5,17 +5,16 @@ import { Button } from "../../../../components/Button";
 import { FormField } from "../../../../components/FormField";
 import { Input } from "../../../../components/Input";
 import { Select } from "../../../../components/Select";
+import { Modal } from "../../../../components/layout/Modal";
 import { Panel } from "../../../../components/layout/Panel";
 import type { InvoiceKind, InvoiceTotals } from "../../invoiceBuilderModel";
-import {
-  getRepeatIntervalHint,
-  getRepeatIntervalLabel,
-} from "../../invoiceBuilderModel";
 
 type InvoiceTypePanelProps = {
   value: InvoiceKind;
+  open: boolean;
   recurringDisabled: boolean;
   onChange: (invoiceKind: InvoiceKind) => void;
+  onClose: () => void;
 };
 
 type InvoiceCreationTimingProps = {
@@ -24,14 +23,18 @@ type InvoiceCreationTimingProps = {
 };
 
 type InvoiceRecurrencePanelProps = {
+  embedded?: boolean;
   repeat: RepeatDraft;
   onChange: Dispatch<SetStateAction<RepeatDraft>>;
 };
 
-const FREQUENCY_OPTIONS = [
-  { value: "daily", label: "Daglig" },
-  { value: "weekly", label: "Ukentlig" },
-  { value: "monthly", label: "Månedlig" },
+const RECURRENCE_OPTIONS = [
+  { value: "weekly:1", label: "Hver uke" },
+  { value: "monthly:1", label: "Hver måned" },
+  { value: "monthly:2", label: "Annenhver måned" },
+  { value: "monthly:3", label: "Hver 3. måned" },
+  { value: "monthly:6", label: "Hver 6. måned" },
+  { value: "monthly:12", label: "Hvert år" },
 ] as const;
 
 const WEEKDAY_OPTIONS = [
@@ -46,46 +49,54 @@ const WEEKDAY_OPTIONS = [
 
 export function InvoiceTypePanel({
   value,
+  open,
   recurringDisabled,
   onChange,
+  onClose,
 }: InvoiceTypePanelProps) {
+  function selectInvoiceKind(invoiceKind: InvoiceKind) {
+    onChange(invoiceKind);
+    onClose();
+  }
+
   return (
-    <Panel>
-      <h3 className="text-base font-semibold text-slate-950">Type faktura</h3>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <label className={`cursor-pointer rounded-lg border p-4 ${
-          value === "single" ? "border-blue-500 bg-blue-50" : "border-blue-100"
-        }`}>
-          <Input
-            className="mr-3"
-            type="radio"
-            name="invoiceKind"
-            checked={value === "single"}
-            onChange={() => onChange("single")}
-          />
-          <span className="font-semibold text-slate-950">Enkeltfaktura</span>
-          <span className="mt-1 block text-sm text-slate-600">
-            Opprettes nå med valgt fakturadato og betalingsfrist.
-          </span>
-        </label>
-        <label className={`cursor-pointer rounded-lg border p-4 ${
-          value === "recurring" ? "border-blue-500 bg-blue-50" : "border-blue-100"
-        }`}>
-          <Input
-            className="mr-3"
-            type="radio"
-            name="invoiceKind"
-            checked={value === "recurring"}
+    <>
+      <Modal
+        open={open}
+        onClose={onClose}
+        title="Velg fakturatype"
+        description="Velg om fakturaen skal opprettes én gang eller gjentas automatisk."
+        labelledBy="invoice-type-dialog-title"
+      >
+        <div className="grid gap-3">
+          <button
+            type="button"
+            className={`rounded-lg border p-4 text-left transition hover:border-blue-400 hover:bg-blue-50 ${value === "single" ? "border-blue-500 bg-blue-50" : "border-blue-100"
+              }`}
+            onClick={() => selectInvoiceKind("single")}
+          >
+            <span className="block font-semibold text-slate-950">Enkeltfaktura</span>
+            <span className="mt-1 block text-sm text-slate-600">
+              Opprettes nå med valgt fakturadato og betalingsfrist.
+            </span>
+          </button>
+          <button
+            type="button"
+            className={`rounded-lg border p-4 text-left transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 ${value === "recurring" ? "border-blue-500 bg-blue-50" : "border-blue-100"
+              }`}
             disabled={recurringDisabled}
-            onChange={() => onChange("recurring")}
-          />
-          <span className="font-semibold text-slate-950">Gjentakende faktura</span>
-          <span className="mt-1 block text-sm text-slate-600">
-            Lagrer bare planen. Fakturaen opprettes og dateres ved utsending.
-          </span>
-        </label>
-      </div>
-    </Panel>
+            onClick={() => selectInvoiceKind("recurring")}
+          >
+            <span className="block font-semibold text-slate-950">Gjentakende faktura</span>
+            <span className="mt-1 block text-sm text-slate-600">
+              {recurringDisabled
+                ? "Krever at du velger et registrert selskap."
+                : "Lagrer planen. Fakturaen opprettes og dateres ved utsending."}
+            </span>
+          </button>
+        </div>
+      </Modal>
+    </>
   );
 }
 
@@ -94,28 +105,24 @@ export function InvoiceCreationTiming({
   onChange,
 }: InvoiceCreationTimingProps) {
   return (
-    <div className={`mt-5 rounded-lg border p-4 ${
-      scheduled ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-slate-50"
-    }`}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h4 className="text-sm font-semibold text-slate-950">Når skal fakturaen opprettes?</h4>
-          <p className="mt-1 text-sm text-slate-600">
-            Lagre den med en gang, eller opprett og send den automatisk på fakturadatoen.
-          </p>
-        </div>
-        <div
-          className="grid shrink-0 grid-cols-2 gap-2 sm:flex"
-          aria-label="Velg når fakturaen skal opprettes"
-        >
+    <div className={`mt-5 rounded-lg border p-4 ${scheduled ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-slate-50"
+      }`}>
+      <div className="flex flex-col gap-4 lg:flex-row justify-between lg:items-center">
+        <p className="text-sm mt-4 text-slate-600">
+          {scheduled
+            ? "Fakturaen opprettes og sendes automatisk på neste dato."
+            : "Fakturaen lagres som utkast og kan sendes manuelt senere."}
+        </p>
+        <div className="flex gap-2">
           <Button variant={!scheduled ? "primary" : "secondary"} onClick={() => onChange(false)}>
-            Lagre faktura uten å sende
+            Lagre som utkast
           </Button>
           <Button variant={scheduled ? "primary" : "secondary"} onClick={() => onChange(true)}>
-            Send på fakturadato
+            Planlegg utsendelse
           </Button>
         </div>
       </div>
+
     </div>
   );
 }
@@ -143,6 +150,7 @@ export function InvoiceTotalsPanel({ totals }: { totals: InvoiceTotals }) {
 }
 
 export function InvoiceRecurrencePanel({
+  embedded = false,
   repeat,
   onChange,
 }: InvoiceRecurrencePanelProps) {
@@ -150,35 +158,31 @@ export function InvoiceRecurrencePanel({
     onChange((currentRepeat) => ({ ...currentRepeat, ...patch }));
   }
 
-  return (
-    <Panel>
-      <h3 className="text-base font-semibold text-slate-950">Gjentakelse</h3>
-      <p className="text-sm text-slate-600">
-        Fakturaen opprettes og sendes automatisk på neste dato.
+  function updateRecurrence(value: string) {
+    const [frequency, intervalCount] = value.split(":");
+
+    updateRepeat({
+      frequency: frequency as RepeatDraft["frequency"],
+      intervalCount: Number(intervalCount),
+    });
+  }
+
+  const recurrenceValue = `${repeat.frequency}:${repeat.intervalCount}`;
+
+  const content = (
+    <>
+      <h3 className="text-sm font-semibold text-slate-950">Gjentakelse</h3>
+      <p className="mt-1 text-sm text-slate-600">
+        Velg hvor ofte fakturaen skal opprettes og sendes automatisk.
       </p>
 
-      <div className="mt-4 space-y-4">
-        <div className="rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-slate-800">
-          {getRepeatIntervalLabel(repeat.frequency, repeat.intervalCount)}
-        </div>
-        <FormField label="Frekvens">
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <FormField label="Hvor ofte">
           <Select
-            ariaLabel="Frekvens"
-            value={repeat.frequency}
-            options={FREQUENCY_OPTIONS}
-            onChange={(frequency) => updateRepeat({
-              frequency: frequency as RepeatDraft["frequency"],
-            })}
-          />
-        </FormField>
-        <FormField label="Gjentas hver" helper={getRepeatIntervalHint(repeat.frequency)}>
-          <Input
-            min={1}
-            type="number"
-            value={repeat.intervalCount}
-            onChange={(event) => updateRepeat({
-              intervalCount: Math.max(1, Number(event.target.value)),
-            })}
+            ariaLabel="Hvor ofte fakturaen skal gjentas"
+            value={recurrenceValue}
+            options={RECURRENCE_OPTIONS}
+            onChange={updateRecurrence}
           />
         </FormField>
         {repeat.frequency === "weekly" && (
@@ -226,6 +230,16 @@ export function InvoiceRecurrencePanel({
           />
         </FormField>
       </div>
-    </Panel>
+    </>
   );
+
+  if (embedded) {
+    return (
+      <section className="mt-5 border-t border-blue-100 pt-5">
+        {content}
+      </section>
+    );
+  }
+
+  return <Panel>{content}</Panel>;
 }

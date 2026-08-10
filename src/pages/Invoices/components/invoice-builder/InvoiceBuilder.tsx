@@ -5,6 +5,7 @@ import type {
   InvoiceDraftLine,
   PdfTemplate,
   Product,
+  Profile,
   ProfileBankAccount,
 } from "../../../../types";
 import type { InvoiceInput } from "../../../../lib/data";
@@ -23,7 +24,6 @@ import { UnregisteredRecipientDialog } from "./UnregisteredRecipientDialog";
 import { InvoiceLinesEditor } from "./InvoiceLinesEditor";
 import { InvoiceInformationPanel } from "./InvoiceInformationPanel";
 import {
-  InvoiceRecurrencePanel,
   InvoiceTotalsPanel,
   InvoiceTypePanel,
 } from "./InvoiceBuilderSections";
@@ -43,23 +43,27 @@ import { Select } from "../../../../components/Select";
 type InvoiceBuilderProps = {
   companies: Company[];
   bankAccounts: ProfileBankAccount[];
+  sellerProfile: Profile;
   products: Product[];
   onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<string>;
   onDiscardDraft: () => void;
   onOpenCompanies: () => void;
   initialCompanyId?: string;
+  initialInvoiceKind?: InvoiceKind;
 };
 
 export function InvoiceBuilder({
   companies,
   bankAccounts,
+  sellerProfile,
   products,
   onCreateInvoice,
   onDiscardDraft,
   onOpenCompanies,
   initialCompanyId = "",
+  initialInvoiceKind = "single",
 }: InvoiceBuilderProps) {
-  const [invoiceKind, setInvoiceKind] = useState<InvoiceKind>("single");
+  const [invoiceKind, setInvoiceKind] = useState<InvoiceKind>(initialInvoiceKind);
   const [companyId, setCompanyId] = useState(initialCompanyId);
   const [recipientMode, setRecipientMode] = useState<RecipientMode>("company");
   const [recipientName, setRecipientName] = useState("");
@@ -67,6 +71,7 @@ export function InvoiceBuilder({
   const [showUnregisteredRecipientDialog, setShowUnregisteredRecipientDialog] = useState(
     () => companies.length === 0,
   );
+  const [showInvoiceTypeDialog, setShowInvoiceTypeDialog] = useState(false);
   const [invoiceTitle, setInvoiceTitle] = useState("");
   const [issueDate, setIssueDate] = useState(todayInputValue);
   const [paymentTermsDays, setPaymentTermsDays] = useState(14);
@@ -84,8 +89,12 @@ export function InvoiceBuilder({
   const defaultsAppliedForCompanyId = useRef("");
 
   useEffect(() => {
-    if (recipientMode === "company" && !companyId && companies[0]) {
-      setCompanyId(companies[0].id);
+    if (recipientMode !== "company") {
+      return;
+    }
+
+    if (!companies.some((company) => company.id === companyId)) {
+      setCompanyId(companies[0]?.id ?? "");
     }
   }, [companies, companyId, recipientMode]);
 
@@ -353,15 +362,25 @@ export function InvoiceBuilder({
         onContinue={continueWithUnregisteredRecipient}
       />
       <SectionHeader
-        title="Ny faktura"
-        description="Velg mottaker, fakturalinjer, betalingsinfo og PDF-stil."
+        title={invoiceKind === "recurring" ? "Ny gjentakende faktura" : "Ny enkeltfaktura"}
+        description={invoiceKind === "recurring"
+          ? "Opprett en fakturaplan som gjentas automatisk. Faktura opprettes og sendes ut ved utsending."
+          : "Opprett en faktura som lagres som utkast eller sendes på satt fakturadato."}
+          
+        action={
+          <Button variant="secondary" onClick={() => setShowInvoiceTypeDialog(true)}>
+            {invoiceKind === "recurring" ? "Endre til enkeltfaktura" : "Endre til gjentakende faktura"}
+          </Button>
+        }
       />
 
       {message && <Notice>{message}</Notice>}
 
       <InvoiceTypePanel
         value={invoiceKind}
+        open={showInvoiceTypeDialog}
         recurringDisabled={recipientMode === "guest"}
+        onClose={() => setShowInvoiceTypeDialog(false)}
         onChange={(nextInvoiceKind) => {
           setInvoiceKind(nextInvoiceKind);
           if (nextInvoiceKind === "recurring") setScheduleOnce(false);
@@ -381,6 +400,7 @@ export function InvoiceBuilder({
             recipientEmail={recipientEmail}
             recipientMode={recipientMode}
             recipientName={recipientName}
+            repeat={repeat}
             scheduleOnce={scheduleOnce}
             onCompanyChange={handleCompanyChange}
             onInvoiceTitleChange={setInvoiceTitle}
@@ -389,6 +409,7 @@ export function InvoiceBuilder({
             onRecipientEmailChange={setRecipientEmail}
             onRecipientNameChange={setRecipientName}
             onRequestUnregisteredRecipient={() => setShowUnregisteredRecipientDialog(true)}
+            onRepeatChange={setRepeat}
             onScheduleOnceChange={setScheduleOnce}
           />
           <InvoiceLinesEditor
@@ -464,14 +485,11 @@ export function InvoiceBuilder({
         <aside className="space-y-5">
           <Panel className="space-y-4">
             <InvoicePdfTemplateSelector value={pdfTemplate} onChange={setPdfTemplate} />
-            <InvoicePdfPreview invoice={previewInvoice} compact />
+            <InvoicePdfPreview invoice={previewInvoice} sellerProfile={sellerProfile} compact />
           </Panel>
 
           <InvoiceTotalsPanel totals={totals} />
 
-          {invoiceKind === "recurring" && (
-            <InvoiceRecurrencePanel repeat={repeat} onChange={setRepeat} />
-          )}
         </aside>
       </section>
 

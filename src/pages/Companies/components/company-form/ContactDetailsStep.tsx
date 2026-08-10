@@ -1,6 +1,7 @@
 import { FormField } from "../../../../components/FormField";
 import { Input, inputClass } from "../../../../components/Input";
 import { Select } from "../../../../components/Select";
+import { Tag } from "../../../../components/Tag";
 import { countryOptions } from "../../../../lib/countries";
 import type { BrregPrefilledFields, CompanyFormData } from "./types";
 
@@ -74,8 +75,8 @@ export function ContactDetailsStep({
 
 function BrregSourceTag() {
   return (
-    <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-800">
+    <Tag tone="info" className="py-0.5">
       Hentet fra Brønnøysundregistrene
-    </span>
+    </Tag>
   );
 }

@@ -14,6 +14,7 @@ export type Company = {
   invoice_notes: string | null;
   website: string | null;
   website_from_brreg: boolean;
+  is_active: boolean;
   logo_disabled: boolean;
   logo_url: string | null;
   logo_source: string | null;
@@ -41,6 +42,8 @@ export type Profile = {
   org_number: string | null;
   has_sent_invoices_before: boolean;
   last_invoice_number: number;
+  invoice_number_prefix: string;
+  invoice_number_padding_width: number;
   created_at: string;
   updated_at: string;
 };

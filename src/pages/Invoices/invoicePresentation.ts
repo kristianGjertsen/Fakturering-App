@@ -11,6 +11,11 @@ export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
   cancelled: "Kansellert",
 };
 
+export type InvoiceStatusPresentation = {
+  label: string;
+  tone: StatusTone;
+};
+
 export function getVisibleInvoices(invoices: InvoiceWithDetails[]) {
   return invoices.filter((invoice) => {
     if (invoice.status === "sending") {
@@ -35,6 +40,24 @@ export function getInvoiceStatusTone(
   if (status === "reminded") return "purple";
   if (status === "cancelled") return "danger";
   return "neutral";
+}
+
+export function getInvoiceStatusPresentation(
+  invoice: Pick<Invoice, "due_date" | "paid" | "status">,
+  scheduled = false,
+): InvoiceStatusPresentation {
+  if (scheduled) {
+    return { label: "Planlagt", tone: "purple" };
+  }
+
+  if (isInvoiceOverdue(invoice)) {
+    return { label: "Forfalt", tone: "danger" };
+  }
+
+  return {
+    label: invoice.paid ? "Betalt" : INVOICE_STATUS_LABELS[invoice.status],
+    tone: getInvoiceStatusTone(invoice.status, invoice.paid),
+  };
 }
 
 export function isInvoiceOverdue(

@@ -2,6 +2,7 @@ export type StatusTone = "neutral" | "info" | "warning" | "success" | "danger" |
 
 export type DocumentBrowserItem = {
   id: string;
+  selectId?: string;
   companyId: string;
   companyName: string;
   invoiceNumber?: string;
@@ -15,6 +16,11 @@ export type DocumentBrowserItem = {
   createdAt?: string | null;
   dueDate?: string | null;
   canMarkPaid?: boolean;
+  recurrence?: {
+    frequency: "daily" | "weekly" | "monthly";
+    intervalCount: number;
+    dayOfMonth?: number | null;
+  };
 };
 
 export type DocumentSortKey =

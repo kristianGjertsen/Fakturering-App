@@ -1,3 +1,5 @@
+import { Plus } from "@animateicons/react/lucide";
+import { AnimatedIconButton } from "../../../components/AnimatedIconButton";
 import { Button } from "../../../components/Button";
 import { FormField } from "../../../components/FormField";
 import { Input } from "../../../components/Input";
@@ -51,7 +53,8 @@ export function ProfileBankAccountFields({
     <div>
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold text-slate-800">Kontonumre</h3>
-        <Button
+        <AnimatedIconButton
+          icon={Plus}
           type="button"
           variant="secondary"
           size="sm"
@@ -59,7 +62,7 @@ export function ProfileBankAccountFields({
           disabled={disabled}
         >
           Legg til konto
-        </Button>
+        </AnimatedIconButton>
       </div>
 
       <div className="mt-3 space-y-3">

@@ -5,9 +5,7 @@ import type {
   InvoiceWithDetails,
 } from "../../../../types";
 import {
-  getInvoiceStatusTone,
-  INVOICE_STATUS_LABELS,
-  isInvoiceOverdue,
+  getInvoiceStatusPresentation,
 } from "../../invoicePresentation";
 
 export function buildInvoiceListItems(
@@ -38,11 +36,18 @@ function scheduleToListItem(schedule: InvoiceScheduleWithDetails): DocumentBrows
     date: schedule.next_run_at,
     createdAt: schedule.created_at,
     dueDate: previewInvoice.due_date,
+    recurrence: schedule.schedule_type === "recurring" && schedule.frequency
+      ? {
+        frequency: schedule.frequency,
+        intervalCount: schedule.interval_count,
+        dayOfMonth: schedule.day_of_month,
+      }
+      : undefined,
   };
 }
 
 function invoiceToListItem(invoice: InvoiceWithDetails): DocumentBrowserItem {
-  const overdue = isInvoiceOverdue(invoice);
+  const status = getInvoiceStatusPresentation(invoice);
 
   return {
     id: invoice.id,
@@ -53,14 +58,8 @@ function invoiceToListItem(invoice: InvoiceWithDetails): DocumentBrowserItem {
     invoiceNumber: invoice.invoice_number ?? "Ikke tildelt",
     title: invoice.title || invoice.invoice_number || "Utkast",
     subtitle: invoice.invoice_number ?? "Fakturanummer tildeles ved utsendelse",
-    statusLabel: overdue
-      ? "Forfalt"
-      : invoice.paid
-        ? "Betalt"
-        : INVOICE_STATUS_LABELS[invoice.status],
-    statusTone: overdue
-      ? "danger"
-      : getInvoiceStatusTone(invoice.status, invoice.paid),
+    statusLabel: status.label,
+    statusTone: status.tone,
     amount: Number(invoice.total),
     date: invoice.issue_date,
     createdAt: invoice.created_at,

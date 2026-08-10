@@ -2,6 +2,7 @@ import type {
   Company,
   InvoiceScheduleWithDetails,
   InvoiceWithDetails,
+  Profile,
   ProfileBankAccount,
   Product,
 } from "../types";
@@ -12,7 +13,9 @@ import { fetchProfileDetails } from "./profileData";
 
 export {
   createCompany,
+  deleteCompany,
   fetchCompanies,
+  updateCompanyActive,
   updateCompanyLogoPreference,
 } from "./companyData";
 export type { CompanyInput, CompanyLogoPreferenceInput } from "./companyData";
@@ -40,6 +43,7 @@ export {
 export type { ProfileDetailsInput } from "./profileData";
 export {
   createProduct,
+  deleteProduct,
   fetchProducts,
 } from "./productData";
 export type { ProductInput } from "./productData";
@@ -49,6 +53,7 @@ export type AppData = {
   products: Product[];
   invoices: InvoiceWithDetails[];
   schedules: InvoiceScheduleWithDetails[];
+  profile: Profile;
   bankAccounts: ProfileBankAccount[];
 };
 
@@ -66,6 +71,7 @@ export async function fetchAppData(userId: string): Promise<AppData> {
     products,
     invoices,
     schedules,
+    profile: profileDetails.profile,
     bankAccounts: profileDetails.bankAccounts,
   };
 }

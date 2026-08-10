@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button } from "../../components/Button";
+import { ArrowLeft, Plus, Trash2, EyeOff } from "@animateicons/react/lucide";
+import { AnimatedIconButton } from "../../components/AnimatedIconButton";
 import { EmptyState } from "../../components/EmptyState";
 import { SectionHeader } from "../../components/SectionHeader";
+import { ConfirmDialog } from "../../components/layout/ConfirmDialog";
 import { Notice } from "../../components/layout/Notice";
 import type { CompanyLogoPreferenceInput, ProductInput } from "../../lib/data";
 import type { Company, InvoiceWithDetails, Product } from "../../types";
@@ -21,6 +23,9 @@ type CompanyPageProps = {
   products: Product[];
   invoices: InvoiceWithDetails[];
   onCreateProduct: (input: ProductInput) => Promise<void>;
+  onDeleteCompany: (companyId: string) => Promise<void>;
+  onUpdateCompanyActive: (companyId: string, isActive: boolean) => Promise<void>;
+  onDeleteProduct: (productId: string) => Promise<void>;
   onUpdateCompanyLogoPreference: (
     companyId: string,
     input: CompanyLogoPreferenceInput,
@@ -32,6 +37,9 @@ export default function CompanyPage({
   products,
   invoices,
   onCreateProduct,
+  onDeleteCompany,
+  onUpdateCompanyActive,
+  onDeleteProduct,
   onUpdateCompanyLogoPreference,
 }: CompanyPageProps) {
   const { companyId } = useParams();
@@ -39,6 +47,10 @@ export default function CompanyPage({
   const [message, setMessage] = useState("");
   const [showNewProduct, setShowNewProduct] = useState(false);
   const [updatingLogo, setUpdatingLogo] = useState(false);
+  const [deletingCompany, setDeletingCompany] = useState(false);
+  const [updatingCompanyActive, setUpdatingCompanyActive] = useState(false);
+  const [showDeleteCompanyDialog, setShowDeleteCompanyDialog] = useState(false);
+  const [showArchiveCompanyDialog, setShowArchiveCompanyDialog] = useState(false);
   const [rediscoverLogo, setRediscoverLogo] = useState(false);
   const [resolvedLogo, setResolvedLogo] = useState<{
     companyId: string;
@@ -53,9 +65,9 @@ export default function CompanyPage({
   if (!company) {
     return (
       <>
-        <Button variant="secondary" onClick={() => navigate("/companies")}>
-          ← Tilbake til selskaper
-        </Button>
+        <AnimatedIconButton icon={ArrowLeft} variant="secondary" onClick={() => navigate("/companies")}>
+          Tilbake til selskaper
+        </AnimatedIconButton>
         <EmptyState
           title="Fant ikke selskapet"
           description="Selskapet finnes ikke, eller du har ikke tilgang til det."
@@ -67,6 +79,7 @@ export default function CompanyPage({
   const currentCompany = company;
   const companyProducts = products.filter((product) => product.company_id === currentCompany.id);
   const companyInvoices = invoices.filter((invoice) => invoice.company_id === currentCompany.id);
+  const companyHasInvoices = companyInvoices.length > 0;
   const displayedLogoUrl = currentCompany.logo_disabled
     ? null
     : resolvedLogo?.companyId === currentCompany.id
@@ -108,13 +121,47 @@ export default function CompanyPage({
     if (saved) {
       setResolvedLogo(null);
       setRediscoverLogo(!logoDisabled);
-      setMessage(
-        logoDisabled
-          ? "Logoen er skjult. Den lagrede logoen er beholdt."
-          : currentCompany.logo_url
-            ? "Den lagrede logoen er aktivert igjen."
-            : "Logo hentes igjen for dette selskapet.",
-      );
+    }
+  }
+
+  async function handleDeleteProduct(productId: string) {
+    setMessage("");
+
+    try {
+      await onDeleteProduct(productId);
+      setMessage("Produktet er slettet.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Kunne ikke slette produktet.");
+      throw error;
+    }
+  }
+
+  async function handleDeleteCompany() {
+    setDeletingCompany(true);
+    setMessage("");
+
+    try {
+      await onDeleteCompany(currentCompany.id);
+      setShowDeleteCompanyDialog(false);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Kunne ikke slette firmaet.");
+    } finally {
+      setDeletingCompany(false);
+    }
+  }
+
+  async function handleUpdateCompanyActive(isActive: boolean) {
+    setUpdatingCompanyActive(true);
+    setMessage("");
+
+    try {
+      await onUpdateCompanyActive(currentCompany.id, isActive);
+      setShowArchiveCompanyDialog(false);
+      setMessage(isActive ? "Firmaet er aktivert." : "Firmaet er satt som inaktivt.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Kunne ikke oppdatere firmaet.");
+    } finally {
+      setUpdatingCompanyActive(false);
     }
   }
 
@@ -146,24 +193,40 @@ export default function CompanyPage({
             onToggleLogoDisabled={(logoDisabled) => void handleToggleLogoDisabled(logoDisabled)}
           />
 
-          <div className="rounded-md border border-dashed border-amber-300 bg-amber-50 p-2 text-[10px] leading-4 text-amber-950">
-            <p className="font-semibold uppercase tracking-wide">Temp – bildenavn</p>
-            <p className="break-all font-mono">
-              {displayedLogoUrl ? imageNameFromUrl(displayedLogoUrl) : "fallback (ingen bildefil)"}
-            </p>
-            {displayedLogoUrl && (
-              <p className="mt-1 break-all font-mono text-amber-800">{displayedLogoUrl}</p>
-            )}
-          </div>
         </div>
         <div className="min-w-0 flex-1">
           <SectionHeader
-            title={currentCompany.name}
-            description="Selskapsinformasjon, produkter og tjenester."
+            title={currentCompany.name} 
+            description={currentCompany.is_active ? "": "Firmaet er inaktivt og kan ikke brukes i fakturaer."}
             action={
-              <Button variant="secondary" onClick={() => navigate("/companies")}>
-                ← Tilbake
-              </Button>
+              <div className="flex flex-wrap justify-end gap-2">
+                {currentCompany.is_active ? (
+                  <AnimatedIconButton
+                    icon={companyHasInvoices ? EyeOff : Trash2}
+                    variant={companyHasInvoices ? "secondary" : "danger"}
+                    onClick={() =>
+                      companyHasInvoices
+                        ? setShowArchiveCompanyDialog(true)
+                        : setShowDeleteCompanyDialog(true)
+                    }
+                    disabled={deletingCompany || updatingCompanyActive}
+                  >
+                    {companyHasInvoices ? "Sett inaktiv" : "Slett firma"}
+                  </AnimatedIconButton>
+                ) : (
+                  <AnimatedIconButton
+                    icon={Plus}
+                    variant="secondary"
+                    onClick={() => void handleUpdateCompanyActive(true)}
+                    disabled={updatingCompanyActive}
+                  >
+                    {updatingCompanyActive ? "Aktiverer..." : "Aktiver firma"}
+                  </AnimatedIconButton>
+                )}
+                <AnimatedIconButton icon={ArrowLeft} variant="secondary" onClick={() => navigate("/companies")}>
+                  Tilbake
+                </AnimatedIconButton>
+              </div>
             }
           />
         </div>
@@ -185,6 +248,7 @@ export default function CompanyPage({
       <CompanyProducts
         products={companyProducts}
         onAddProduct={() => setShowNewProduct(true)}
+        onDeleteProduct={handleDeleteProduct}
       />
 
       <CompanyInvoicesPanel
@@ -195,6 +259,28 @@ export default function CompanyPage({
         onOpenInvoice={(invoiceId) =>
           navigate(`/invoices?invoiceId=${invoiceId}&companyId=${currentCompany.id}`)
         }
+      />
+
+      <ConfirmDialog
+        open={showDeleteCompanyDialog}
+        title="Slett firma"
+        message={`Slette ${currentCompany.name}? Dette kan bare gjøres når firmaet ikke er brukt i fakturaer.`}
+        confirmLabel={deletingCompany ? "Sletter..." : "Slett firma"}
+        tone="danger"
+        loading={deletingCompany}
+        onCancel={() => setShowDeleteCompanyDialog(false)}
+        onConfirm={() => void handleDeleteCompany()}
+      />
+
+      <ConfirmDialog
+        open={showArchiveCompanyDialog}
+        title="Sett firma inaktivt"
+        message={`${currentCompany.name} er brukt i fakturaer og kan derfor ikke slettes. Sett firmaet som inaktivt? Det skjules fra fakturavalg og statistikk.`}
+        confirmLabel={updatingCompanyActive ? "Lagrer..." : "Sett inaktiv"}
+        tone="danger"
+        loading={updatingCompanyActive}
+        onCancel={() => setShowArchiveCompanyDialog(false)}
+        onConfirm={() => void handleUpdateCompanyActive(false)}
       />
     </>
   );

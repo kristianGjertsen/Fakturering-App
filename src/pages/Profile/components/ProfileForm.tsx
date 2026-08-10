@@ -21,7 +21,8 @@ type ProfileFormProps = {
 };
 
 type ProfileFormState = ProfileDetailsFormValue & {
-  lastInvoiceNumber: number;
+  invoiceNumberPrefix: string;
+  nextInvoiceNumber: string;
   bankAccounts: ProfileBankAccountFormRow[];
 };
 
@@ -33,7 +34,8 @@ function createEmptyProfileFormState(): ProfileFormState {
     postalAddress: "",
     country: "NO",
     orgNumber: "",
-    lastInvoiceNumber: 9999,
+    invoiceNumberPrefix: "",
+    nextInvoiceNumber: "10000",
     bankAccounts: [createProfileBankAccountFormRow()],
   };
 }
@@ -64,7 +66,12 @@ export function ProfileForm({ userId, email, onFeedback }: ProfileFormProps) {
           postalAddress: profile.postal_address ?? "",
           country: profile.country ?? "NO",
           orgNumber: profile.org_number ?? "",
-          lastInvoiceNumber: profile.last_invoice_number,
+          invoiceNumberPrefix: profile.invoice_number_prefix ?? "",
+          nextInvoiceNumber: formatInvoiceNumber(
+            "",
+            profile.last_invoice_number + 1,
+            profile.invoice_number_padding_width ?? 0,
+          ),
           bankAccounts: bankAccounts.length > 0
             ? bankAccounts.map((account) => ({
                 localId: account.id,
@@ -180,8 +187,14 @@ export function ProfileForm({ userId, email, onFeedback }: ProfileFormProps) {
 
         <div className="rounded-md border border-blue-100 bg-blue-50 p-4">
           <h3 className="text-sm font-semibold text-slate-900">Fakturanummerserie</h3>
-          <p className="mt-1 text-sm text-slate-700">
-            Neste nummer: {form.lastInvoiceNumber + 1}
+          <div className="mt-3 rounded-md border border-blue-100 bg-white px-4 py-4">
+            <p className="text-xs font-medium uppercase text-slate-500">Neste fakturanummer</p>
+            <p className="mt-1 text-3xl font-semibold tracking-wide text-slate-950">
+              {form.invoiceNumberPrefix}{form.nextInvoiceNumber || "10001"}
+            </p>
+          </div>
+          <p className="mt-2 text-sm text-slate-600">
+            Fakturanummerserien settes ved opprettelse av firmaet på Autofaktura og kan ikke endres i ettertid.
           </p>
         </div>
 
@@ -193,4 +206,8 @@ export function ProfileForm({ userId, email, onFeedback }: ProfileFormProps) {
       </form>
     </Panel>
   );
+}
+
+function formatInvoiceNumber(prefix: string, number: number, paddingWidth: number) {
+  return `${prefix}${String(number).padStart(Math.max(paddingWidth, String(number).length), "0")}`;
 }

@@ -222,6 +222,7 @@ function createGuestPreviewCompany(
     invoice_notes: null,
     website: null,
     website_from_brreg: false,
+    is_active: true,
     logo_disabled: false,
     logo_url: null,
     logo_source: null,

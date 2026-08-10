@@ -1,24 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { DocumentBrowser, type DocumentBrowserItem } from "../../components/DocumentBrowser";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Plus } from "@animateicons/react/lucide";
+import { AnimatedIconButton } from "../../components/AnimatedIconButton";
 import { EmptyState } from "../../components/EmptyState";
 import { SectionHeader } from "../../components/SectionHeader";
 import { DetailModal } from "../../components/layout/DetailModal";
-import { formatDate, frequencyLabel } from "../../lib/format";
-import { calculateScheduleTotals } from "../../lib/schedulePreview";
-import type { InvoiceScheduleWithDetails } from "../../types";
-import { RecurringDetails } from "./components/RecurringDetails";
+import { scheduleToPreviewInvoice } from "../../lib/schedulePreview";
+import type { InvoiceScheduleWithDetails, Profile } from "../../types";
+import { InvoiceDetails } from "../Invoices/components/view/InvoiceDetails";
+import { InvoiceList } from "../Invoices/components/view/InvoiceList";
 import { getScheduleDisplayTitle } from "./schedulePresentation";
 
 type RecurringPageProps = {
   schedules: InvoiceScheduleWithDetails[];
+  sellerProfile: Profile;
 };
 
-export default function RecurringPage({ schedules }: RecurringPageProps) {
+export default function RecurringPage({ schedules, sellerProfile }: RecurringPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedScheduleId = searchParams.get("scheduleId") ?? "";
   const [selectedScheduleId, setSelectedScheduleId] = useState(requestedScheduleId);
-  const browserItems = useMemo(() => schedules.map(toScheduleBrowserItem), [schedules]);
 
   useEffect(() => {
     if (
@@ -40,6 +41,11 @@ export default function RecurringPage({ schedules }: RecurringPageProps) {
 
   const selectedSchedule =
     schedules.find((schedule) => schedule.id === selectedScheduleId) ?? null;
+  const selectedListId = selectedScheduleId ? `schedule-preview-${selectedScheduleId}` : "";
+  const selectedPreviewInvoice = useMemo(
+    () => selectedSchedule ? scheduleToPreviewInvoice(selectedSchedule) : null,
+    [selectedSchedule],
+  );
 
   function updateSelection(nextScheduleId: string) {
     setSelectedScheduleId(nextScheduleId);
@@ -56,56 +62,78 @@ export default function RecurringPage({ schedules }: RecurringPageProps) {
     }, { replace: true });
   }
 
-  function selectSchedule(scheduleId: string) {
+  function selectSchedule(listItemId: string) {
+    const scheduleId = listItemId.startsWith("schedule-preview-")
+      ? listItemId.slice("schedule-preview-".length)
+      : listItemId;
+
     updateSelection(selectedScheduleId === scheduleId ? "" : scheduleId);
   }
+
+  const navigate = useNavigate();
 
   return (
     <>
       <SectionHeader
         title="Gjentakende fakturaer"
-        description="Finn en plan etter bedrift, eller vis alle. Klikk på en plan for detaljer og PDF-forhåndsvisning."
+        description="Gjentakende fakturaer lar deg sette opp automatiske faktureringer for kunder på faste intervaller."
+        action={
+          <AnimatedIconButton
+            icon={Plus}
+            variant="primary"
+            size="sm"
+            onClick={() => {
+              navigate("/invoices", {
+                state: {
+                  openCreateForm: true,
+                  invoiceKind: "recurring",
+                },
+              });
+            }
+            }
+          >
+            Ny gjentagende faktura
+          </AnimatedIconButton>}
       />
-
-      {schedules.length === 0 ? (
-        <EmptyState
-          title="Ingen gjentakelser"
-          description="Når du lager en faktura og slår på gjentakelse, vises planen her."
-        />
-      ) : (
-        <DocumentBrowser
-          items={browserItems}
-          selectedId={selectedScheduleId}
-          onSelect={selectSchedule}
-          searchPlaceholder="Søk etter plan eller bedrift"
-          itemLabel="planer"
-        />
-      )}
+      {
+        schedules.length === 0 ? (
+          <EmptyState
+            title="Ingen gjentakelser"
+            description="Når du lager en faktura og slår på gjentakelse, vises planen her."
+          />
+        ) : (
+          <InvoiceList
+            invoices={[]}
+            schedules={schedules}
+            selectedId={selectedListId}
+            onSelect={selectSchedule}
+            itemLabel="planer"
+          />
+        )
+      }
 
       <DetailModal
         open={Boolean(selectedSchedule)}
         onClose={() => updateSelection("")}
+        title="Gjentagende fakturaplan"
         ariaLabel={selectedSchedule
           ? `Detaljer for ${getScheduleDisplayTitle(selectedSchedule)}`
           : "Detaljer for gjentakende plan"}
       >
-        {selectedSchedule && <RecurringDetails schedule={selectedSchedule} />}
+        {selectedSchedule && selectedPreviewInvoice && (
+          <InvoiceDetails
+            invoice={selectedPreviewInvoice}
+            sellerProfile={sellerProfile}
+            schedule={selectedSchedule}
+            deleting={false}
+            sending={false}
+            updatingPaid={false}
+            onDelete={() => undefined}
+            onSend={() => undefined}
+            onTogglePaid={() => undefined}
+          />
+        )}
       </DetailModal>
     </>
   );
-}
-
-function toScheduleBrowserItem(schedule: InvoiceScheduleWithDetails): DocumentBrowserItem {
-  return {
-    id: schedule.id,
-    companyId: schedule.company_id,
-    companyName: schedule.company?.name ?? "Ukjent bedrift",
-    title: getScheduleDisplayTitle(schedule),
-    subtitle: frequencyLabel(schedule.frequency ?? "monthly", schedule.interval_count),
-    statusLabel: schedule.auto_send ? "Automatisk" : "Manuell",
-    statusTone: schedule.auto_send ? "info" : "neutral",
-    amount: calculateScheduleTotals(schedule).total,
-    date: schedule.next_run_at,
-    dateLabel: `Neste: ${formatDate(schedule.next_run_at)}`,
-  };
 }

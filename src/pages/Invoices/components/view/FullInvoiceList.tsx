@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  type DocumentBrowserItem,
-  statusToneClasses,
-} from "../../../../components/DocumentBrowser";
+import { ArrowRight } from "@animateicons/react/lucide";
+import { AnimatedIconButton } from "../../../../components/AnimatedIconButton";
+import type { DocumentBrowserItem } from "../../../../components/DocumentBrowser";
 import { Input } from "../../../../components/Input";
 import { Panel } from "../../../../components/layout/Panel";
 import { Select } from "../../../../components/Select";
+import { Tag } from "../../../../components/Tag";
 import {
   filterAndSortDocuments,
   groupDocumentsByCompany,
@@ -23,6 +23,7 @@ type FullInvoiceListProps = {
   onSelect: (invoiceId: string) => void;
   onMarkPaid?: (invoiceId: string) => void;
   markingPaidId: string;
+  itemLabel: string;
 };
 
 const PAGE_SIZE = 10;
@@ -34,6 +35,7 @@ export function FullInvoiceList({
   onSelect,
   onMarkPaid,
   markingPaidId,
+  itemLabel,
 }: FullInvoiceListProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [search, setSearch] = useState("");
@@ -114,11 +116,9 @@ export function FullInvoiceList({
           {item.invoiceNumber ?? item.subtitle ?? "–"}
         </td>
         <td className="whitespace-nowrap px-4 py-3">
-          <span className={`rounded-md px-2 py-1 text-[11px] font-semibold ring-1 ${
-            statusToneClasses[item.statusTone ?? "neutral"]
-          }`}>
+          <Tag tone={item.statusTone}>
             {item.statusLabel}
-          </span>
+          </Tag>
         </td>
         <td className="whitespace-nowrap px-2 py-3 text-center">
           {item.canMarkPaid && onMarkPaid && (
@@ -161,7 +161,7 @@ export function FullInvoiceList({
           <div>
             <p className="text-sm font-semibold text-slate-950">Oversikt</p>
             <p className="text-xs text-slate-500">
-              {filteredItems.length} fakturaer ·{" "}
+              {filteredItems.length} {itemLabel} ·{" "}
               {formatCurrency(filteredItems.reduce((sum, item) => sum + item.amount, 0))}
             </p>
           </div>
@@ -320,7 +320,7 @@ export function FullInvoiceList({
                             </span>
                             <span className="font-semibold text-slate-950">{group.companyName}</span>
                             <span className="text-xs text-slate-500">
-                              {group.items.length} fakturaer · {formatCurrency(groupTotal)}
+                              {group.items.length} {itemLabel} · {formatCurrency(groupTotal)}
                             </span>
                           </button>
                         </td>
@@ -344,14 +344,17 @@ export function FullInvoiceList({
               Forrige
             </button>
             <p className="text-xs text-slate-500">Side {page} av {pageCount}</p>
-            <button
+            <AnimatedIconButton
+              icon={ArrowRight}
+              iconPosition="end"
+              variant="secondary"
+              size="xs"
               type="button"
-              className="rounded-md border border-blue-100 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               disabled={page === pageCount}
               onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
             >
               Neste
-            </button>
+            </AnimatedIconButton>
           </div>
           )}
         </>

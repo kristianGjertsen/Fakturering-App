@@ -6,10 +6,11 @@ type DetailModalProps = {
   open: boolean;
   onClose: () => void;
   ariaLabel: string;
+  title?: string;
   children: ReactNode;
 };
 
-export function DetailModal({ open, onClose, ariaLabel, children }: DetailModalProps) {
+export function DetailModal({ open, onClose, ariaLabel, title, children }: DetailModalProps) {
   useModalDismiss(open, onClose, { lockBodyScroll: true });
 
   if (!open) return null;
@@ -28,15 +29,23 @@ export function DetailModal({ open, onClose, ariaLabel, children }: DetailModalP
         aria-modal="true"
         aria-label={ariaLabel}
       >
-        <Button
-          variant="secondary"
-          size="sm"
-          className="sticky top-0 z-20 ml-auto mb-3 h-9 w-9 bg-white p-0 text-xl"
-          onClick={onClose}
-          aria-label="Lukk"
-        >
-          ×
-        </Button>
+        <div className="sticky top-0 z-20 mb-3 flex items-center justify-between gap-3 bg-blue-50 pb-3 border-b border-gray-300">
+          {title && (
+            <h2 className="min-w-0 pl-1 truncate text-xl font-semibold text-slate-950">
+              {title}
+            </h2>
+
+          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            className="ml-auto h-9 w-9 shrink-0 bg-white p-0 text-xl"
+            onClick={onClose}
+            aria-label="Lukk"
+          >
+            ×
+          </Button>
+        </div>
         {children}
       </section>
     </div>

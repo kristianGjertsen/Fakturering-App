@@ -1,32 +1,43 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
+import { Plus } from "@animateicons/react/lucide";
 import type {
   Company,
   InvoiceScheduleWithDetails,
   InvoiceWithDetails,
   Product,
+  Profile,
   ProfileBankAccount,
 } from "../../types";
 import type { InvoiceInput } from "../../lib/data";
 import { sendInvoiceEmail, updateInvoicePaid } from "../../lib/data";
 import { EmptyState } from "../../components/EmptyState";
 import { Button } from "../../components/Button";
+import { AnimatedIconButton } from "../../components/AnimatedIconButton";
 import { SectionHeader } from "../../components/SectionHeader";
 import { Notice } from "../../components/layout/Notice";
 import { DetailModal } from "../../components/layout/DetailModal";
+import { ConfirmDialog } from "../../components/layout/ConfirmDialog";
 import { InvoiceBuilder } from "./components/invoice-builder/InvoiceBuilder";
 import { InvoiceDetails } from "./components/view/InvoiceDetails";
 import { InvoiceList } from "./components/view/InvoiceList";
 import { scheduleToPreviewInvoice } from "../../lib/schedulePreview";
+import type { InvoiceKind } from "./invoiceBuilderModel";
 import {
   prepareInvoiceEmailDelivery,
   type InvoiceDeliveryAction,
 } from "./invoiceDelivery";
 import { getVisibleInvoices } from "./invoicePresentation";
 
+type InvoicesLocationState = {
+  openCreateForm?: boolean;
+  invoiceKind?: InvoiceKind;
+};
+
 type InvoicesPageProps = {
   companies: Company[];
   bankAccounts: ProfileBankAccount[];
+  sellerProfile: Profile;
   products: Product[];
   invoices: InvoiceWithDetails[];
   schedules: InvoiceScheduleWithDetails[];
@@ -40,6 +51,7 @@ type InvoicesPageProps = {
 export default function InvoicesPage({
   companies,
   bankAccounts,
+  sellerProfile,
   products,
   invoices,
   schedules,
@@ -49,15 +61,24 @@ export default function InvoicesPage({
   onRefreshInvoices,
   onDeleteInvoice,
 }: InvoicesPageProps) {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const companyFilterId = searchParams.get("companyId") ?? "";
   const requestedInvoiceId = searchParams.get("invoiceId") ?? "";
+  const routeState = location.state as InvoicesLocationState | null;
+  const requestedCreateForm = routeState?.openCreateForm;
+  const requestedInvoiceKind = routeState?.invoiceKind === "recurring"
+    ? "recurring"
+    : "single";
   const [selectedInvoiceId, setSelectedInvoiceId] = useState(searchParams.get("invoiceId") ?? "");
   const [deletingInvoiceId, setDeletingInvoiceId] = useState("");
-  const [showCreateForm, setShowCreateForm] = useState(searchParams.get("create") === "true");
+  const [showCreateForm, setShowCreateForm] = useState(
+    requestedCreateForm ?? searchParams.get("create") === "true",
+  );
   const [sendingInvoiceId, setSendingInvoiceId] = useState("");
   const [updatingPaidInvoiceId, setUpdatingPaidInvoiceId] = useState("");
   const [actionMessage, setActionMessage] = useState("");
+  const [showDeleteInvoiceDialog, setShowDeleteInvoiceDialog] = useState(false);
 
   const filteredInvoices = useMemo(
     () => companyFilterId ? invoices.filter((invoice) => invoice.company_id === companyFilterId) : invoices,
@@ -80,6 +101,12 @@ export default function InvoicesPage({
     ),
     [scheduledPreviews, visibleInvoices],
   );
+
+  useEffect(() => {
+    if (typeof requestedCreateForm === "boolean") {
+      setShowCreateForm(requestedCreateForm);
+    }
+  }, [location.key, requestedCreateForm]);
 
   useEffect(() => {
     if (!requestedInvoiceId) {
@@ -122,6 +149,7 @@ export default function InvoicesPage({
   function updateInvoiceSelection(invoiceId: string) {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
+
       if (invoiceId) {
         next.set("invoiceId", invoiceId);
       } else {
@@ -133,11 +161,11 @@ export default function InvoicesPage({
 
   async function handleDeleteSelectedInvoice() {
     if (!selectedInvoice || selectedInvoiceSchedule) return;
-    if (!window.confirm(`Slette ${selectedInvoice.invoice_number ? `faktura ${selectedInvoice.invoice_number}` : "utkastet"}?`)) return;
 
     setDeletingInvoiceId(selectedInvoice.id);
     try {
       await onDeleteInvoice(selectedInvoice.id);
+      setShowDeleteInvoiceDialog(false);
       closeInvoiceDetails();
     } finally {
       setDeletingInvoiceId("");
@@ -171,6 +199,7 @@ export default function InvoicesPage({
     try {
       const { attachments, html, subject } = await prepareInvoiceEmailDelivery(
         selectedInvoice,
+        sellerProfile,
         action,
         recipientName,
       );
@@ -249,28 +278,31 @@ export default function InvoicesPage({
   }
 
   const pageHeader = (
-    <SectionHeader
-      title="Fakturaer"
-      description={companyFilterId
-        ? "Viser fakturaer for valgt selskap."
-        : "Finn fakturaer etter bedrift, sorter listen og åpne en faktura for detaljer og PDF-forhåndsvisning."}
-      action={!showCreateForm ? (
-        <Button onClick={() => setShowCreateForm((value) => !value)}>
-          Ny faktura
-        </Button>
-      ) : undefined}
-    />
+    <div>
+      
+      <SectionHeader
+        title="Fakturaer"
+        description={"Finn fakturaer etter bedrift, sorter listen og åpne en faktura for detaljer og PDF-forhåndsvisning."}
+        action={!showCreateForm ? (
+          <AnimatedIconButton icon={Plus} onClick={() => setShowCreateForm((value) => !value)}>
+            Ny faktura
+          </AnimatedIconButton>
+        ) : undefined}
+      />
+    </div>
   );
 
   if (showCreateForm) {
     return (
       <>
-        {pageHeader}
+        {showCreateForm ? null : pageHeader}
         <InvoiceBuilder
           companies={companies}
           bankAccounts={bankAccounts}
+          sellerProfile={sellerProfile}
           products={products}
           initialCompanyId={companyFilterId}
+          initialInvoiceKind={requestedInvoiceKind}
           onCreateInvoice={async (input) => {
             const createdId = await onCreateInvoice(input);
             setShowCreateForm(false);
@@ -314,6 +346,7 @@ export default function InvoicesPage({
       <DetailModal
         open={Boolean(selectedInvoice)}
         onClose={closeInvoiceDetails}
+        title={selectedInvoiceSchedule ? "Gjentagende fakturaplan" : "Faktura"}
         ariaLabel={selectedInvoice
           ? `Fakturadetaljer for ${selectedInvoice.title || selectedInvoice.invoice_number}`
           : "Fakturadetaljer"}
@@ -322,16 +355,28 @@ export default function InvoicesPage({
         {selectedInvoice && (
           <InvoiceDetails
             invoice={selectedInvoice}
+            sellerProfile={sellerProfile}
             schedule={selectedInvoiceSchedule}
             deleting={deletingInvoiceId === selectedInvoice.id}
             sending={sendingInvoiceId === selectedInvoice.id}
             updatingPaid={updatingPaidInvoiceId === selectedInvoice.id}
-            onDelete={() => void handleDeleteSelectedInvoice()}
+            onDelete={() => setShowDeleteInvoiceDialog(true)}
             onSend={(action) => void handleSendSelectedInvoice(action)}
             onTogglePaid={() => void handleTogglePaid()}
           />
         )}
       </DetailModal>
+
+      <ConfirmDialog
+        open={Boolean(selectedInvoice && showDeleteInvoiceDialog)}
+        title="Slett faktura"
+        message={`Slette ${selectedInvoice?.invoice_number ? `faktura ${selectedInvoice.invoice_number}` : "utkastet"}?`}
+        confirmLabel={deletingInvoiceId ? "Sletter..." : "Slett"}
+        tone="danger"
+        loading={Boolean(deletingInvoiceId)}
+        onCancel={() => setShowDeleteInvoiceDialog(false)}
+        onConfirm={() => void handleDeleteSelectedInvoice()}
+      />
     </>
   );
 }

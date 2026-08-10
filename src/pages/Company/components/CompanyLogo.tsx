@@ -111,6 +111,7 @@ export function CompanyLogo({
     ? null
     : savedSource ?? (shouldDiscoverLogo ? availableSources[0] ?? null : null);
   const initial = company.name.trim().charAt(0).toUpperCase() || "?";
+  const isInactive = company.is_active === false;
 
   useEffect(() => {
     setRejectedSourceUrls([]);
@@ -200,6 +201,7 @@ export function CompanyLogo({
         currentSource={currentSource}
         initial={initial}
         size="compact"
+        inactive={isInactive}
         onSourceRejected={handleSourceRejected}
         onLogoLoaded={handleLogoLoaded}
       />
@@ -213,12 +215,13 @@ export function CompanyLogo({
         currentSource={currentSource}
         initial={initial}
         size="detail"
+        inactive={isInactive}
         onSourceRejected={handleSourceRejected}
         onLogoLoaded={handleLogoLoaded}
       />
 
       <p className="max-w-28 text-xs text-slate-500">
-        Opprinnelig kilde: {company.logo_disabled ? "bokstav-fallback" : currentSource?.label ?? "bokstav-fallback"}.
+        Logo: {company.logo_disabled ? "fallback" : shortLogoSourceLabel(currentSource?.label)}.
       </p>
 
       {onToggleLogoDisabled && (
@@ -244,6 +247,7 @@ function LogoMark({
   onSourceRejected,
   onLogoLoaded,
   size,
+  inactive = false,
 }: {
   companyName: string;
   currentSource: LogoSource | null;
@@ -251,6 +255,7 @@ function LogoMark({
   onSourceRejected: (source: LogoSource) => void;
   onLogoLoaded: (source: LogoSource, logoBlob?: Blob) => void;
   size: "detail" | "compact";
+  inactive?: boolean;
 }) {
   const [verifiedSourceUrl, setVerifiedSourceUrl] = useState("");
   const boxClass = size === "detail" ? "h-20 w-20" : "h-11 w-11";
@@ -283,7 +288,13 @@ function LogoMark({
   }
 
   return (
-    <div className={`grid shrink-0 place-items-center rounded-lg border border-blue-100 bg-white shadow-sm ${boxClass}`}>
+    <div
+      className={`grid shrink-0 place-items-center rounded-lg border shadow-sm ${
+        inactive
+          ? "border-slate-200 bg-slate-100 grayscale"
+          : "border-blue-100 bg-white"
+      } ${boxClass}`}
+    >
       {currentSource ? (
         <>
           {!sourceIsVerified && (
@@ -360,13 +371,11 @@ function knownDomainLogoSources(company: Company): LogoSource[] {
     websiteDomain
       ? domainLogoSource(
           websiteDomain,
-          company.website_from_brreg
-            ? `Logo.dev via nettside fra BRREG (${websiteDomain})`
-            : `Logo.dev via registrert nettside (${websiteDomain})`,
+          company.website_from_brreg ? "fra BRREG-nettside" : "fra nettside",
         )
       : null,
     emailDomain
-      ? domainLogoSource(emailDomain, `Logo.dev via maildomene (${emailDomain})`)
+      ? domainLogoSource(emailDomain, "fra e-postdomene")
       : null,
   ]);
 }
@@ -382,7 +391,7 @@ function nameBasedLogoSources(
     exactNameDomain && !knownDomains.has(exactNameDomain)
       ? domainLogoSource(
           exactNameDomain,
-          `Logo.dev – eksakt navnetreff (${exactNameDomain})`,
+          "fra navnesøk",
         )
       : null,
   ];
@@ -393,11 +402,11 @@ function nameBasedLogoSources(
     ...guessedDomains.map((domain) =>
       domainLogoSource(
         domain,
-        `Logo.dev – gjettet nettsidedomene (${domain})`,
+        "fra domenesøk",
       )),
     {
       src: logoDevNameUrl(companyNameWithoutLegalSuffix(company.name)),
-      label: "Logo.dev – usikkert navnetreff",
+      label: "fra navnesøk",
     },
   );
 
@@ -409,6 +418,40 @@ function domainLogoSource(domain: string, label: string): LogoSource {
     src: `https://img.logo.dev/${domain}?${logoDevBaseParams()}`,
     label,
   };
+}
+
+function shortLogoSourceLabel(label: string | null | undefined) {
+  if (!label || label === NO_LOGO_FOUND_SOURCE) {
+    return "fallback";
+  }
+
+  const normalized = label.toLowerCase();
+
+  if (normalized.includes("maildomene") || normalized.includes("e-postdomene")) {
+    return "fra e-postdomene";
+  }
+
+  if (normalized.includes("brreg")) {
+    return "fra BRREG-nettside";
+  }
+
+  if (normalized.includes("registrert nettside") || normalized.includes("nettside")) {
+    return "fra nettside";
+  }
+
+  if (normalized.includes("gjettet") || normalized.includes("domenesøk")) {
+    return "fra domenesøk";
+  }
+
+  if (normalized.includes("navnetreff") || normalized.includes("navnesøk")) {
+    return "fra navnesøk";
+  }
+
+  if (normalized.includes("lagret")) {
+    return "lagret";
+  }
+
+  return label;
 }
 
 function logoDevNameUrl(companyName: string) {
