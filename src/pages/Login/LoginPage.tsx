@@ -93,7 +93,7 @@ export default function LoginPage() {
             : response.error.message,
         );
       } else if (isRegistering) {
-        setMessage("Bruker opprettet. Sjekk e-post hvis bekreftelse er aktivert.");
+        setMessage("Bekreft e-post for å fullføre registrering. Sjekk innboksen din og eventuelt søppelposten.");
       } else {
         window.location.href = "/";
       }

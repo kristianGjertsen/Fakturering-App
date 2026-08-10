@@ -31,7 +31,7 @@ export function CompanyListPanel({
         <div className="flex items-center justify-between gap-4">
           <div>
             <h3 className="text-base font-semibold text-slate-950">Registrerte selskaper</h3>
-         
+
           </div>
           <span className="text-sm text-slate-500">{activeCompanies.length} aktive</span>
         </div>
@@ -53,8 +53,9 @@ export function CompanyListPanel({
           />
         )}
 
+        <h3 className="text-base font-semibold text-slate-950 pt-6">Inaktive selskaper</h3>
         {inactiveCompanies.length > 0 && (
-          <details className="mt-6 rounded-lg border border-slate-200 bg-slate-50">
+          <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50">
             <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-700">
               Inaktive firmaer ({inactiveCompanies.length})
             </summary>
@@ -85,9 +86,8 @@ function CompanyList({
         <button
           key={company.id}
           type="button"
-          className={`flex w-full items-center gap-3 px-4 py-4 text-left transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 ${
-            inactive ? "opacity-80" : ""
-          }`}
+          className={`flex w-full items-center gap-3 px-4 py-4 text-left transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 ${inactive ? "opacity-80" : ""
+            }`}
           onClick={() => onOpenCompany(company.id)}
         >
           <CompanyLogo
