@@ -71,6 +71,25 @@ export function calculateSupplierInvoiceTotals(lines: SupplierInvoiceDraftLine[]
   );
 }
 
+export function calculateSupplierInvoiceNokTotals(
+  lines: SupplierInvoiceDraftLine[],
+  exchangeRate: number,
+) {
+  const rate = Math.max(0, Number(exchangeRate) || 0);
+  return lines.reduce(
+    (totals, line) => {
+      const original = calculateSupplierLine(line);
+      const netAmount = roundMoney(original.netAmount * rate);
+      const vatAmount = roundMoney(original.vatAmount * rate);
+      totals.subtotal = roundMoney(totals.subtotal + netAmount);
+      totals.vatTotal = roundMoney(totals.vatTotal + vatAmount);
+      totals.total = roundMoney(totals.total + netAmount + vatAmount);
+      return totals;
+    },
+    { subtotal: 0, vatTotal: 0, total: 0 },
+  );
+}
+
 export function accountingYearBounds(year: number) {
   return {
     start: `${year}-01-01`,

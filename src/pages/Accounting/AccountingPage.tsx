@@ -111,11 +111,11 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
     }
   }
 
-  async function handleSetSupplierPaid(invoice: SupplierInvoiceWithDetails, paid: boolean, date: string, bankAccountId: string | null) {
+  async function handleSetSupplierPaid(invoice: SupplierInvoiceWithDetails, paid: boolean, date: string, bankAccountId: string | null, paidAmountNok: number | null = null) {
     setActionInvoiceId(invoice.id);
     setFeedback({ message: "", tone: "info" });
     try {
-      await setSupplierInvoicePaid(invoice.id, paid, date, bankAccountId);
+      await setSupplierInvoicePaid(invoice.id, paid, date, bankAccountId, paidAmountNok);
       await onRefresh();
       setFeedback({ message: paid ? "Betalingen er bokført." : "Betalingen er korrigert med et motbilag.", tone: "info" });
     } catch (error) {

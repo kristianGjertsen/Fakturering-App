@@ -260,6 +260,9 @@ export type SupplierInvoiceLine = {
   vat_rate: number;
   vat_amount: number;
   gross_amount: number;
+  original_net_amount: number;
+  original_vat_amount: number;
+  original_gross_amount: number;
   sort_order: number;
   created_at: string;
   account?: Pick<AccountingAccount, "id" | "account_number" | "name"> | null;
@@ -282,8 +285,15 @@ export type SupplierInvoice = {
   invoice_number: string;
   invoice_date: string;
   due_date: string | null;
+  kid: string | null;
   description: string | null;
-  currency: "NOK";
+  currency: string;
+  exchange_rate: number;
+  exchange_rate_date: string | null;
+  exchange_rate_source: string | null;
+  original_subtotal: number;
+  original_vat_total: number;
+  original_total: number;
   status: SupplierInvoiceStatus;
   subtotal: number;
   vat_total: number;

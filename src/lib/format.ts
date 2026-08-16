@@ -14,6 +14,22 @@ export function formatCurrency(value: number) {
   return currencyFormatter.format(value);
 }
 
+const moneyFormatters = new Map<string, Intl.NumberFormat>();
+
+export function formatMoney(value: number, currency: string) {
+  const normalizedCurrency = currency.toUpperCase();
+  let formatter = moneyFormatters.get(normalizedCurrency);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat("nb-NO", {
+      style: "currency",
+      currency: normalizedCurrency,
+      maximumFractionDigits: 2,
+    });
+    moneyFormatters.set(normalizedCurrency, formatter);
+  }
+  return formatter.format(value);
+}
+
 export function formatDate(value: string | null | undefined) {
   if (!value) {
     return "-";

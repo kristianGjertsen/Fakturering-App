@@ -10,7 +10,7 @@ import type {
   AccountingAccountCategory,
 } from "../types";
 import { validateAttachmentFiles } from "./attachments";
-import { calculateSupplierLine } from "./accounting";
+import { calculateSupplierLine, roundMoney } from "./accounting";
 
 export const ACCOUNTING_DOCUMENT_BUCKET = "accounting-documents";
 
@@ -39,12 +39,18 @@ export type SupplierInvoiceInput = {
   invoiceNumber: string;
   invoiceDate: string;
   dueDate: string;
+  kid: string;
+  currency: string;
+  exchangeRate: number;
+  exchangeRateDate: string;
+  exchangeRateSource: string;
   description: string;
   lines: SupplierInvoiceDraftLine[];
   attachments: File[];
   markPaid: boolean;
   paymentDate: string;
   bankAccountId: string | null;
+  paymentAmountNok: number;
 };
 
 export type ManualJournalLineInput = {
@@ -121,23 +127,35 @@ export async function createSupplier(input: SupplierInput) {
 export async function createSupplierInvoice(input: SupplierInvoiceInput) {
   const validationError = validateAttachmentFiles(input.attachments);
   if (validationError) throw new Error(validationError);
+  if (input.attachments.length === 0) throw new Error("Legg ved den mottatte fakturaen som originaldokument.");
   if (!input.supplierId) throw new Error("Velg en leverandør.");
   if (!input.invoiceNumber.trim()) throw new Error("Fakturanummer mangler.");
   if (!input.invoiceDate) throw new Error("Fakturadato mangler.");
+  const kid = input.kid.replace(/\D/g, "");
+  if (kid && (kid.length < 2 || kid.length > 25)) throw new Error("KID må inneholde 2 til 25 sifre.");
   if (input.lines.length === 0) throw new Error("Legg til minst én kostnadslinje.");
+  const currency = input.currency.trim().toUpperCase();
+  const exchangeRate = currency === "NOK" ? 1 : Number(input.exchangeRate);
+  if (!/^[A-Z]{3}$/.test(currency)) throw new Error("Valutakoden er ugyldig.");
+  if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) throw new Error("Valutakursen må være større enn 0.");
 
   const lines = input.lines.map((line) => {
-    const calculated = calculateSupplierLine(line);
-    if (!line.description.trim() || !line.expenseAccountId || calculated.grossAmount <= 0) {
+    const original = calculateSupplierLine(line);
+    if (!line.description.trim() || !line.expenseAccountId || original.grossAmount <= 0) {
       throw new Error("Alle kostnadslinjer må ha tekst, konto og et beløp over 0.");
     }
+    const netAmount = roundMoney(original.netAmount * exchangeRate);
+    const vatAmount = roundMoney(original.vatAmount * exchangeRate);
     return {
       description: line.description.trim(),
       expense_account_id: line.expenseAccountId,
-      net_amount: calculated.netAmount,
-      vat_rate: calculated.vatRate,
-      vat_amount: calculated.vatAmount,
-      gross_amount: calculated.grossAmount,
+      net_amount: netAmount,
+      vat_rate: original.vatRate,
+      vat_amount: vatAmount,
+      gross_amount: roundMoney(netAmount + vatAmount),
+      original_net_amount: original.netAmount,
+      original_vat_amount: original.vatAmount,
+      original_gross_amount: original.grossAmount,
     };
   });
 
@@ -169,12 +187,20 @@ export async function createSupplierInvoice(input: SupplierInvoiceInput) {
       p_invoice_number: input.invoiceNumber.trim(),
       p_invoice_date: input.invoiceDate,
       p_due_date: input.dueDate || null,
+      p_kid: kid || null,
+      p_currency: currency,
+      p_exchange_rate: exchangeRate,
+      p_exchange_rate_date: currency === "NOK" ? input.invoiceDate : input.exchangeRateDate || input.invoiceDate,
+      p_exchange_rate_source: currency === "NOK" ? "NOK" : input.exchangeRateSource.trim() || "Manuelt oppgitt",
       p_description: input.description.trim() || null,
       p_lines: lines,
       p_attachments: attachments,
       p_mark_paid: input.markPaid,
       p_payment_date: input.markPaid ? input.paymentDate || input.invoiceDate : null,
       p_bank_account_id: input.markPaid ? input.bankAccountId : null,
+      p_payment_amount_nok: input.markPaid
+        ? input.paymentAmountNok || null
+        : null,
     });
     if (error) throw error;
 
@@ -211,12 +237,14 @@ export async function setSupplierInvoicePaid(
   paid: boolean,
   paymentDate: string,
   bankAccountId: string | null = null,
+  paidAmountNok: number | null = null,
 ) {
   const { error } = await supabase.rpc("set_supplier_invoice_paid", {
     p_supplier_invoice_id: invoiceId,
     p_paid: paid,
     p_payment_date: paymentDate,
     p_bank_account_id: bankAccountId,
+    p_paid_amount_nok: paidAmountNok,
   });
   if (error) throw error;
 }
