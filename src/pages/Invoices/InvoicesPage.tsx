@@ -3,6 +3,7 @@ import { useLocation, useSearchParams } from "react-router-dom";
 import { Plus } from "@animateicons/react/lucide";
 import type {
   Company,
+  AccountingAccount,
   InvoiceScheduleWithDetails,
   InvoiceWithDetails,
   Product,
@@ -18,6 +19,11 @@ import { SectionHeader } from "../../components/SectionHeader";
 import { Notice } from "../../components/layout/Notice";
 import { DetailModal } from "../../components/layout/DetailModal";
 import { ConfirmDialog } from "../../components/layout/ConfirmDialog";
+import { Modal } from "../../components/layout/Modal";
+import { FormField } from "../../components/FormField";
+import { Input } from "../../components/Input";
+import { Select } from "../../components/Select";
+import { todayInputValue } from "../../lib/format";
 import { InvoiceBuilder } from "./components/invoice-builder/InvoiceBuilder";
 import { InvoiceDetails } from "./components/view/InvoiceDetails";
 import { InvoiceList } from "./components/view/InvoiceList";
@@ -37,6 +43,7 @@ type InvoicesLocationState = {
 type InvoicesPageProps = {
   companies: Company[];
   bankAccounts: ProfileBankAccount[];
+  accountingAccounts: AccountingAccount[];
   sellerProfile: Profile;
   products: Product[];
   invoices: InvoiceWithDetails[];
@@ -51,6 +58,7 @@ type InvoicesPageProps = {
 export default function InvoicesPage({
   companies,
   bankAccounts,
+  accountingAccounts,
   sellerProfile,
   products,
   invoices,
@@ -79,6 +87,14 @@ export default function InvoicesPage({
   const [updatingPaidInvoiceId, setUpdatingPaidInvoiceId] = useState("");
   const [actionMessage, setActionMessage] = useState("");
   const [showDeleteInvoiceDialog, setShowDeleteInvoiceDialog] = useState(false);
+  const [paymentInvoiceId, setPaymentInvoiceId] = useState("");
+  const [paymentDate, setPaymentDate] = useState(todayInputValue());
+  const accountingBankAccounts = accountingAccounts.filter((account) =>
+    account.is_active && account.category === "asset" && account.system_key === "bank",
+  );
+  const [paymentAccountId, setPaymentAccountId] = useState(
+    accountingBankAccounts[0]?.id ?? "",
+  );
 
   const filteredInvoices = useMemo(
     () => companyFilterId ? invoices.filter((invoice) => invoice.company_id === companyFilterId) : invoices,
@@ -237,23 +253,12 @@ export default function InvoicesPage({
     }
   }
 
-  async function handleTogglePaid() {
+  function handleTogglePaid() {
     if (!selectedInvoice || selectedInvoiceSchedule) return;
-
-    setUpdatingPaidInvoiceId(selectedInvoice.id);
-    setActionMessage("");
-    try {
-      await updateInvoicePaid(selectedInvoice.id, !selectedInvoice.paid);
-      await onRefreshInvoices();
-      setActionMessage(selectedInvoice.paid ? "Fakturaen er markert som ubetalt." : "Fakturaen er markert som betalt.");
-    } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : "Kunne ikke oppdatere betalingsstatus.");
-    } finally {
-      setUpdatingPaidInvoiceId("");
-    }
+    openPaymentDialog(selectedInvoice.id, selectedInvoice.paid_at ?? todayInputValue());
   }
 
-  async function handleMarkInvoicePaid(invoiceId: string) {
+  function handleMarkInvoicePaid(invoiceId: string) {
     const invoice = visibleInvoices.find((item) => item.id === invoiceId);
     if (
       !invoice
@@ -264,14 +269,36 @@ export default function InvoicesPage({
       return;
     }
 
-    setUpdatingPaidInvoiceId(invoiceId);
+    openPaymentDialog(invoiceId, todayInputValue());
+  }
+
+  function openPaymentDialog(invoiceId: string, date: string) {
+    setActionMessage("");
+    setPaymentInvoiceId(invoiceId);
+    setPaymentDate(date);
+    setPaymentAccountId(accountingBankAccounts[0]?.id ?? "");
+  }
+
+  async function handleSavePayment() {
+    const invoice = invoices.find((item) => item.id === paymentInvoiceId);
+    if (!invoice) return;
+
+    setUpdatingPaidInvoiceId(invoice.id);
     setActionMessage("");
     try {
-      await updateInvoicePaid(invoiceId, true);
+      await updateInvoicePaid(
+        invoice.id,
+        !invoice.paid,
+        paymentDate,
+        invoice.paid ? null : paymentAccountId || null,
+      );
       await onRefreshInvoices();
-      setActionMessage("Fakturaen er markert som betalt.");
+      setPaymentInvoiceId("");
+      setActionMessage(invoice.paid
+        ? "Betalingen er korrigert med et motbilag."
+        : "Betalingen er bokført.");
     } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : "Kunne ikke oppdatere betalingsstatus.");
+      setActionMessage(error instanceof Error ? error.message : "Kunne ikke bokføre betalingen.");
     } finally {
       setUpdatingPaidInvoiceId("");
     }
@@ -362,7 +389,7 @@ export default function InvoicesPage({
             updatingPaid={updatingPaidInvoiceId === selectedInvoice.id}
             onDelete={() => setShowDeleteInvoiceDialog(true)}
             onSend={(action) => void handleSendSelectedInvoice(action)}
-            onTogglePaid={() => void handleTogglePaid()}
+            onTogglePaid={handleTogglePaid}
           />
         )}
       </DetailModal>
@@ -377,6 +404,47 @@ export default function InvoicesPage({
         onCancel={() => setShowDeleteInvoiceDialog(false)}
         onConfirm={() => void handleDeleteSelectedInvoice()}
       />
+
+      <Modal
+        open={Boolean(paymentInvoiceId)}
+        onClose={() => !updatingPaidInvoiceId && setPaymentInvoiceId("")}
+        title={invoices.find((invoice) => invoice.id === paymentInvoiceId)?.paid
+          ? "Korriger betaling"
+          : "Registrer innbetaling"}
+        description={invoices.find((invoice) => invoice.id === paymentInvoiceId)?.paid
+          ? "Det opprinnelige bilaget beholdes og korrigeres med et motbilag."
+          : "Betalingen bokføres mot bank og kundefordringer."}
+        labelledBy="sales-payment-title"
+      >
+        <div className="space-y-4">
+          {actionMessage && <Notice tone="danger">{actionMessage}</Notice>}
+          <FormField label={invoices.find((invoice) => invoice.id === paymentInvoiceId)?.paid
+            ? "Korreksjonsdato"
+            : "Betalingsdato"}
+          >
+            <Input type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} />
+          </FormField>
+          {!invoices.find((invoice) => invoice.id === paymentInvoiceId)?.paid && (
+            <FormField label="Mottatt på konto">
+              <Select
+                ariaLabel="Konto for innbetaling"
+                value={paymentAccountId}
+                options={accountingBankAccounts.map((account) => ({
+                  value: account.id,
+                  label: `${account.account_number} ${account.name}`,
+                }))}
+                onChange={setPaymentAccountId}
+              />
+            </FormField>
+          )}
+          <div className="flex justify-end gap-2 border-t border-blue-100 pt-4">
+            <Button variant="secondary" disabled={Boolean(updatingPaidInvoiceId)} onClick={() => setPaymentInvoiceId("")}>Avbryt</Button>
+            <Button disabled={Boolean(updatingPaidInvoiceId) || !paymentDate} onClick={() => void handleSavePayment()}>
+              {updatingPaidInvoiceId ? "Bokfører..." : invoices.find((invoice) => invoice.id === paymentInvoiceId)?.paid ? "Opprett motbilag" : "Bokfør betaling"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

@@ -92,6 +92,7 @@ export function InvoiceDetails({
         <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
           <InfoItem label="Fakturadato" value={formatDate(invoice.issue_date)} />
           <InfoItem label="Forfall" value={formatDate(invoice.due_date)} />
+          <InfoItem label="Betalt" value={formatDate(invoice.paid_at)} />
           <InfoItem
             label="Type"
             value={schedule ? "Planlagt engangsutsending" : invoice.schedule_id ? "Gjentakende faktura" : "Enkeltfaktura"}
@@ -181,7 +182,7 @@ function InvoiceOverview({
               {updatingPaid
                 ? "Oppdaterer..."
                 : invoice.paid
-                  ? "Marker som ubetalt"
+                  ? "Korriger betaling"
                   : "Marker som betalt"}
             </Button>
           )}

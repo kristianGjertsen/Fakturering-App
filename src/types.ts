@@ -110,6 +110,7 @@ export type Invoice = {
   pdf_storage_path: string | null;
   pdf_locked_at: string | null;
   paid: boolean;
+  paid_at: string | null;
   pdf_template: PdfTemplate;
   notes: string | null;
   subtotal: number;
@@ -213,4 +214,158 @@ export type RepeatDraft = {
 
 export type SingleScheduleDraft = {
   enabled: boolean;
+};
+
+export type AccountingAccountCategory =
+  | "asset"
+  | "liability"
+  | "equity"
+  | "revenue"
+  | "expense";
+
+export type AccountingAccount = {
+  id: string;
+  owner_user_id: string;
+  account_number: string;
+  name: string;
+  category: AccountingAccountCategory;
+  system_key: string | null;
+  is_system: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Supplier = {
+  id: string;
+  owner_user_id: string;
+  name: string;
+  org_number: string | null;
+  email: string | null;
+  bank_account: string | null;
+  notes: string | null;
+  default_expense_account_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupplierInvoiceStatus = "posted" | "paid" | "cancelled";
+
+export type SupplierInvoiceLine = {
+  id: string;
+  supplier_invoice_id: string;
+  expense_account_id: string;
+  description: string;
+  net_amount: number;
+  vat_rate: number;
+  vat_amount: number;
+  gross_amount: number;
+  sort_order: number;
+  created_at: string;
+  account?: Pick<AccountingAccount, "id" | "account_number" | "name"> | null;
+};
+
+export type SupplierInvoiceAttachment = {
+  id: string;
+  supplier_invoice_id: string;
+  storage_path: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
+};
+
+export type SupplierInvoice = {
+  id: string;
+  owner_user_id: string;
+  supplier_id: string;
+  invoice_number: string;
+  invoice_date: string;
+  due_date: string | null;
+  description: string | null;
+  currency: "NOK";
+  status: SupplierInvoiceStatus;
+  subtotal: number;
+  vat_total: number;
+  total: number;
+  journal_entry_id: string;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupplierInvoiceWithDetails = SupplierInvoice & {
+  supplier?: Supplier | null;
+  supplier_invoice_lines?: SupplierInvoiceLine[];
+  supplier_invoice_attachments?: SupplierInvoiceAttachment[];
+};
+
+export type JournalSourceType =
+  | "sales_invoice"
+  | "sales_payment"
+  | "supplier_invoice"
+  | "supplier_payment"
+  | "manual"
+  | "correction";
+
+export type JournalLine = {
+  id: string;
+  journal_entry_id: string;
+  account_id: string;
+  description: string | null;
+  debit: number;
+  credit: number;
+  vat_rate: number | null;
+  sort_order: number;
+  created_at: string;
+  account?: Pick<AccountingAccount, "id" | "account_number" | "name" | "category" | "system_key"> | null;
+};
+
+export type JournalEntry = {
+  id: string;
+  owner_user_id: string;
+  voucher_number: number;
+  entry_date: string;
+  description: string;
+  source_type: JournalSourceType;
+  source_id: string | null;
+  reversal_of_id: string | null;
+  created_at: string;
+  posted_at: string;
+  journal_lines?: JournalLine[];
+};
+
+export type AccountingPayment = {
+  id: string;
+  owner_user_id: string;
+  direction: "incoming" | "outgoing";
+  sales_invoice_id: string | null;
+  supplier_invoice_id: string | null;
+  bank_account_id: string;
+  amount: number;
+  payment_date: string;
+  journal_entry_id: string;
+  status: "active" | "reversed";
+  reversed_at: string | null;
+  reversal_journal_entry_id: string | null;
+  created_at: string;
+};
+
+export type AccountingPeriod = {
+  id: string;
+  owner_user_id: string;
+  year: number;
+  month: number;
+  status: "open" | "closed";
+  closed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupplierInvoiceDraftLine = {
+  localId: string;
+  description: string;
+  expenseAccountId: string;
+  grossAmount: number;
+  vatRate: number;
 };

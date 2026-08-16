@@ -7,6 +7,7 @@ import type {
   Product,
 } from "../types";
 import { fetchCompanies } from "./companyData";
+import { fetchAccountingData, type AccountingData } from "./accountingData";
 import { fetchInvoices, fetchSchedules } from "./invoiceData";
 import { fetchProducts } from "./productData";
 import { fetchProfileDetails } from "./profileData";
@@ -47,6 +48,24 @@ export {
   fetchProducts,
 } from "./productData";
 export type { ProductInput } from "./productData";
+export {
+  cancelSupplierInvoice,
+  createAccountingAccount,
+  createManualJournalEntry,
+  createSupplier,
+  createSupplierInvoice,
+  downloadSupplierInvoiceAttachment,
+  fetchAccountingData,
+  setAccountingAccountActive,
+  setAccountingPeriodStatus,
+  setSupplierInvoicePaid,
+} from "./accountingData";
+export type {
+  AccountingData,
+  ManualJournalLineInput,
+  SupplierInput,
+  SupplierInvoiceInput,
+} from "./accountingData";
 
 export type AppData = {
   companies: Company[];
@@ -55,15 +74,17 @@ export type AppData = {
   schedules: InvoiceScheduleWithDetails[];
   profile: Profile;
   bankAccounts: ProfileBankAccount[];
+  accounting: AccountingData;
 };
 
 export async function fetchAppData(userId: string): Promise<AppData> {
-  const [companies, products, invoices, schedules, profileDetails] = await Promise.all([
+  const [companies, products, invoices, schedules, profileDetails, accounting] = await Promise.all([
     fetchCompanies(),
     fetchProducts(),
     fetchInvoices(),
     fetchSchedules(),
     fetchProfileDetails(userId),
+    fetchAccountingData(),
   ]);
 
   return {
@@ -73,5 +94,6 @@ export async function fetchAppData(userId: string): Promise<AppData> {
     schedules,
     profile: profileDetails.profile,
     bankAccounts: profileDetails.bankAccounts,
+    accounting,
   };
 }

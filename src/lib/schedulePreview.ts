@@ -47,6 +47,7 @@ export function scheduleToPreviewInvoice(schedule: InvoiceScheduleWithDetails): 
     pdf_storage_path: null,
     pdf_locked_at: null,
     paid: false,
+    paid_at: null,
     pdf_template: schedule.pdf_template,
     notes: schedule.invoice_notes,
     subtotal: totals.subtotal,

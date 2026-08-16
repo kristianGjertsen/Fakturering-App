@@ -23,6 +23,14 @@ const EMPTY_APP_DATA: AppData = {
     updated_at: "",
   },
   bankAccounts: [],
+  accounting: {
+    accounts: [],
+    suppliers: [],
+    supplierInvoices: [],
+    journalEntries: [],
+    payments: [],
+    periods: [],
+  },
 };
 
 export function useAppData(userId: string) {

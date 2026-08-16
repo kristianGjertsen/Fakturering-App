@@ -322,8 +322,18 @@ export async function lockInvoicePdf(invoiceId: string, ownerUserId: string, pdf
   return storagePath;
 }
 
-export async function updateInvoicePaid(invoiceId: string, paid: boolean) {
-  const { error } = await supabase.from("invoices").update({ paid }).eq("id", invoiceId);
+export async function updateInvoicePaid(
+  invoiceId: string,
+  paid: boolean,
+  paymentDate = new Date().toISOString().slice(0, 10),
+  bankAccountId: string | null = null,
+) {
+  const { error } = await supabase.rpc("set_sales_invoice_paid", {
+    p_invoice_id: invoiceId,
+    p_paid: paid,
+    p_payment_date: paymentDate,
+    p_bank_account_id: bankAccountId,
+  });
 
   if (error) {
     throw error;

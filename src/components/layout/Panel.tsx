@@ -22,7 +22,7 @@ export function Panel({
 }: PanelProps) {
   return (
     <Component
-      className={`rounded-lg border border-blue-100 bg-white shadow-sm ${
+      className={`min-w-0 rounded-lg border border-blue-100 bg-white shadow-sm ${
         padding === "normal" ? "p-5" : ""
       } ${className}`.trim()}
       {...props}

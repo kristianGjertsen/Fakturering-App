@@ -13,6 +13,7 @@ import DashboardPage from "../pages/Dashboard/DashboardPage";
 import InvoicesPage from "../pages/Invoices/InvoicesPage";
 import ProfilePage from "../pages/Profile/ProfilePage";
 import RecurringPage from "../pages/Recurring/RecurringPage";
+import AccountingPage from "../pages/Accounting/AccountingPage";
 
 type AuthenticatedRoutesProps = {
   session: Session;
@@ -101,6 +102,7 @@ export function AuthenticatedRoutes({
           <InvoicesPage
             companies={activeCompanies}
             bankAccounts={data.bankAccounts}
+            accountingAccounts={data.accounting.accounts}
             sellerProfile={data.profile}
             products={activeProducts}
             invoices={data.invoices}
@@ -125,6 +127,17 @@ export function AuthenticatedRoutes({
             profile={data.profile}
             invoices={data.invoices}
             onSignOut={onSignOut}
+          />
+        }
+      />
+      <Route
+        path="/accounting"
+        element={
+          <AccountingPage
+            ownerUserId={session.user.id}
+            accounting={data.accounting}
+            salesInvoices={data.invoices}
+            onRefresh={onRefreshInvoices}
           />
         }
       />

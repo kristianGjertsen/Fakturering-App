@@ -155,6 +155,7 @@ export function createInvoicePreview({
     pdf_storage_path: null,
     pdf_locked_at: null,
     paid: false,
+    paid_at: null,
     pdf_template: pdfTemplate,
     notes: notes || null,
     subtotal: totals.subtotal,
