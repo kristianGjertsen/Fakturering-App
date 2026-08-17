@@ -6,26 +6,32 @@ import { Select } from "../../components/Select";
 import { DetailModal } from "../../components/layout/DetailModal";
 import { Notice } from "../../components/layout/Notice";
 import {
+  cancelPurchasePayment,
   cancelSupplierInvoice,
   createAccountingAccount,
   createManualJournalEntry,
+  createPurchasePayment,
   createSupplier,
   createSupplierInvoice,
   downloadSupplierInvoiceAttachment,
+  reimbursePurchasePayment,
+  reversePurchasePaymentReimbursement,
   setAccountingAccountActive,
   setAccountingPeriodStatus,
   setSupplierInvoicePaid,
   type AccountingData,
   type ManualJournalLineInput,
+  type PurchasePaymentInput,
   type SupplierInput,
   type SupplierInvoiceInput,
 } from "../../lib/data";
 import { buildAccountingReport } from "../../lib/accounting";
-import type { AccountingAccountCategory, InvoiceWithDetails, SupplierInvoiceWithDetails } from "../../types";
+import type { AccountingAccountCategory, InvoiceWithDetails, PurchasePaymentWithDetails, SupplierInvoiceWithDetails } from "../../types";
 import { AccountsView } from "./components/AccountsView";
 import { AccountingOverview, DetailedReports } from "./components/AccountingReports";
 import { JournalView } from "./components/JournalView";
 import { ManualVoucherForm } from "./components/ManualVoucherForm";
+import { PurchasePaymentForm } from "./components/PurchasePaymentForm";
 import { SupplierInvoiceForm } from "./components/SupplierInvoiceForm";
 import { SupplierInvoicesView } from "./components/SupplierInvoicesView";
 import { availableAccountingYears } from "./accountingPresentation";
@@ -41,7 +47,7 @@ type AccountingTab = "overview" | "incoming" | "journal" | "reports" | "accounts
 
 const tabs: Array<{ id: AccountingTab; label: string }> = [
   { id: "overview", label: "Oversikt" },
-  { id: "incoming", label: "Inngående" },
+  { id: "incoming", label: "Inngående betalinger" },
   { id: "journal", label: "Bilag" },
   { id: "reports", label: "Rapporter" },
   { id: "accounts", label: "Kontoplan" },
@@ -54,8 +60,9 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
   const years = useMemo(() => availableAccountingYears([
     ...accounting.journalEntries.map((entry) => entry.entry_date),
     ...accounting.supplierInvoices.map((invoice) => invoice.invoice_date),
+    ...accounting.purchasePayments.map((payment) => payment.purchase_date),
     ...salesInvoices.map((invoice) => invoice.issue_date),
-  ]), [accounting.journalEntries, accounting.supplierInvoices, salesInvoices]);
+  ]), [accounting.journalEntries, accounting.purchasePayments, accounting.supplierInvoices, salesInvoices]);
   const requestedYear = Number(searchParams.get("year"));
   const year = years.includes(requestedYear) ? requestedYear : years[0];
   const report = useMemo(
@@ -63,9 +70,11 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
     [accounting.accounts, accounting.journalEntries, year],
   );
   const [showSupplierInvoiceForm, setShowSupplierInvoiceForm] = useState(false);
+  const [showPurchasePaymentForm, setShowPurchasePaymentForm] = useState(false);
   const [showManualVoucherForm, setShowManualVoucherForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [actionInvoiceId, setActionInvoiceId] = useState("");
+  const [actionPurchaseId, setActionPurchaseId] = useState("");
   const [updatingPeriod, setUpdatingPeriod] = useState("");
   const [updatingAccountId, setUpdatingAccountId] = useState("");
   const [feedback, setFeedback] = useState<{ message: string; tone: "info" | "danger" }>({ message: "", tone: "info" });
@@ -92,6 +101,20 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
       setShowSupplierInvoiceForm(false);
       updateQuery({ tab: "incoming" });
       setFeedback({ message: "Den inngående fakturaen er bokført.", tone: "info" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCreatePurchasePayment(input: PurchasePaymentInput) {
+    setSaving(true);
+    setFeedback({ message: "", tone: "info" });
+    try {
+      await createPurchasePayment(input);
+      await onRefresh();
+      setShowPurchasePaymentForm(false);
+      updateQuery({ tab: "incoming" });
+      setFeedback({ message: "Kort-/bankkjøpet er bokført.", tone: "info" });
     } finally {
       setSaving(false);
     }
@@ -136,6 +159,48 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
       setFeedback({ message: error instanceof Error ? error.message : "Kunne ikke annullere fakturaen.", tone: "danger" });
     } finally {
       setActionInvoiceId("");
+    }
+  }
+
+  async function handleReimbursePurchase(purchase: PurchasePaymentWithDetails, date: string, bankAccountId: string) {
+    setActionPurchaseId(purchase.id);
+    setFeedback({ message: "", tone: "info" });
+    try {
+      await reimbursePurchasePayment(purchase.id, date, bankAccountId);
+      await onRefresh();
+      setFeedback({ message: "Refusjonen av det private utlegget er bokført.", tone: "info" });
+    } catch (error) {
+      setFeedback({ message: error instanceof Error ? error.message : "Kunne ikke bokføre refusjonen.", tone: "danger" });
+    } finally {
+      setActionPurchaseId("");
+    }
+  }
+
+  async function handleReversePurchaseReimbursement(purchase: PurchasePaymentWithDetails, date: string) {
+    setActionPurchaseId(purchase.id);
+    setFeedback({ message: "", tone: "info" });
+    try {
+      await reversePurchasePaymentReimbursement(purchase.id, date);
+      await onRefresh();
+      setFeedback({ message: "Refusjonen er korrigert med et motbilag.", tone: "info" });
+    } catch (error) {
+      setFeedback({ message: error instanceof Error ? error.message : "Kunne ikke korrigere refusjonen.", tone: "danger" });
+    } finally {
+      setActionPurchaseId("");
+    }
+  }
+
+  async function handleCancelPurchase(purchase: PurchasePaymentWithDetails, date: string) {
+    setActionPurchaseId(purchase.id);
+    setFeedback({ message: "", tone: "info" });
+    try {
+      await cancelPurchasePayment(purchase.id, date);
+      await onRefresh();
+      setFeedback({ message: "Kjøpet er annullert med et motbilag.", tone: "info" });
+    } catch (error) {
+      setFeedback({ message: error instanceof Error ? error.message : "Kunne ikke annullere kjøpet.", tone: "danger" });
+    } finally {
+      setActionPurchaseId("");
     }
   }
 
@@ -184,7 +249,7 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
     <>
       <SectionHeader
         title="Regnskap"
-        description="Bilag, hovedbok, MVA og rapporter fra utgående og inngående fakturaer."
+        description="Bilag, betalinger, hovedbok, MVA og rapporter."
         action={<div className="w-36"><Select ariaLabel="Velg regnskapsår" value={year} options={years.map((item) => ({ value: item, label: String(item) }))} onChange={(value) => updateQuery({ year: Number(value) })} /></div>}
       />
 
@@ -204,13 +269,17 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
       </nav>
 
       {activeTab === "overview" && <AccountingOverview year={year} report={report} entries={accounting.journalEntries} salesInvoices={salesInvoices} supplierInvoices={accounting.supplierInvoices} />}
-      {activeTab === "incoming" && <SupplierInvoicesView year={year} invoices={accounting.supplierInvoices} accounts={accounting.accounts} entries={accounting.journalEntries} actionInvoiceId={actionInvoiceId} actionMessage={feedback.message} actionMessageTone={feedback.tone} onNewInvoice={() => setShowSupplierInvoiceForm(true)} onSetPaid={handleSetSupplierPaid} onCancelInvoice={handleCancelSupplierInvoice} onDownloadAttachment={handleDownload} />}
+      {activeTab === "incoming" && <SupplierInvoicesView year={year} invoices={accounting.supplierInvoices} purchases={accounting.purchasePayments} accounts={accounting.accounts} entries={accounting.journalEntries} actionInvoiceId={actionInvoiceId} actionPurchaseId={actionPurchaseId} actionMessage={feedback.message} actionMessageTone={feedback.tone} onNewInvoice={() => setShowSupplierInvoiceForm(true)} onNewPurchase={() => setShowPurchasePaymentForm(true)} onSetPaid={handleSetSupplierPaid} onCancelInvoice={handleCancelSupplierInvoice} onReimbursePurchase={handleReimbursePurchase} onReversePurchaseReimbursement={handleReversePurchaseReimbursement} onCancelPurchase={handleCancelPurchase} onDownloadAttachment={handleDownload} />}
       {activeTab === "journal" && <JournalView year={year} entries={accounting.journalEntries} onOpenManualVoucher={() => setShowManualVoucherForm(true)} />}
       {activeTab === "reports" && <DetailedReports year={year} report={report} periods={accounting.periods} salesInvoices={salesInvoices} supplierInvoices={accounting.supplierInvoices} updatingPeriod={updatingPeriod} onSetPeriodStatus={(month, status) => void handleSetPeriodStatus(month, status)} />}
       {activeTab === "accounts" && <AccountsView year={year} accounts={accounting.accounts} entries={accounting.journalEntries} updatingAccountId={updatingAccountId} onToggleActive={(account) => void handleToggleAccount(account.id, !account.is_active)} onCreateAccount={handleCreateAccount} />}
 
       <DetailModal open={showSupplierInvoiceForm} onClose={() => !saving && setShowSupplierInvoiceForm(false)} title="Ny inngående faktura" ariaLabel="Registrer inngående faktura">
         <SupplierInvoiceForm ownerUserId={ownerUserId} accounts={accounting.accounts} suppliers={accounting.suppliers} saving={saving} onCreateSupplier={handleCreateSupplier} onSave={handleCreateSupplierInvoice} onCancel={() => setShowSupplierInvoiceForm(false)} />
+      </DetailModal>
+
+      <DetailModal open={showPurchasePaymentForm} onClose={() => !saving && setShowPurchasePaymentForm(false)} title="Ny kort-/bankbetaling" ariaLabel="Registrer kort- eller bankkjøp">
+        <PurchasePaymentForm ownerUserId={ownerUserId} accounts={accounting.accounts} saving={saving} onSave={handleCreatePurchasePayment} onCancel={() => setShowPurchasePaymentForm(false)} />
       </DetailModal>
 
       <DetailModal open={showManualVoucherForm} onClose={() => !saving && setShowManualVoucherForm(false)} title="Nytt manuelt bilag" ariaLabel="Bokfør manuelt bilag">

@@ -4,6 +4,8 @@ import type {
   AccountingPayment,
   AccountingPeriod,
   JournalEntry,
+  PurchasePaymentSource,
+  PurchasePaymentWithDetails,
   Supplier,
   SupplierInvoiceDraftLine,
   SupplierInvoiceWithDetails,
@@ -18,6 +20,7 @@ export type AccountingData = {
   accounts: AccountingAccount[];
   suppliers: Supplier[];
   supplierInvoices: SupplierInvoiceWithDetails[];
+  purchasePayments: PurchasePaymentWithDetails[];
   journalEntries: JournalEntry[];
   payments: AccountingPayment[];
   periods: AccountingPeriod[];
@@ -53,6 +56,19 @@ export type SupplierInvoiceInput = {
   paymentAmountNok: number;
 };
 
+export type PurchasePaymentInput = {
+  ownerUserId: string;
+  supplierName: string;
+  supplierOrgNumber: string;
+  purchaseDate: string;
+  description: string;
+  paymentSource: PurchasePaymentSource;
+  settlementAccountId: string;
+  paidBy: string;
+  lines: SupplierInvoiceDraftLine[];
+  attachments: File[];
+};
+
 export type ManualJournalLineInput = {
   accountId: string;
   description: string;
@@ -61,7 +77,7 @@ export type ManualJournalLineInput = {
 };
 
 export async function fetchAccountingData(): Promise<AccountingData> {
-  const [accountsResult, suppliersResult, invoicesResult, entriesResult, paymentsResult, periodsResult] =
+  const [accountsResult, suppliersResult, invoicesResult, purchasesResult, entriesResult, paymentsResult, periodsResult] =
     await Promise.all([
       supabase.from("accounting_accounts").select("*").order("account_number"),
       supabase.from("suppliers").select("*").order("name"),
@@ -69,6 +85,10 @@ export async function fetchAccountingData(): Promise<AccountingData> {
         .from("supplier_invoices")
         .select("*, supplier:suppliers(*), supplier_invoice_lines(*, account:accounting_accounts(id,account_number,name)), supplier_invoice_attachments(*)")
         .order("invoice_date", { ascending: false }),
+      supabase
+        .from("purchase_payments")
+        .select("*, settlement_account:accounting_accounts!purchase_payments_settlement_account_id_fkey(id,account_number,name,system_key), purchase_payment_lines(*, account:accounting_accounts(id,account_number,name)), purchase_payment_attachments(*)")
+        .order("purchase_date", { ascending: false }),
       supabase
         .from("journal_entries")
         .select("*, journal_lines(*, account:accounting_accounts(id,account_number,name,category,system_key))")
@@ -80,6 +100,7 @@ export async function fetchAccountingData(): Promise<AccountingData> {
   const error = accountsResult.error
     ?? suppliersResult.error
     ?? invoicesResult.error
+    ?? purchasesResult.error
     ?? entriesResult.error
     ?? paymentsResult.error
     ?? periodsResult.error;
@@ -93,6 +114,11 @@ export async function fetchAccountingData(): Promise<AccountingData> {
       supplier_invoice_lines: [...(invoice.supplier_invoice_lines ?? [])]
         .sort((left, right) => left.sort_order - right.sort_order),
     })),
+    purchasePayments: ((purchasesResult.data ?? []) as PurchasePaymentWithDetails[]).map((purchase) => ({
+      ...purchase,
+      purchase_payment_lines: [...(purchase.purchase_payment_lines ?? [])]
+        .sort((left, right) => left.sort_order - right.sort_order),
+    })),
     journalEntries: ((entriesResult.data ?? []) as JournalEntry[]).map((entry) => ({
       ...entry,
       journal_lines: [...(entry.journal_lines ?? [])]
@@ -101,6 +127,107 @@ export async function fetchAccountingData(): Promise<AccountingData> {
     payments: (paymentsResult.data ?? []) as AccountingPayment[],
     periods: (periodsResult.data ?? []) as AccountingPeriod[],
   };
+}
+
+export async function createPurchasePayment(input: PurchasePaymentInput) {
+  const validationError = validateAttachmentFiles(input.attachments);
+  if (validationError) throw new Error(validationError);
+  if (input.attachments.length === 0) throw new Error("Legg ved kvittering eller salgsdokument.");
+  if (!input.supplierName.trim()) throw new Error("Leverandørnavn mangler.");
+  if (!input.purchaseDate) throw new Error("Kjøpsdato mangler.");
+  if (!input.description.trim()) throw new Error("Formålet med kjøpet mangler.");
+  if (!input.settlementAccountId) throw new Error("Velg konto eller kort som ble brukt.");
+  if (input.paymentSource === "private" && !input.paidBy.trim()) {
+    throw new Error("Oppgi hvem som la ut for kjøpet.");
+  }
+  if (input.lines.length === 0) throw new Error("Legg til minst én kostnadslinje.");
+
+  const lines = input.lines.map((line) => {
+    const calculated = calculateSupplierLine(line);
+    if (!line.description.trim() || !line.expenseAccountId || calculated.grossAmount <= 0) {
+      throw new Error("Alle kostnadslinjer må ha tekst, konto og et beløp over 0.");
+    }
+    return {
+      description: line.description.trim(),
+      expense_account_id: line.expenseAccountId,
+      net_amount: calculated.netAmount,
+      vat_rate: calculated.vatRate,
+      vat_amount: calculated.vatAmount,
+      gross_amount: calculated.grossAmount,
+    };
+  });
+
+  const purchaseId = crypto.randomUUID();
+  const uploadedPaths: string[] = [];
+  const attachments: Array<Record<string, string | number>> = [];
+
+  try {
+    for (const file of input.attachments) {
+      const attachmentId = crypto.randomUUID();
+      const storagePath = `${input.ownerUserId}/purchase-payments/${purchaseId}/${attachmentId}${fileExtension(file)}`;
+      const { error } = await supabase.storage
+        .from(ACCOUNTING_DOCUMENT_BUCKET)
+        .upload(storagePath, file, { contentType: file.type, upsert: false });
+      if (error) throw new Error(`Kunne ikke laste opp ${file.name}: ${error.message}`);
+      uploadedPaths.push(storagePath);
+      attachments.push({
+        id: attachmentId,
+        storage_path: storagePath,
+        original_name: file.name,
+        mime_type: file.type,
+        size_bytes: file.size,
+      });
+    }
+
+    const { error } = await supabase.rpc("create_purchase_payment", {
+      p_purchase_id: purchaseId,
+      p_supplier_name: input.supplierName.trim(),
+      p_supplier_org_number: input.supplierOrgNumber.replace(/\D/g, "") || null,
+      p_purchase_date: input.purchaseDate,
+      p_description: input.description.trim(),
+      p_payment_source: input.paymentSource,
+      p_settlement_account_id: input.settlementAccountId,
+      p_paid_by: input.paymentSource === "private" ? input.paidBy.trim() : null,
+      p_lines: lines,
+      p_attachments: attachments,
+    });
+    if (error) throw error;
+    return purchaseId;
+  } catch (error) {
+    if (uploadedPaths.length > 0) {
+      await supabase.storage.from(ACCOUNTING_DOCUMENT_BUCKET).remove(uploadedPaths);
+    }
+    throw error;
+  }
+}
+
+export async function reimbursePurchasePayment(
+  purchaseId: string,
+  reimbursementDate: string,
+  bankAccountId: string,
+) {
+  const { error } = await supabase.rpc("reimburse_purchase_payment", {
+    p_purchase_id: purchaseId,
+    p_reimbursement_date: reimbursementDate,
+    p_bank_account_id: bankAccountId,
+  });
+  if (error) throw error;
+}
+
+export async function reversePurchasePaymentReimbursement(purchaseId: string, reversalDate: string) {
+  const { error } = await supabase.rpc("reverse_purchase_payment_reimbursement", {
+    p_purchase_id: purchaseId,
+    p_reversal_date: reversalDate,
+  });
+  if (error) throw error;
+}
+
+export async function cancelPurchasePayment(purchaseId: string, cancellationDate: string) {
+  const { error } = await supabase.rpc("cancel_purchase_payment", {
+    p_purchase_id: purchaseId,
+    p_cancellation_date: cancellationDate,
+  });
+  if (error) throw error;
 }
 
 export async function createSupplier(input: SupplierInput) {

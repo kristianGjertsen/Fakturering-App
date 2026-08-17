@@ -27,6 +27,7 @@ const EMPTY_APP_DATA: AppData = {
     accounts: [],
     suppliers: [],
     supplierInvoices: [],
+    purchasePayments: [],
     journalEntries: [],
     payments: [],
     periods: [],

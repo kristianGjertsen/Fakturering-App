@@ -50,7 +50,7 @@ export function AppHeader() {
           {navigationItems.slice(0, 2).map((item) => (
               <NavigationButton key={item.to} item={item} pathname={location.pathname} onNavigate={navigate} />
           ))}
-          <InvoiceNavigationMenu />
+          <PaymentNavigationMenu />
           {navigationItems.slice(2).map((item) => (
               <NavigationButton key={item.to} item={item} pathname={location.pathname} onNavigate={navigate} />
           ))}
@@ -84,7 +84,7 @@ function NavigationButton({
   );
 }
 
-function InvoiceNavigationMenu() {
+function PaymentNavigationMenu() {
   const location = useLocation();
   const navigate = useNavigate();
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -168,23 +168,23 @@ function InvoiceNavigationMenu() {
       <AnimatedIconButton
         icon={Files}
         className="w-40"
-        variant={location.pathname === "/invoices" ? "primary" : "ghost"}
+        variant={location.pathname === "/invoices" || (location.pathname === "/accounting" && new URLSearchParams(location.search).get("tab") === "incoming") ? "primary" : "ghost"}
         size="sm"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-controls="invoice-navigation-menu"
+        aria-controls="payment-navigation-menu"
         onClick={() => {
           cancelClose();
           setOpen(true);
         }}
       >
-        Fakturaer
+        Betalinger
       </AnimatedIconButton>
 
       {open && createPortal(
         <div
           ref={menuRef}
-          id="invoice-navigation-menu"
+          id="payment-navigation-menu"
           role="menu"
           className="fixed z-[80] overflow-hidden rounded-lg border border-blue-100 bg-white p-1.5 shadow-xl shadow-slate-950/15"
           style={{ top: position.top, left: position.left, width: position.width }}
@@ -198,7 +198,7 @@ function InvoiceNavigationMenu() {
             onClick={() => openRoute("/invoices")}
           >
             <ArrowUpRight size={19} />
-            Utgående fakturaer
+            Utgående betalinger
           </button>
           <button
             type="button"
@@ -207,7 +207,7 @@ function InvoiceNavigationMenu() {
             onClick={() => openRoute("/accounting?tab=incoming")}
           >
             <ArrowDownLeft size={19} />
-            Inngående fakturaer
+            Inngående betalinger
           </button>
         </div>,
         document.body,

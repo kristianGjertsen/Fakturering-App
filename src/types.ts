@@ -312,11 +312,71 @@ export type SupplierInvoiceWithDetails = SupplierInvoice & {
   supplier_invoice_attachments?: SupplierInvoiceAttachment[];
 };
 
+export type PurchasePaymentStatus = "booked" | "reimbursed" | "cancelled";
+export type PurchasePaymentSource = "company" | "private";
+
+export type PurchasePaymentLine = {
+  id: string;
+  purchase_payment_id: string;
+  expense_account_id: string;
+  description: string;
+  net_amount: number;
+  vat_rate: number;
+  vat_amount: number;
+  gross_amount: number;
+  sort_order: number;
+  created_at: string;
+  account?: Pick<AccountingAccount, "id" | "account_number" | "name"> | null;
+};
+
+export type PurchasePaymentAttachment = {
+  id: string;
+  purchase_payment_id: string;
+  storage_path: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
+};
+
+export type PurchasePayment = {
+  id: string;
+  owner_user_id: string;
+  supplier_name: string;
+  supplier_org_number: string | null;
+  purchase_date: string;
+  description: string;
+  payment_source: PurchasePaymentSource;
+  settlement_account_id: string;
+  paid_by: string | null;
+  attested_at: string | null;
+  attested_by: string | null;
+  status: PurchasePaymentStatus;
+  subtotal: number;
+  vat_total: number;
+  total: number;
+  journal_entry_id: string;
+  reimbursed_at: string | null;
+  reimbursement_journal_entry_id: string | null;
+  cancelled_at: string | null;
+  cancellation_journal_entry_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PurchasePaymentWithDetails = PurchasePayment & {
+  settlement_account?: Pick<AccountingAccount, "id" | "account_number" | "name" | "system_key"> | null;
+  purchase_payment_lines?: PurchasePaymentLine[];
+  purchase_payment_attachments?: PurchasePaymentAttachment[];
+};
+
 export type JournalSourceType =
   | "sales_invoice"
   | "sales_payment"
   | "supplier_invoice"
   | "supplier_payment"
+  | "purchase_payment"
+  | "purchase_reimbursement"
   | "manual"
   | "correction";
 
