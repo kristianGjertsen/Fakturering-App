@@ -14,6 +14,7 @@ type RegistrationFormState = {
   postalAddress: string;
   country: string;
   orgNumber: string;
+  isVatRegistered: boolean;
   hasSentInvoicesBefore: boolean;
   invoiceNumberPrefix: string;
   lastInvoiceNumber: string;
@@ -36,6 +37,7 @@ export function createRegistrationFormState(): RegistrationFormState {
     postalAddress: "",
     country: "NO",
     orgNumber: "",
+    isVatRegistered: false,
     hasSentInvoicesBefore: false,
     invoiceNumberPrefix: "",
     lastInvoiceNumber: "",
@@ -157,6 +159,19 @@ export function RegistrationFields({ value, onChange }: RegistrationFieldsProps)
         value={value.orgNumber}
         onChange={(orgNumber) => updateField("orgNumber", orgNumber)}
       />
+
+      <label className="flex items-start gap-3 rounded-lg border border-slate-200 p-4">
+        <Input
+          type="checkbox"
+          className="mt-0.5 h-4 w-4 accent-slate-900"
+          checked={value.isVatRegistered}
+          onChange={(event) => updateField("isVatRegistered", event.target.checked)}
+        />
+        <span>
+          <span className="block text-sm font-medium text-slate-800">Registrert i MVA-registeret</span>
+          <span className="mt-1 block text-xs text-slate-500">Velg dette bare når virksomheten er registrert hos Skatteetaten.</span>
+        </span>
+      </label>
 
       <label className="block">
         <span className="text-sm font-medium text-slate-700">Land</span>

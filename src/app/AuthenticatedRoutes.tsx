@@ -30,6 +30,7 @@ type AuthenticatedRoutesProps = {
   onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<string>;
   onDeleteInvoice: (invoiceId: string) => Promise<void>;
   onRefreshInvoices: () => Promise<void>;
+  onUpdateProfile: (profilePatch: Partial<AppData["profile"]>) => void;
   onSignOut: () => Promise<void>;
 };
 
@@ -45,6 +46,7 @@ export function AuthenticatedRoutes({
   onCreateInvoice,
   onDeleteInvoice,
   onRefreshInvoices,
+  onUpdateProfile,
   onSignOut,
 }: AuthenticatedRoutesProps) {
   const navigate = useNavigate();
@@ -126,6 +128,7 @@ export function AuthenticatedRoutes({
             session={session}
             profile={data.profile}
             invoices={data.invoices}
+            onUpdateProfile={onUpdateProfile}
             onSignOut={onSignOut}
           />
         }

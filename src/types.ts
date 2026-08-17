@@ -40,6 +40,7 @@ export type Profile = {
   postal_address: string | null;
   country: string;
   org_number: string | null;
+  is_vat_registered: boolean;
   has_sent_invoices_before: boolean;
   last_invoice_number: number;
   invoice_number_prefix: string;

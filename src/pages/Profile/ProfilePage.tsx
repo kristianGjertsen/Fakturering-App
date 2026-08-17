@@ -18,6 +18,7 @@ type ProfilePageProps = {
   session: Session;
   profile: Profile;
   invoices: InvoiceWithDetails[];
+  onUpdateProfile: (profilePatch: Partial<Profile>) => void;
   onSignOut: () => Promise<void>;
 };
 
@@ -26,7 +27,7 @@ type Feedback = {
   tone: ProfileFeedbackTone;
 };
 
-export default function ProfilePage({ session, profile, invoices, onSignOut }: ProfilePageProps) {
+export default function ProfilePage({ session, profile, invoices, onUpdateProfile, onSignOut }: ProfilePageProps) {
   const [feedback, setFeedback] = useState<Feedback>({ message: "", tone: "info" });
   const [deleting, setDeleting] = useState(false);
   const [exportingAccounting, setExportingAccounting] = useState(false);
@@ -84,6 +85,8 @@ export default function ProfilePage({ session, profile, invoices, onSignOut }: P
       <ProfileForm
         userId={session.user.id}
         email={session.user.email ?? ""}
+        invoices={invoices}
+        onSaved={onUpdateProfile}
         onFeedback={showFeedback}
       />
 

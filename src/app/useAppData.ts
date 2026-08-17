@@ -15,6 +15,7 @@ const EMPTY_APP_DATA: AppData = {
     postal_address: null,
     country: "NO",
     org_number: null,
+    is_vat_registered: false,
     has_sent_invoices_before: false,
     last_invoice_number: 9999,
     invoice_number_prefix: "",
@@ -74,5 +75,12 @@ export function useAppData(userId: string) {
     }));
   }, []);
 
-  return { data, isLoading, error, refreshData, updateCompanyInData };
+  const updateProfileInData = useCallback((profilePatch: Partial<AppData["profile"]>) => {
+    setData((currentData) => ({
+      ...currentData,
+      profile: { ...currentData.profile, ...profilePatch },
+    }));
+  }, []);
+
+  return { data, isLoading, error, refreshData, updateCompanyInData, updateProfileInData };
 }

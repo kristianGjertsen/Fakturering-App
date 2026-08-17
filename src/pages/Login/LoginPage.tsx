@@ -66,6 +66,7 @@ export default function LoginPage() {
                 postal_address: registrationForm.postalAddress.trim(),
                 country: registrationForm.country,
                 org_number: registrationForm.orgNumber.trim(),
+                is_vat_registered: registrationForm.isVatRegistered,
                 bank_accounts: normalizedBankAccounts,
                 has_sent_invoices_before: registrationForm.hasSentInvoicesBefore,
                 last_invoice_number: registrationForm.hasSentInvoicesBefore && parsedLastInvoiceNumber

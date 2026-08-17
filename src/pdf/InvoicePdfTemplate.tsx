@@ -50,6 +50,7 @@ export type InvoicePdfSeller = {
   postal_address?: string | null;
   country?: string | null;
   org_number?: string | null;
+  is_vat_registered?: boolean;
 };
 
 const INVOICE_PDF_DEFAULTS = {
@@ -148,6 +149,7 @@ export function InvoicePdfTemplate({
     postalAddress: seller.postal_address,
     country: seller.country,
     orgNumber: seller.org_number,
+    vatRegistered: seller.is_vat_registered,
     email: seller.email,
   });
   const pageStyles = [
@@ -271,19 +273,21 @@ function partyDetails({
   postalAddress,
   country,
   orgNumber,
+  vatRegistered = false,
   email,
 }: {
   address?: string | null;
   postalAddress?: string | null;
   country?: string | null;
   orgNumber?: string | null;
+  vatRegistered?: boolean;
   email?: string | null;
 }) {
   return [
     address,
     postalAddress,
     country ? countryLabel(country) : "",
-    orgNumber ? `Org.nr. ${orgNumber}` : "",
+    orgNumber ? `Org.nr. ${orgNumber}${vatRegistered ? " MVA" : ""}` : "",
     email,
   ].filter(Boolean) as string[];
 }

@@ -36,6 +36,7 @@ export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
     error,
     refreshData,
     updateCompanyInData,
+    updateProfileInData,
   } = useAppData(session.user.id);
 
   async function handleCreateCompany(input: CompanyInput) {
@@ -118,6 +119,7 @@ export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
             onCreateInvoice={handleCreateInvoice}
             onDeleteInvoice={handleDeleteInvoice}
             onRefreshInvoices={refreshData}
+            onUpdateProfile={updateProfileInData}
             onSignOut={handleSignOut}
           />
         </PageLayout>

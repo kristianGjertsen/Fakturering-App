@@ -8,6 +8,7 @@ export type ProfileDetailsInput = {
   postal_address: string;
   country: string;
   org_number: string;
+  is_vat_registered: boolean;
   bank_accounts: Array<{
     account_name: string;
     account_number: string;
@@ -106,6 +107,7 @@ export async function saveProfileDetails(input: ProfileDetailsInput) {
     p_postal_address: input.postal_address,
     p_country: input.country,
     p_org_number: input.org_number,
+    p_is_vat_registered: input.is_vat_registered,
     p_bank_accounts: normalizedAccounts,
   });
 
