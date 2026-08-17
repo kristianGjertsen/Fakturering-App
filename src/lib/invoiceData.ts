@@ -34,6 +34,29 @@ export type InvoiceInput = {
   pdfTemplate: PdfTemplate;
 };
 
+export type HistoricalInvoiceLineInput = {
+  description: string;
+  grossAmount: number;
+  vatRate: number;
+};
+
+export type HistoricalInvoiceInput = {
+  ownerUserId: string;
+  recipientName: string;
+  recipientOrgNumber: string;
+  recipientEmail: string;
+  recipientCountry: string;
+  invoiceNumber: string;
+  issueDate: string;
+  dueDate: string;
+  title: string;
+  lines: HistoricalInvoiceLineInput[];
+  pdfFile: File;
+  markPaid: boolean;
+  paymentDate: string;
+  bankAccountId: string | null;
+};
+
 type PersistLineAttachmentsInput = {
   ownerUserId: string;
   scope: "invoices" | "schedules";
@@ -90,6 +113,67 @@ export async function createInvoice(input: InvoiceInput) {
   }
 
   return createDraftInvoice(input);
+}
+
+export async function createHistoricalInvoice(input: HistoricalInvoiceInput) {
+  if (input.pdfFile.type !== "application/pdf" && !input.pdfFile.name.toLowerCase().endsWith(".pdf")) {
+    throw new Error("Historiske fakturaer må importeres fra en PDF-fil.");
+  }
+  if (input.pdfFile.size <= 0 || input.pdfFile.size > 10 * 1024 * 1024) {
+    throw new Error("PDF-filen må være større enn 0 byte og maksimalt 10 MB.");
+  }
+  if (!input.recipientName.trim()) throw new Error("Mottakernavn mangler.");
+  if (!input.invoiceNumber.trim()) throw new Error("Fakturanummer mangler.");
+  if (!input.issueDate) throw new Error("Fakturadato mangler.");
+  if (input.lines.length === 0) throw new Error("Fakturaen må ha minst én fakturalinje.");
+  if (input.markPaid && (!input.paymentDate || !input.bankAccountId)) {
+    throw new Error("Betalingsdato og bankkonto må fylles ut for en betalt faktura.");
+  }
+
+  const invoiceId = crypto.randomUUID();
+  const storagePath = `${input.ownerUserId}/historical-invoices/${invoiceId}.pdf`;
+  const { error: uploadError } = await supabase.storage
+    .from("invoice-pdfs")
+    .upload(storagePath, input.pdfFile, {
+      contentType: "application/pdf",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw new Error(`Kunne ikke laste opp ${input.pdfFile.name}: ${uploadError.message}`);
+  }
+
+  const { error } = await supabase.rpc("create_historical_sales_invoice", {
+    p_invoice_id: invoiceId,
+    p_invoice_number: input.invoiceNumber.trim(),
+    p_recipient_name: input.recipientName.trim(),
+    p_recipient_org_number: input.recipientOrgNumber.trim() || null,
+    p_recipient_email: input.recipientEmail.trim() || null,
+    p_recipient_country: input.recipientCountry,
+    p_issue_date: input.issueDate,
+    p_due_date: input.dueDate || null,
+    p_title: input.title.trim() || "Historisk faktura",
+    p_lines: input.lines.map((line) => ({
+      description: line.description.trim(),
+      gross_amount: line.grossAmount,
+      vat_rate: line.vatRate,
+    })),
+    p_pdf_storage_path: storagePath,
+    p_pdf_original_name: input.pdfFile.name,
+    p_mark_paid: input.markPaid,
+    p_payment_date: input.markPaid ? input.paymentDate : null,
+    p_bank_account_id: input.markPaid ? input.bankAccountId : null,
+  });
+
+  if (error) {
+    await supabase.storage.from("invoice-pdfs").remove([storagePath]);
+    if (error.code === "23505") {
+      throw new Error(`Fakturanummer ${input.invoiceNumber.trim()} er allerede registrert.`);
+    }
+    throw error;
+  }
+
+  return invoiceId;
 }
 
 async function createScheduledInvoice(input: InvoiceInput, companyId: string) {

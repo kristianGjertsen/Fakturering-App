@@ -95,9 +95,18 @@ export function InvoiceDetails({
           <InfoItem label="Betalt" value={formatDate(invoice.paid_at)} />
           <InfoItem
             label="Type"
-            value={schedule ? "Planlagt engangsutsending" : invoice.schedule_id ? "Gjentakende faktura" : "Enkeltfaktura"}
+            value={invoice.is_historical
+              ? "Historisk faktura med engangsmottaker"
+              : schedule
+                ? "Planlagt engangsutsending"
+                : invoice.schedule_id
+                  ? "Gjentakende faktura"
+                  : "Enkeltfaktura"}
           />
           {schedule && <InfoItem label="Planlagt utsending" value={formatDate(schedule.next_run_at)} />}
+          {invoice.is_historical && invoice.historical_pdf_name && (
+            <InfoItem label="Originaldokument" value={invoice.historical_pdf_name} />
+          )}
         </dl>
 
         <InvoiceItemsTable

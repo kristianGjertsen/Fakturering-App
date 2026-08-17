@@ -26,10 +26,15 @@ export {
   fetchSchedules,
   finalizeInvoice,
   createInvoice,
+  createHistoricalInvoice,
   lockInvoicePdf,
   updateInvoicePaid,
 } from "./invoiceData";
-export type { InvoiceInput } from "./invoiceData";
+export type {
+  HistoricalInvoiceInput,
+  HistoricalInvoiceLineInput,
+  InvoiceInput,
+} from "./invoiceData";
 export {
   downloadInvoiceAttachment,
   loadInvoiceEmailAttachments,

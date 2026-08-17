@@ -116,6 +116,8 @@ export type Invoice = {
   subtotal: number;
   vat_total: number;
   total: number;
+  is_historical: boolean;
+  historical_pdf_name: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -131,7 +131,9 @@ export function InvoicePdfPreview({ invoice, sellerProfile, compact = false }: I
     <section className="space-y-3" aria-label="PDF-forhåndsvisning">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-slate-950">PDF-forhåndsvisning</h3>
+          <h3 className="text-base font-semibold text-slate-950">
+            {invoice.is_historical ? "Original-PDF" : "PDF-forhåndsvisning"}
+          </h3>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {totalPages > 1 && (
@@ -144,7 +146,7 @@ export function InvoicePdfPreview({ invoice, sellerProfile, compact = false }: I
             />
           )}
           <Button variant="secondary" size="sm" onClick={() => void openInvoicePdf(invoice, sellerProfile)}>
-            Åpne PDF
+            {invoice.is_historical ? "Åpne original" : "Åpne PDF"}
           </Button>
         </div>
       </div>
@@ -161,7 +163,11 @@ export function InvoicePdfPreview({ invoice, sellerProfile, compact = false }: I
           </span>
         )}
         <canvas ref={canvasRef} className="block max-h-full max-w-full bg-white shadow-md" />
-        {!pdfBytes && !error && <span className="text-sm text-slate-500">Lager PDF-forhåndsvisning …</span>}
+        {!pdfBytes && !error && (
+          <span className="text-sm text-slate-500">
+            {invoice.is_historical ? "Laster original-PDF …" : "Lager PDF-forhåndsvisning …"}
+          </span>
+        )}
       </div>
     </section>
   );

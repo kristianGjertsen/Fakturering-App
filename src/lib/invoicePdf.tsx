@@ -1,6 +1,16 @@
 import type { InvoiceWithDetails, Profile } from "../types";
+import { supabase } from "../supabaseClient";
 
 export async function createInvoicePdfBlob(invoice: InvoiceWithDetails, sellerProfile: Profile) {
+  if (invoice.is_historical && invoice.pdf_storage_path) {
+    const { data, error } = await supabase.storage
+      .from("invoice-pdfs")
+      .download(invoice.pdf_storage_path);
+
+    if (error) throw error;
+    return data;
+  }
+
   const [{ pdf }, { InvoicePdfTemplate }] = await Promise.all([
     import("@react-pdf/renderer"),
     import("../pdf/InvoicePdfTemplate"),

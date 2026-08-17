@@ -50,6 +50,8 @@ export function scheduleToPreviewInvoice(schedule: InvoiceScheduleWithDetails): 
     paid_at: null,
     pdf_template: schedule.pdf_template,
     notes: schedule.invoice_notes,
+    is_historical: false,
+    historical_pdf_name: null,
     subtotal: totals.subtotal,
     vat_total: totals.vatTotal,
     total: totals.total,

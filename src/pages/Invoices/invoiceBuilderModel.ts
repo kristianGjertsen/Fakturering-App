@@ -158,6 +158,8 @@ export function createInvoicePreview({
     paid_at: null,
     pdf_template: pdfTemplate,
     notes: notes || null,
+    is_historical: false,
+    historical_pdf_name: null,
     subtotal: totals.subtotal,
     vat_total: totals.vatTotal,
     total: totals.total,

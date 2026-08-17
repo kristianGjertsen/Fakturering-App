@@ -9,12 +9,28 @@ export type SupplierInvoicePdfResult = SupplierInvoicePdfExtraction & {
   pageCount: number;
 };
 
+export type PdfTextResult = {
+  fileName: string;
+  pageCount: number;
+  text: string;
+};
+
 type PdfTextItem = {
   str?: string;
   transform?: number[];
 };
 
 export async function readSupplierInvoicePdf(file: File): Promise<SupplierInvoicePdfResult> {
+  const result = await readPdfText(file);
+
+  return {
+    fileName: result.fileName,
+    pageCount: result.pageCount,
+    ...parseSupplierInvoiceText(result.text),
+  };
+}
+
+export async function readPdfText(file: File): Promise<PdfTextResult> {
   if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
     throw new Error("Automatisk utfylling krever en PDF-fil.");
   }
@@ -35,7 +51,7 @@ export async function readSupplierInvoicePdf(file: File): Promise<SupplierInvoic
     return {
       fileName: file.name,
       pageCount: document.numPages,
-      ...parseSupplierInvoiceText(pages.join("\n")),
+      text: pages.join("\n"),
     };
   } finally {
     await loadingTask.destroy();

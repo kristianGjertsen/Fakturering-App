@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { Plus } from "@animateicons/react/lucide";
+import { Plus, Upload } from "@animateicons/react/lucide";
 import type {
   Company,
   AccountingAccount,
@@ -10,8 +10,12 @@ import type {
   Profile,
   ProfileBankAccount,
 } from "../../types";
-import type { InvoiceInput } from "../../lib/data";
-import { sendInvoiceEmail, updateInvoicePaid } from "../../lib/data";
+import type { HistoricalInvoiceInput, InvoiceInput } from "../../lib/data";
+import {
+  createHistoricalInvoice,
+  sendInvoiceEmail,
+  updateInvoicePaid,
+} from "../../lib/data";
 import { EmptyState } from "../../components/EmptyState";
 import { Button } from "../../components/Button";
 import { AnimatedIconButton } from "../../components/AnimatedIconButton";
@@ -25,6 +29,7 @@ import { Input } from "../../components/Input";
 import { Select } from "../../components/Select";
 import { todayInputValue } from "../../lib/format";
 import { InvoiceBuilder } from "./components/invoice-builder/InvoiceBuilder";
+import { HistoricalInvoiceImportDialog } from "./components/HistoricalInvoiceImportDialog";
 import { InvoiceDetails } from "./components/view/InvoiceDetails";
 import { InvoiceList } from "./components/view/InvoiceList";
 import { scheduleToPreviewInvoice } from "../../lib/schedulePreview";
@@ -83,6 +88,8 @@ export default function InvoicesPage({
   const [showCreateForm, setShowCreateForm] = useState(
     requestedCreateForm ?? searchParams.get("create") === "true",
   );
+  const [showHistoricalImport, setShowHistoricalImport] = useState(false);
+  const [importingHistoricalInvoice, setImportingHistoricalInvoice] = useState(false);
   const [sendingInvoiceId, setSendingInvoiceId] = useState("");
   const [updatingPaidInvoiceId, setUpdatingPaidInvoiceId] = useState("");
   const [actionMessage, setActionMessage] = useState("");
@@ -304,6 +311,25 @@ export default function InvoicesPage({
     }
   }
 
+  async function handleCreateHistoricalInvoice(
+    input: Omit<HistoricalInvoiceInput, "ownerUserId">,
+  ) {
+    setImportingHistoricalInvoice(true);
+    setActionMessage("");
+    try {
+      const createdId = await createHistoricalInvoice({
+        ...input,
+        ownerUserId: sellerProfile.id,
+      });
+      await onRefreshInvoices();
+      setShowHistoricalImport(false);
+      updateInvoiceSelection(createdId);
+      setActionMessage(`Historisk faktura ${input.invoiceNumber} er importert.`);
+    } finally {
+      setImportingHistoricalInvoice(false);
+    }
+  }
+
   const pageHeader = (
     <div>
       
@@ -311,9 +337,18 @@ export default function InvoicesPage({
         title="Fakturaer"
         description={"Finn fakturaer etter bedrift, sorter listen og åpne en faktura for detaljer og PDF-forhåndsvisning."}
         action={!showCreateForm ? (
-          <AnimatedIconButton icon={Plus} onClick={() => setShowCreateForm((value) => !value)}>
-            Ny faktura
-          </AnimatedIconButton>
+          <div className="flex flex-wrap gap-2">
+            <AnimatedIconButton
+              icon={Upload}
+              variant="secondary"
+              onClick={() => setShowHistoricalImport(true)}
+            >
+              Historisk faktura
+            </AnimatedIconButton>
+            <AnimatedIconButton icon={Plus} onClick={() => setShowCreateForm((value) => !value)}>
+              Ny faktura
+            </AnimatedIconButton>
+          </div>
         ) : undefined}
       />
     </div>
@@ -347,6 +382,16 @@ export default function InvoicesPage({
       <>
         {pageHeader}
         <EmptyState title="Ingen fakturaer" description="Lag en faktura, eller vent til en planlagt faktura er sendt." />
+        {showHistoricalImport && (
+          <HistoricalInvoiceImportDialog
+            open
+            sellerProfile={sellerProfile}
+            bankAccounts={accountingBankAccounts}
+            saving={importingHistoricalInvoice}
+            onClose={() => setShowHistoricalImport(false)}
+            onSave={handleCreateHistoricalInvoice}
+          />
+        )}
       </>
     );
   }
@@ -354,6 +399,17 @@ export default function InvoicesPage({
   return (
     <>
       {pageHeader}
+
+      {showHistoricalImport && (
+        <HistoricalInvoiceImportDialog
+          open
+          sellerProfile={sellerProfile}
+          bankAccounts={accountingBankAccounts}
+          saving={importingHistoricalInvoice}
+          onClose={() => setShowHistoricalImport(false)}
+          onSave={handleCreateHistoricalInvoice}
+        />
+      )}
 
       {actionMessage && !selectedInvoice && (
         <Notice>
