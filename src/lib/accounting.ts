@@ -161,7 +161,7 @@ export function sourceTypeLabel(sourceType: JournalEntry["source_type"]) {
     supplier_invoice: "Inngående faktura",
     supplier_payment: "Utbetaling",
     purchase_payment: "Kort-/bankkjøp",
-    purchase_reimbursement: "Refusjon av privat utlegg",
+    purchase_reimbursement: "Tilbakebetaling av privat utlegg",
     manual: "Manuelt bilag",
     correction: "Korrigering",
   };

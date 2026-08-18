@@ -4638,3 +4638,394 @@ $$;
 grant execute on function public.save_profile_details(
   text, text, text, text, text, text, jsonb
 ) to authenticated;
+
+
+-- ============================================================================
+
+-- Account references deliberately use RESTRICT during normal operation. Remove
+-- the owner's journal graph first when the entire profile is being deleted so
+-- the profile cascade can subsequently remove the chart of accounts.
+create or replace function public.cleanup_accounting_before_profile_delete()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from public.journal_entries
+   where owner_user_id = old.id;
+  return old;
+end;
+$$;
+
+revoke all on function public.cleanup_accounting_before_profile_delete()
+  from public, anon, authenticated;
+
+drop trigger if exists profiles_cleanup_accounting_before_delete on public.profiles;
+create trigger profiles_cleanup_accounting_before_delete
+  before delete on public.profiles
+  for each row execute function public.cleanup_accounting_before_profile_delete();
+
+-- ============================================================================
+
+-- Private outlays can be reimbursed in one or more payments. Each payment gets
+-- its own journal entry so partial payments and later corrections remain
+-- traceable without changing the original purchase voucher.
+
+create table if not exists public.purchase_payment_reimbursements (
+  id uuid primary key default gen_random_uuid(),
+  owner_user_id uuid not null references public.profiles (id) on delete cascade,
+  purchase_payment_id uuid not null references public.purchase_payments (id) on delete cascade,
+  bank_account_id uuid not null references public.accounting_accounts (id) on delete restrict,
+  reimbursement_date date not null,
+  amount numeric(14, 2) not null check (amount > 0),
+  journal_entry_id uuid not null unique references public.journal_entries (id) on delete cascade,
+  status text not null default 'active' check (status in ('active', 'reversed')),
+  reversed_at date,
+  reversal_journal_entry_id uuid unique references public.journal_entries (id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (
+    (status = 'active' and reversed_at is null and reversal_journal_entry_id is null)
+    or
+    (status = 'reversed' and reversed_at is not null and reversal_journal_entry_id is not null)
+  )
+);
+
+create index if not exists purchase_payment_reimbursements_purchase_idx
+  on public.purchase_payment_reimbursements (purchase_payment_id, reimbursement_date desc);
+create index if not exists purchase_payment_reimbursements_owner_idx
+  on public.purchase_payment_reimbursements (owner_user_id, reimbursement_date desc);
+
+alter table public.purchase_payment_reimbursements enable row level security;
+
+drop policy if exists "purchase_payment_reimbursements_owner_select"
+  on public.purchase_payment_reimbursements;
+create policy "purchase_payment_reimbursements_owner_select"
+  on public.purchase_payment_reimbursements
+  for select using (auth.uid() = owner_user_id);
+
+grant select on public.purchase_payment_reimbursements to authenticated;
+
+-- Preserve reimbursements created by the previous all-or-nothing flow.
+insert into public.purchase_payment_reimbursements (
+  owner_user_id,
+  purchase_payment_id,
+  bank_account_id,
+  reimbursement_date,
+  amount,
+  journal_entry_id
+)
+select
+  payment.owner_user_id,
+  payment.id,
+  bank_line.account_id,
+  coalesce(payment.reimbursed_at, reimbursement_entry.entry_date),
+  payment.total,
+  payment.reimbursement_journal_entry_id
+from public.purchase_payments payment
+join public.journal_entries reimbursement_entry
+  on reimbursement_entry.id = payment.reimbursement_journal_entry_id
+join lateral (
+  select line.account_id
+    from public.journal_lines line
+    join public.accounting_accounts account on account.id = line.account_id
+   where line.journal_entry_id = payment.reimbursement_journal_entry_id
+     and line.credit > 0
+     and account.system_key = 'bank'
+   order by line.sort_order
+   limit 1
+) bank_line on true
+where payment.payment_source = 'private'
+  and payment.status = 'reimbursed'
+  and payment.reimbursement_journal_entry_id is not null
+on conflict (journal_entry_id) do nothing;
+
+create or replace function public.reimburse_purchase_payment(
+  p_purchase_id uuid,
+  p_reimbursement_date date,
+  p_bank_account_id uuid,
+  p_amount numeric
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  owner_id uuid := auth.uid();
+  purchase_row public.purchase_payments%rowtype;
+  reimbursement_id uuid := gen_random_uuid();
+  entry_id uuid;
+  entry_number bigint;
+  amount_value numeric(14, 2) := round(p_amount, 2);
+  reimbursed_total numeric(14, 2);
+  remaining_amount numeric(14, 2);
+  new_reimbursed_total numeric(14, 2);
+begin
+  if owner_id is null then raise exception 'Du må være logget inn'; end if;
+  if p_reimbursement_date is null then raise exception 'Tilbakebetalingsdato mangler'; end if;
+
+  select * into purchase_row
+    from public.purchase_payments
+   where id = p_purchase_id and owner_user_id = owner_id
+   for update;
+  if not found or purchase_row.payment_source <> 'private' or purchase_row.status = 'cancelled' then
+    raise exception 'Det private utlegget kan ikke tilbakebetales';
+  end if;
+
+  if not exists (
+    select 1 from public.accounting_accounts
+     where id = p_bank_account_id and owner_user_id = owner_id
+       and system_key = 'bank' and is_active
+  ) then
+    raise exception 'Bankkontoen er ugyldig';
+  end if;
+
+  select coalesce(round(sum(reimbursement.amount), 2), 0)
+    into reimbursed_total
+    from public.purchase_payment_reimbursements reimbursement
+   where reimbursement.purchase_payment_id = purchase_row.id
+     and reimbursement.status = 'active';
+
+  remaining_amount := round(purchase_row.total - reimbursed_total, 2);
+  if amount_value is null or amount_value <= 0 then
+    raise exception 'Tilbakebetalingsbeløpet må være større enn 0';
+  end if;
+  if amount_value > remaining_amount then
+    raise exception 'Tilbakebetalingsbeløpet kan ikke være større enn gjenstående beløp';
+  end if;
+
+  perform public.require_open_accounting_period(owner_id, p_reimbursement_date);
+
+  entry_number := public.next_voucher_number(owner_id);
+  insert into public.journal_entries (
+    owner_user_id, voucher_number, entry_date, description, source_type, source_id
+  ) values (
+    owner_id, entry_number, p_reimbursement_date,
+    'Tilbakebetaling av privat utlegg ' || purchase_row.supplier_name,
+    'purchase_reimbursement', reimbursement_id
+  ) returning id into entry_id;
+
+  insert into public.journal_lines (
+    journal_entry_id, account_id, description, debit, credit, sort_order
+  ) values
+    (entry_id, purchase_row.settlement_account_id, 'Oppgjør privat utlegg', amount_value, 0, 0),
+    (entry_id, p_bank_account_id, 'Utbetaling fra bank', 0, amount_value, 1);
+
+  insert into public.purchase_payment_reimbursements (
+    id, owner_user_id, purchase_payment_id, bank_account_id,
+    reimbursement_date, amount, journal_entry_id
+  ) values (
+    reimbursement_id, owner_id, purchase_row.id, p_bank_account_id,
+    p_reimbursement_date, amount_value, entry_id
+  );
+
+  new_reimbursed_total := round(reimbursed_total + amount_value, 2);
+  update public.purchase_payments
+     set status = case when new_reimbursed_total >= total then 'reimbursed' else 'booked' end,
+         reimbursed_at = case when new_reimbursed_total >= total then p_reimbursement_date else null end,
+         reimbursement_journal_entry_id = case when new_reimbursed_total >= total then entry_id else null end,
+         updated_at = now()
+   where id = purchase_row.id;
+
+  return reimbursement_id;
+end;
+$$;
+
+-- Compatibility for browser sessions still using the previous full-payment RPC.
+create or replace function public.reimburse_purchase_payment(
+  p_purchase_id uuid,
+  p_reimbursement_date date,
+  p_bank_account_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  owner_id uuid := auth.uid();
+  remaining_amount numeric(14, 2);
+begin
+  select round(payment.total - coalesce(sum(reimbursement.amount)
+    filter (where reimbursement.status = 'active'), 0), 2)
+    into remaining_amount
+    from public.purchase_payments payment
+    left join public.purchase_payment_reimbursements reimbursement
+      on reimbursement.purchase_payment_id = payment.id
+   where payment.id = p_purchase_id
+     and payment.owner_user_id = owner_id
+     and payment.payment_source = 'private'
+     and payment.status <> 'cancelled'
+   group by payment.id, payment.total;
+
+  if remaining_amount is null or remaining_amount <= 0 then
+    raise exception 'Det private utlegget kan ikke tilbakebetales';
+  end if;
+
+  perform public.reimburse_purchase_payment(
+    p_purchase_id,
+    p_reimbursement_date,
+    p_bank_account_id,
+    remaining_amount
+  );
+end;
+$$;
+
+create or replace function public.reverse_purchase_reimbursement(
+  p_reimbursement_id uuid,
+  p_reversal_date date
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  owner_id uuid := auth.uid();
+  purchase_id uuid;
+  purchase_row public.purchase_payments%rowtype;
+  reimbursement_row public.purchase_payment_reimbursements%rowtype;
+  reversal_id uuid;
+  reimbursed_total numeric(14, 2);
+  latest_reimbursement_date date;
+  latest_reimbursement_entry_id uuid;
+begin
+  if owner_id is null then raise exception 'Du må være logget inn'; end if;
+  if p_reversal_date is null then raise exception 'Korreksjonsdato mangler'; end if;
+
+  select purchase_payment_id into purchase_id
+    from public.purchase_payment_reimbursements
+   where id = p_reimbursement_id and owner_user_id = owner_id;
+  if not found then raise exception 'Tilbakebetalingen finnes ikke'; end if;
+
+  select * into purchase_row
+    from public.purchase_payments
+   where id = purchase_id and owner_user_id = owner_id
+   for update;
+
+  select * into reimbursement_row
+    from public.purchase_payment_reimbursements
+   where id = p_reimbursement_id and owner_user_id = owner_id
+   for update;
+  if not found or reimbursement_row.status <> 'active' then
+    raise exception 'Tilbakebetalingen kan ikke korrigeres';
+  end if;
+
+  reversal_id := public.reverse_journal_entry(
+    reimbursement_row.journal_entry_id,
+    p_reversal_date,
+    'Korrigering av tilbakebetaling ' || purchase_row.supplier_name
+  );
+
+  update public.purchase_payment_reimbursements
+     set status = 'reversed', reversed_at = p_reversal_date,
+         reversal_journal_entry_id = reversal_id, updated_at = now()
+   where id = reimbursement_row.id;
+
+  select coalesce(round(sum(amount), 2), 0)
+    into reimbursed_total
+    from public.purchase_payment_reimbursements
+   where purchase_payment_id = purchase_row.id and status = 'active';
+
+  select reimbursement_date, journal_entry_id
+    into latest_reimbursement_date, latest_reimbursement_entry_id
+    from public.purchase_payment_reimbursements
+   where purchase_payment_id = purchase_row.id and status = 'active'
+   order by reimbursement_date desc, created_at desc
+   limit 1;
+
+  update public.purchase_payments
+     set status = case when reimbursed_total >= total then 'reimbursed' else 'booked' end,
+         reimbursed_at = case when reimbursed_total >= total then latest_reimbursement_date else null end,
+         reimbursement_journal_entry_id = case when reimbursed_total >= total then latest_reimbursement_entry_id else null end,
+         updated_at = now()
+   where id = purchase_row.id;
+end;
+$$;
+
+-- Compatibility: correcting from an older UI reverses every active payment for
+-- the selected purchase, matching the former all-or-nothing behavior.
+create or replace function public.reverse_purchase_payment_reimbursement(
+  p_purchase_id uuid,
+  p_reversal_date date
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  owner_id uuid := auth.uid();
+  reimbursement record;
+  found_reimbursement boolean := false;
+begin
+  if not exists (
+    select 1 from public.purchase_payments
+     where id = p_purchase_id and owner_user_id = owner_id
+       and payment_source = 'private' and status <> 'cancelled'
+  ) then
+    raise exception 'Det private utlegget finnes ikke';
+  end if;
+
+  for reimbursement in
+    select id
+      from public.purchase_payment_reimbursements
+     where purchase_payment_id = p_purchase_id and status = 'active'
+     order by created_at desc
+  loop
+    found_reimbursement := true;
+    perform public.reverse_purchase_reimbursement(reimbursement.id, p_reversal_date);
+  end loop;
+
+  if not found_reimbursement then
+    raise exception 'Tilbakebetalingen kan ikke korrigeres';
+  end if;
+end;
+$$;
+
+create or replace function public.cancel_purchase_payment(
+  p_purchase_id uuid,
+  p_cancellation_date date
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  owner_id uuid := auth.uid();
+  purchase_row public.purchase_payments%rowtype;
+  reversal_id uuid;
+begin
+  select * into purchase_row from public.purchase_payments
+   where id = p_purchase_id and owner_user_id = owner_id
+   for update;
+  if not found or purchase_row.status <> 'booked' or exists (
+    select 1 from public.purchase_payment_reimbursements
+     where purchase_payment_id = p_purchase_id and status = 'active'
+  ) then
+    raise exception 'Kjøpet må være bokført og uten aktiv tilbakebetaling før det kan annulleres';
+  end if;
+  reversal_id := public.reverse_journal_entry(
+    purchase_row.journal_entry_id,
+    p_cancellation_date,
+    'Annullering av kjøp ' || purchase_row.supplier_name
+  );
+  update public.purchase_payments
+     set status = 'cancelled', cancelled_at = p_cancellation_date,
+         cancellation_journal_entry_id = reversal_id, updated_at = now()
+   where id = purchase_row.id;
+end;
+$$;
+
+revoke all on function public.reimburse_purchase_payment(uuid, date, uuid, numeric)
+  from public, anon;
+revoke all on function public.reverse_purchase_reimbursement(uuid, date)
+  from public, anon;
+
+grant execute on function public.reimburse_purchase_payment(uuid, date, uuid, numeric)
+  to authenticated;
+grant execute on function public.reverse_purchase_reimbursement(uuid, date)
+  to authenticated;

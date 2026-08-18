@@ -340,6 +340,24 @@ export type PurchasePaymentAttachment = {
   created_at: string;
 };
 
+export type PurchasePaymentReimbursementStatus = "active" | "reversed";
+
+export type PurchasePaymentReimbursement = {
+  id: string;
+  owner_user_id: string;
+  purchase_payment_id: string;
+  bank_account_id: string;
+  reimbursement_date: string;
+  amount: number;
+  journal_entry_id: string;
+  status: PurchasePaymentReimbursementStatus;
+  reversed_at: string | null;
+  reversal_journal_entry_id: string | null;
+  created_at: string;
+  updated_at: string;
+  bank_account?: Pick<AccountingAccount, "id" | "account_number" | "name"> | null;
+};
+
 export type PurchasePayment = {
   id: string;
   owner_user_id: string;
@@ -369,6 +387,7 @@ export type PurchasePaymentWithDetails = PurchasePayment & {
   settlement_account?: Pick<AccountingAccount, "id" | "account_number" | "name" | "system_key"> | null;
   purchase_payment_lines?: PurchasePaymentLine[];
   purchase_payment_attachments?: PurchasePaymentAttachment[];
+  purchase_payment_reimbursements?: PurchasePaymentReimbursement[];
 };
 
 export type JournalSourceType =

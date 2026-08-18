@@ -87,7 +87,7 @@ export async function fetchAccountingData(): Promise<AccountingData> {
         .order("invoice_date", { ascending: false }),
       supabase
         .from("purchase_payments")
-        .select("*, settlement_account:accounting_accounts!purchase_payments_settlement_account_id_fkey(id,account_number,name,system_key), purchase_payment_lines(*, account:accounting_accounts(id,account_number,name)), purchase_payment_attachments(*)")
+        .select("*, settlement_account:accounting_accounts!purchase_payments_settlement_account_id_fkey(id,account_number,name,system_key), purchase_payment_lines(*, account:accounting_accounts(id,account_number,name)), purchase_payment_attachments(*), purchase_payment_reimbursements(*, bank_account:accounting_accounts!purchase_payment_reimbursements_bank_account_id_fkey(id,account_number,name))")
         .order("purchase_date", { ascending: false }),
       supabase
         .from("journal_entries")
@@ -118,6 +118,9 @@ export async function fetchAccountingData(): Promise<AccountingData> {
       ...purchase,
       purchase_payment_lines: [...(purchase.purchase_payment_lines ?? [])]
         .sort((left, right) => left.sort_order - right.sort_order),
+      purchase_payment_reimbursements: [...(purchase.purchase_payment_reimbursements ?? [])]
+        .sort((left, right) => right.reimbursement_date.localeCompare(left.reimbursement_date)
+          || right.created_at.localeCompare(left.created_at)),
     })),
     journalEntries: ((entriesResult.data ?? []) as JournalEntry[]).map((entry) => ({
       ...entry,
@@ -205,21 +208,33 @@ export async function reimbursePurchasePayment(
   purchaseId: string,
   reimbursementDate: string,
   bankAccountId: string,
+  amount: number,
 ) {
   const { error } = await supabase.rpc("reimburse_purchase_payment", {
     p_purchase_id: purchaseId,
     p_reimbursement_date: reimbursementDate,
     p_bank_account_id: bankAccountId,
+    p_amount: amount,
   });
   if (error) throw error;
 }
 
-export async function reversePurchasePaymentReimbursement(purchaseId: string, reversalDate: string) {
-  const { error } = await supabase.rpc("reverse_purchase_payment_reimbursement", {
-    p_purchase_id: purchaseId,
+export async function reversePurchasePaymentReimbursement(reimbursementId: string, reversalDate: string) {
+  const { error } = await supabase.rpc("reverse_purchase_reimbursement", {
+    p_reimbursement_id: reimbursementId,
     p_reversal_date: reversalDate,
   });
   if (error) throw error;
+}
+
+export function purchaseReimbursementTotals(purchase: PurchasePaymentWithDetails) {
+  const reimbursed = roundMoney((purchase.purchase_payment_reimbursements ?? [])
+    .filter((reimbursement) => reimbursement.status === "active")
+    .reduce((sum, reimbursement) => sum + Number(reimbursement.amount), 0));
+  return {
+    reimbursed,
+    remaining: roundMoney(Math.max(0, Number(purchase.total) - reimbursed)),
+  };
 }
 
 export async function cancelPurchasePayment(purchaseId: string, cancellationDate: string) {

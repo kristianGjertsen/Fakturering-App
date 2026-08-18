@@ -26,12 +26,13 @@ import {
   type SupplierInvoiceInput,
 } from "../../lib/data";
 import { buildAccountingReport } from "../../lib/accounting";
-import type { AccountingAccountCategory, InvoiceWithDetails, PurchasePaymentWithDetails, SupplierInvoiceWithDetails } from "../../types";
+import type { AccountingAccountCategory, InvoiceWithDetails, PurchasePaymentReimbursement, PurchasePaymentWithDetails, SupplierInvoiceWithDetails } from "../../types";
 import { AccountsView } from "./components/AccountsView";
 import { AccountingOverview, DetailedReports } from "./components/AccountingReports";
 import { JournalView } from "./components/JournalView";
 import { ManualVoucherForm } from "./components/ManualVoucherForm";
 import { PurchasePaymentForm } from "./components/PurchasePaymentForm";
+import { PurchaseReimbursementForm } from "./components/PurchaseReimbursementForm";
 import { SupplierInvoiceForm } from "./components/SupplierInvoiceForm";
 import { SupplierInvoicesView } from "./components/SupplierInvoicesView";
 import { availableAccountingYears } from "./accountingPresentation";
@@ -71,6 +72,7 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
   );
   const [showSupplierInvoiceForm, setShowSupplierInvoiceForm] = useState(false);
   const [showPurchasePaymentForm, setShowPurchasePaymentForm] = useState(false);
+  const [showPurchaseReimbursementForm, setShowPurchaseReimbursementForm] = useState(false);
   const [showManualVoucherForm, setShowManualVoucherForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [actionInvoiceId, setActionInvoiceId] = useState("");
@@ -162,29 +164,31 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
     }
   }
 
-  async function handleReimbursePurchase(purchase: PurchasePaymentWithDetails, date: string, bankAccountId: string) {
+  async function handleReimbursePurchase(purchase: PurchasePaymentWithDetails, date: string, bankAccountId: string, amount: number) {
     setActionPurchaseId(purchase.id);
     setFeedback({ message: "", tone: "info" });
     try {
-      await reimbursePurchasePayment(purchase.id, date, bankAccountId);
+      await reimbursePurchasePayment(purchase.id, date, bankAccountId, amount);
       await onRefresh();
-      setFeedback({ message: "Refusjonen av det private utlegget er bokført.", tone: "info" });
+      setShowPurchaseReimbursementForm(false);
+      setFeedback({ message: "Tilbakebetalingen av det private utlegget er bokført.", tone: "info" });
     } catch (error) {
-      setFeedback({ message: error instanceof Error ? error.message : "Kunne ikke bokføre refusjonen.", tone: "danger" });
+      setFeedback({ message: error instanceof Error ? error.message : "Kunne ikke bokføre tilbakebetalingen.", tone: "danger" });
+      if (showPurchaseReimbursementForm) throw error;
     } finally {
       setActionPurchaseId("");
     }
   }
 
-  async function handleReversePurchaseReimbursement(purchase: PurchasePaymentWithDetails, date: string) {
+  async function handleReversePurchaseReimbursement(purchase: PurchasePaymentWithDetails, reimbursement: PurchasePaymentReimbursement, date: string) {
     setActionPurchaseId(purchase.id);
     setFeedback({ message: "", tone: "info" });
     try {
-      await reversePurchasePaymentReimbursement(purchase.id, date);
+      await reversePurchasePaymentReimbursement(reimbursement.id, date);
       await onRefresh();
-      setFeedback({ message: "Refusjonen er korrigert med et motbilag.", tone: "info" });
+      setFeedback({ message: "Tilbakebetalingen er korrigert med et motbilag.", tone: "info" });
     } catch (error) {
-      setFeedback({ message: error instanceof Error ? error.message : "Kunne ikke korrigere refusjonen.", tone: "danger" });
+      setFeedback({ message: error instanceof Error ? error.message : "Kunne ikke korrigere tilbakebetalingen.", tone: "danger" });
     } finally {
       setActionPurchaseId("");
     }
@@ -269,7 +273,7 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
       </nav>
 
       {activeTab === "overview" && <AccountingOverview year={year} report={report} entries={accounting.journalEntries} salesInvoices={salesInvoices} supplierInvoices={accounting.supplierInvoices} />}
-      {activeTab === "incoming" && <SupplierInvoicesView year={year} invoices={accounting.supplierInvoices} purchases={accounting.purchasePayments} accounts={accounting.accounts} entries={accounting.journalEntries} actionInvoiceId={actionInvoiceId} actionPurchaseId={actionPurchaseId} actionMessage={feedback.message} actionMessageTone={feedback.tone} onNewInvoice={() => setShowSupplierInvoiceForm(true)} onNewPurchase={() => setShowPurchasePaymentForm(true)} onSetPaid={handleSetSupplierPaid} onCancelInvoice={handleCancelSupplierInvoice} onReimbursePurchase={handleReimbursePurchase} onReversePurchaseReimbursement={handleReversePurchaseReimbursement} onCancelPurchase={handleCancelPurchase} onDownloadAttachment={handleDownload} />}
+      {activeTab === "incoming" && <SupplierInvoicesView year={year} invoices={accounting.supplierInvoices} purchases={accounting.purchasePayments} accounts={accounting.accounts} entries={accounting.journalEntries} actionInvoiceId={actionInvoiceId} actionPurchaseId={actionPurchaseId} actionMessage={feedback.message} actionMessageTone={feedback.tone} onNewInvoice={() => setShowSupplierInvoiceForm(true)} onNewPurchase={() => setShowPurchasePaymentForm(true)} onNewReimbursement={() => setShowPurchaseReimbursementForm(true)} onSetPaid={handleSetSupplierPaid} onCancelInvoice={handleCancelSupplierInvoice} onReimbursePurchase={handleReimbursePurchase} onReversePurchaseReimbursement={handleReversePurchaseReimbursement} onCancelPurchase={handleCancelPurchase} onDownloadAttachment={handleDownload} />}
       {activeTab === "journal" && <JournalView year={year} entries={accounting.journalEntries} onOpenManualVoucher={() => setShowManualVoucherForm(true)} />}
       {activeTab === "reports" && <DetailedReports year={year} report={report} periods={accounting.periods} salesInvoices={salesInvoices} supplierInvoices={accounting.supplierInvoices} updatingPeriod={updatingPeriod} onSetPeriodStatus={(month, status) => void handleSetPeriodStatus(month, status)} />}
       {activeTab === "accounts" && <AccountsView year={year} accounts={accounting.accounts} entries={accounting.journalEntries} updatingAccountId={updatingAccountId} onToggleActive={(account) => void handleToggleAccount(account.id, !account.is_active)} onCreateAccount={handleCreateAccount} />}
@@ -280,6 +284,10 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
 
       <DetailModal open={showPurchasePaymentForm} onClose={() => !saving && setShowPurchasePaymentForm(false)} title="Ny kort-/bankbetaling" ariaLabel="Registrer kort- eller bankkjøp">
         <PurchasePaymentForm ownerUserId={ownerUserId} accounts={accounting.accounts} saving={saving} onSave={handleCreatePurchasePayment} onCancel={() => setShowPurchasePaymentForm(false)} />
+      </DetailModal>
+
+      <DetailModal open={showPurchaseReimbursementForm} onClose={() => !actionPurchaseId && setShowPurchaseReimbursementForm(false)} title="Tilbakebetal privat utlegg" ariaLabel="Registrer tilbakebetaling av privat utlegg">
+        <PurchaseReimbursementForm purchases={accounting.purchasePayments} accounts={accounting.accounts} saving={Boolean(actionPurchaseId)} onSave={handleReimbursePurchase} onCancel={() => setShowPurchaseReimbursementForm(false)} />
       </DetailModal>
 
       <DetailModal open={showManualVoucherForm} onClose={() => !saving && setShowManualVoucherForm(false)} title="Nytt manuelt bilag" ariaLabel="Bokfør manuelt bilag">

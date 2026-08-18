@@ -63,6 +63,7 @@ export {
   createSupplierInvoice,
   downloadSupplierInvoiceAttachment,
   fetchAccountingData,
+  purchaseReimbursementTotals,
   reimbursePurchasePayment,
   reversePurchasePaymentReimbursement,
   setAccountingAccountActive,

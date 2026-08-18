@@ -51,7 +51,7 @@ serve(async (request) => {
       },
     });
 
-    const [invoices, schedules, companies] = await Promise.all([
+    const [invoices, schedules, companies, supplierInvoices, purchasePayments] = await Promise.all([
       adminClient
         .from("invoices")
         .select("id, pdf_storage_path")
@@ -64,9 +64,21 @@ serve(async (request) => {
         .from("companies")
         .select("id")
         .eq("owner_user_id", user.id),
+      adminClient
+        .from("supplier_invoices")
+        .select("id")
+        .eq("owner_user_id", user.id),
+      adminClient
+        .from("purchase_payments")
+        .select("id")
+        .eq("owner_user_id", user.id),
     ]);
 
-    const ownerDataError = invoices.error ?? schedules.error ?? companies.error;
+    const ownerDataError = invoices.error
+      ?? schedules.error
+      ?? companies.error
+      ?? supplierInvoices.error
+      ?? purchasePayments.error;
 
     if (ownerDataError) {
       return jsonResponse({ error: ownerDataError.message }, 500);
@@ -75,7 +87,10 @@ serve(async (request) => {
     const invoiceIds = (invoices.data ?? []).map((invoice) => invoice.id as string);
     const scheduleIds = (schedules.data ?? []).map((schedule) => schedule.id as string);
     const companyIds = (companies.data ?? []).map((company) => company.id as string);
+    const supplierInvoiceIds = (supplierInvoices.data ?? []).map((invoice) => invoice.id as string);
+    const purchasePaymentIds = (purchasePayments.data ?? []).map((payment) => payment.id as string);
     const attachmentPaths: string[] = [];
+    const accountingDocumentPaths: string[] = [];
 
     for (let offset = 0; offset < invoiceIds.length; offset += 100) {
       const { data, error } = await adminClient
@@ -103,6 +118,32 @@ serve(async (request) => {
       attachmentPaths.push(...(data ?? []).map((attachment) => attachment.storage_path as string));
     }
 
+    for (let offset = 0; offset < supplierInvoiceIds.length; offset += 100) {
+      const { data, error } = await adminClient
+        .from("supplier_invoice_attachments")
+        .select("storage_path")
+        .in("supplier_invoice_id", supplierInvoiceIds.slice(offset, offset + 100));
+
+      if (error) {
+        return jsonResponse({ error: error.message }, 500);
+      }
+
+      accountingDocumentPaths.push(...(data ?? []).map((attachment) => attachment.storage_path as string));
+    }
+
+    for (let offset = 0; offset < purchasePaymentIds.length; offset += 100) {
+      const { data, error } = await adminClient
+        .from("purchase_payment_attachments")
+        .select("storage_path")
+        .in("purchase_payment_id", purchasePaymentIds.slice(offset, offset + 100));
+
+      if (error) {
+        return jsonResponse({ error: error.message }, 500);
+      }
+
+      accountingDocumentPaths.push(...(data ?? []).map((attachment) => attachment.storage_path as string));
+    }
+
     const pdfPaths = (invoices.data ?? [])
       .map((invoice) => invoice.pdf_storage_path as string | null)
       .filter((path): path is string => Boolean(path));
@@ -110,6 +151,7 @@ serve(async (request) => {
     const invoiceAttachmentPaths = [...new Set(attachmentPaths)];
     const invoicePdfPaths = [...new Set(pdfPaths)];
     const companyLogoPaths = companyIds.map((companyId) => `${user.id}/${companyId}/logo.png`);
+    const uniqueAccountingDocumentPaths = [...new Set(accountingDocumentPaths)];
 
     for (let offset = 0; offset < invoiceAttachmentPaths.length; offset += 100) {
       const { error: storageError } = await adminClient.storage
@@ -135,6 +177,16 @@ serve(async (request) => {
       const { error: storageError } = await adminClient.storage
         .from("company-logos")
         .remove(companyLogoPaths.slice(offset, offset + 100));
+
+      if (storageError) {
+        return jsonResponse({ error: storageError.message }, 500);
+      }
+    }
+
+    for (let offset = 0; offset < uniqueAccountingDocumentPaths.length; offset += 100) {
+      const { error: storageError } = await adminClient.storage
+        .from("accounting-documents")
+        .remove(uniqueAccountingDocumentPaths.slice(offset, offset + 100));
 
       if (storageError) {
         return jsonResponse({ error: storageError.message }, 500);

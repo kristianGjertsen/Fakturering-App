@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CreditCard, Download, FileText, Plus } from "@animateicons/react/lucide";
+import { Banknote, CreditCard, Download, FileText, Plus } from "@animateicons/react/lucide";
 import { AnimatedIconButton } from "../../../components/AnimatedIconButton";
 import { Button } from "../../../components/Button";
 import { FormField } from "../../../components/FormField";
@@ -11,8 +11,10 @@ import { DetailModal } from "../../../components/layout/DetailModal";
 import { Panel } from "../../../components/layout/Panel";
 import { Notice } from "../../../components/layout/Notice";
 import { formatFileSize } from "../../../lib/attachments";
+import { roundMoney } from "../../../lib/accounting";
 import { formatCurrency, formatDate, formatMoney, todayInputValue } from "../../../lib/format";
-import type { AccountingAccount, JournalEntry, PurchasePaymentWithDetails, SupplierInvoiceWithDetails } from "../../../types";
+import { purchaseReimbursementTotals } from "../../../lib/data";
+import type { AccountingAccount, JournalEntry, PurchasePaymentReimbursement, PurchasePaymentWithDetails, SupplierInvoiceWithDetails } from "../../../types";
 import { supplierInvoiceStatus } from "../accountingPresentation";
 import { parseLocalizedMoney } from "../../../lib/supplierInvoiceParser";
 
@@ -28,10 +30,11 @@ type SupplierInvoicesViewProps = {
   actionMessageTone: "info" | "danger";
   onNewInvoice: () => void;
   onNewPurchase: () => void;
+  onNewReimbursement: () => void;
   onSetPaid: (invoice: SupplierInvoiceWithDetails, paid: boolean, date: string, bankAccountId: string | null, paidAmountNok?: number | null) => Promise<void>;
   onCancelInvoice: (invoice: SupplierInvoiceWithDetails, date: string) => Promise<void>;
-  onReimbursePurchase: (purchase: PurchasePaymentWithDetails, date: string, bankAccountId: string) => Promise<void>;
-  onReversePurchaseReimbursement: (purchase: PurchasePaymentWithDetails, date: string) => Promise<void>;
+  onReimbursePurchase: (purchase: PurchasePaymentWithDetails, date: string, bankAccountId: string, amount: number) => Promise<void>;
+  onReversePurchaseReimbursement: (purchase: PurchasePaymentWithDetails, reimbursement: PurchasePaymentReimbursement, date: string) => Promise<void>;
   onCancelPurchase: (purchase: PurchasePaymentWithDetails, date: string) => Promise<void>;
   onDownloadAttachment: (storagePath: string, originalName: string) => Promise<void>;
 };
@@ -48,6 +51,7 @@ export function SupplierInvoicesView({
   actionMessageTone,
   onNewInvoice,
   onNewPurchase,
+  onNewReimbursement,
   onSetPaid,
   onCancelInvoice,
   onReimbursePurchase,
@@ -93,6 +97,7 @@ export function SupplierInvoicesView({
           <div className="flex flex-wrap gap-2">
             <AnimatedIconButton icon={FileText} variant="secondary" size="sm" onClick={() => { changeView("invoices"); onNewInvoice(); }}>Registrer faktura</AnimatedIconButton>
             <AnimatedIconButton icon={Plus} size="sm" onClick={() => { changeView("purchases"); onNewPurchase(); }}>Registrer betaling</AnimatedIconButton>
+            <AnimatedIconButton icon={Banknote} variant="secondary" size="sm" onClick={() => { changeView("purchases"); onNewReimbursement(); }}>Tilbakebetal utlegg</AnimatedIconButton>
           </div>
         </div>
         <div className="flex gap-1 border-b border-blue-100 p-2" role="tablist" aria-label="Type inngående betaling">
@@ -101,7 +106,7 @@ export function SupplierInvoicesView({
         </div>
         <div className="grid gap-2 border-b border-blue-100 p-4 sm:grid-cols-[1fr_180px]">
           <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={viewMode === "invoices" ? "Søk etter leverandør eller fakturanummer" : "Søk etter leverandør eller formål"} />
-          <Select ariaLabel="Filtrer inngående betalinger" value={statusFilter} options={viewMode === "invoices" ? [{ value: "all", label: "Alle statuser" }, { value: "posted", label: "Ubetalt" }, { value: "paid", label: "Betalt" }, { value: "cancelled", label: "Annullert" }] : [{ value: "all", label: "Alle statuser" }, { value: "company", label: "Betalt av selskapet" }, { value: "private", label: "Privat utlegg" }, { value: "reimbursed", label: "Refundert" }, { value: "cancelled", label: "Annullert" }]} onChange={setStatusFilter} />
+          <Select ariaLabel="Filtrer inngående betalinger" value={statusFilter} options={viewMode === "invoices" ? [{ value: "all", label: "Alle statuser" }, { value: "posted", label: "Ubetalt" }, { value: "paid", label: "Betalt" }, { value: "cancelled", label: "Annullert" }] : [{ value: "all", label: "Alle statuser" }, { value: "company", label: "Betalt av selskapet" }, { value: "private", label: "Privat utlegg" }, { value: "reimbursed", label: "Tilbakebetalt" }, { value: "cancelled", label: "Annullert" }]} onChange={setStatusFilter} />
         </div>
         {viewMode === "invoices" && (filteredInvoices.length === 0 ? <p className="px-4 py-12 text-center text-sm text-slate-500">Ingen inngående fakturaer i valgt år.</p> : (
           <div className="overflow-x-auto">
@@ -131,7 +136,7 @@ export function SupplierInvoicesView({
         {selected && <SupplierInvoiceDetails key={selected.id} invoice={selected} accounts={accounts} entries={entries} busy={actionInvoiceId === selected.id} actionMessage={actionMessage} actionMessageTone={actionMessageTone} onSetPaid={onSetPaid} onCancelInvoice={onCancelInvoice} onDownloadAttachment={onDownloadAttachment} />}
       </DetailModal>
       <DetailModal open={Boolean(selectedPurchase)} onClose={() => setSelectedPurchaseId("")} title="Kort- eller bankkjøp" ariaLabel="Detaljer for kort- eller bankkjøp">
-        {selectedPurchase && <PurchasePaymentDetails key={selectedPurchase.id} purchase={selectedPurchase} accounts={accounts} entries={entries} busy={actionPurchaseId === selectedPurchase.id} actionMessage={actionMessage} actionMessageTone={actionMessageTone} onReimbursePurchase={onReimbursePurchase} onReversePurchaseReimbursement={onReversePurchaseReimbursement} onCancelPurchase={onCancelPurchase} onDownloadAttachment={onDownloadAttachment} />}
+        {selectedPurchase && <PurchasePaymentDetails key={`${selectedPurchase.id}-${selectedPurchase.updated_at}`} purchase={selectedPurchase} accounts={accounts} entries={entries} busy={actionPurchaseId === selectedPurchase.id} actionMessage={actionMessage} actionMessageTone={actionMessageTone} onReimbursePurchase={onReimbursePurchase} onReversePurchaseReimbursement={onReversePurchaseReimbursement} onCancelPurchase={onCancelPurchase} onDownloadAttachment={onDownloadAttachment} />}
       </DetailModal>
     </>
   );
@@ -226,11 +231,16 @@ function PurchasePaymentDetails({ purchase, accounts, entries, busy, actionMessa
   const bankAccounts = accounts.filter((account) => account.is_active && account.system_key === "bank");
   const [actionDate, setActionDate] = useState(today);
   const [bankAccountId, setBankAccountId] = useState(bankAccounts[0]?.id ?? "");
+  const totals = purchaseReimbursementTotals(purchase);
+  const [reimbursementAmount, setReimbursementAmount] = useState(formatMoneyInput(totals.remaining));
   const [showReimbursement, setShowReimbursement] = useState(false);
-  const [showCorrection, setShowCorrection] = useState(false);
+  const [reimbursementToReverse, setReimbursementToReverse] = useState<PurchasePaymentReimbursement | null>(null);
   const [showCancellation, setShowCancellation] = useState(false);
   const status = purchaseStatus(purchase);
   const journal = entries.find((entry) => entry.id === purchase.journal_entry_id);
+  const reimbursements = purchase.purchase_payment_reimbursements ?? [];
+  const activeReimbursements = reimbursements.filter((reimbursement) => reimbursement.status === "active");
+  const parsedReimbursementAmount = parseMoney(reimbursementAmount);
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(300px,0.7fr)] lg:items-start">
@@ -245,7 +255,8 @@ function PurchasePaymentDetails({ purchase, accounts, entries, busy, actionMessa
           <Info label="Betalt med" value={purchase.payment_source === "company" ? "Selskapets konto/kort" : `Privat - ${purchase.paid_by}`} />
           <Info label="Oppgjørskonto" value={purchase.settlement_account ? `${purchase.settlement_account.account_number} ${purchase.settlement_account.name}` : "-"} />
           <Info label="Bilag" value={journal ? `#${journal.voucher_number}` : "-"} />
-          {purchase.reimbursed_at && <Info label="Refundert" value={formatDate(purchase.reimbursed_at)} />}
+          {purchase.payment_source === "private" && <Info label="Tilbakebetalt" value={formatCurrency(totals.reimbursed)} />}
+          {purchase.payment_source === "private" && <Info label="Gjenstår" value={formatCurrency(totals.remaining)} />}
           {purchase.cancelled_at && <Info label="Annullert" value={formatDate(purchase.cancelled_at)} />}
         </dl>
         <p className="mt-4 text-sm text-slate-700">{purchase.description}</p>
@@ -258,22 +269,46 @@ function PurchasePaymentDetails({ purchase, accounts, entries, busy, actionMessa
         {purchase.payment_source === "private" && purchase.status !== "cancelled" && (
           <Panel>
             <div className="flex items-center gap-2"><CreditCard size={19} className="text-blue-700" /><h3 className="font-semibold text-slate-950">Privat utlegg</h3></div>
-            <div className="mt-4 space-y-3">
-              <FormField label={purchase.status === "reimbursed" ? "Korreksjonsdato" : "Refusjonsdato"}><Input type="date" value={actionDate} onChange={(event) => setActionDate(event.target.value)} /></FormField>
-              {purchase.status === "booked" && <FormField label="Utbetalt fra bank"><Select ariaLabel="Bankkonto for refusjon" value={bankAccountId} options={bankAccounts.map((account) => ({ value: account.id, label: `${account.account_number} ${account.name}` }))} onChange={setBankAccountId} /></FormField>}
-            </div>
-            <Button className="mt-4 w-full" variant={purchase.status === "reimbursed" ? "secondary" : "success"} disabled={busy || (purchase.status === "booked" && !bankAccountId)} onClick={() => purchase.status === "reimbursed" ? setShowCorrection(true) : setShowReimbursement(true)}>{busy ? "Bokfører..." : purchase.status === "reimbursed" ? "Korriger refusjon" : "Registrer som refundert"}</Button>
+            {totals.remaining > 0 ? (
+              <>
+                <div className="mt-4 space-y-3">
+                  <FormField label="Tilbakebetalingsdato"><Input type="date" value={actionDate} onChange={(event) => setActionDate(event.target.value)} /></FormField>
+                  <FormField label="Utbetalt fra bank"><Select ariaLabel="Bankkonto for tilbakebetaling" value={bankAccountId} options={bankAccounts.map((account) => ({ value: account.id, label: `${account.account_number} ${account.name}` }))} onChange={setBankAccountId} /></FormField>
+                  <FormField label="Beløp" helper={`Gjenstående: ${formatCurrency(totals.remaining)}`}>
+                    <Input inputMode="decimal" value={reimbursementAmount} onChange={(event) => setReimbursementAmount(event.target.value)} onBlur={() => { if (parsedReimbursementAmount !== null) setReimbursementAmount(formatMoneyInput(parsedReimbursementAmount)); }} />
+                  </FormField>
+                </div>
+                <Button className="mt-4 w-full" variant="success" disabled={busy || !bankAccountId || parsedReimbursementAmount === null || parsedReimbursementAmount > totals.remaining} onClick={() => setShowReimbursement(true)}>{busy ? "Bokfører..." : "Bokfør tilbakebetaling"}</Button>
+              </>
+            ) : <p className="mt-3 text-sm text-slate-600">Utlegget er fullstendig tilbakebetalt.</p>}
+          </Panel>
+        )}
+        {purchase.payment_source === "private" && reimbursements.length > 0 && (
+          <Panel>
+            <h3 className="font-semibold text-slate-950">Tilbakebetalinger</h3>
+            <ul className="mt-3 divide-y divide-blue-100">
+              {reimbursements.map((reimbursement) => (
+                <li key={reimbursement.id} className="flex items-center justify-between gap-3 py-3">
+                  <span className="min-w-0 text-sm">
+                    <span className={`block font-semibold ${reimbursement.status === "reversed" ? "text-slate-500 line-through" : "text-slate-950"}`}>{formatCurrency(Number(reimbursement.amount))}</span>
+                    <span className="block text-xs text-slate-500">{formatDate(reimbursement.reimbursement_date)} · {reimbursement.bank_account ? `${reimbursement.bank_account.account_number} ${reimbursement.bank_account.name}` : "Bankkonto"}{journalVoucher(entries, reimbursement.journal_entry_id)}</span>
+                    {reimbursement.status === "reversed" && <span className="block text-xs text-red-700">Korrigert {formatDate(reimbursement.reversed_at)}</span>}
+                  </span>
+                  {reimbursement.status === "active" && <Button size="xs" variant="secondary" disabled={busy} onClick={() => setReimbursementToReverse(reimbursement)}>Korriger</Button>}
+                </li>
+              ))}
+            </ul>
           </Panel>
         )}
         <Panel>
           <h3 className="font-semibold text-slate-950">Originaldokumenter</h3>
           <ul className="mt-3 divide-y divide-blue-100">{(purchase.purchase_payment_attachments ?? []).map((attachment) => <li key={attachment.id} className="flex items-center justify-between gap-3 py-2"><span className="min-w-0"><span className="block truncate text-sm">{attachment.original_name}</span><span className="text-xs text-slate-500">{formatFileSize(attachment.size_bytes)}</span></span><AnimatedIconButton icon={Download} variant="secondary" size="xs" onClick={() => void onDownloadAttachment(attachment.storage_path, attachment.original_name)}><span className="sr-only">Last ned</span></AnimatedIconButton></li>)}</ul>
         </Panel>
-        {purchase.status === "booked" && <Button className="w-full" variant="danger" disabled={busy} onClick={() => setShowCancellation(true)}>Annuller kjøp</Button>}
+        {purchase.status === "booked" && activeReimbursements.length === 0 && <Button className="w-full" variant="danger" disabled={busy} onClick={() => setShowCancellation(true)}>Annuller kjøp</Button>}
       </div>
 
-      <ConfirmDialog open={showReimbursement} title="Registrer refusjon" message="Utlegget gjøres opp mot valgt bankkonto. Kjøpsbilaget beholdes uendret." confirmLabel="Bokfør refusjon" onCancel={() => setShowReimbursement(false)} onConfirm={() => { setShowReimbursement(false); void onReimbursePurchase(purchase, actionDate, bankAccountId); }} />
-      <ConfirmDialog open={showCorrection} title="Korriger refusjon" message="Refusjonsbilaget beholdes, og et nytt motbilag opprettes på valgt dato." confirmLabel="Opprett motbilag" onCancel={() => setShowCorrection(false)} onConfirm={() => { setShowCorrection(false); void onReversePurchaseReimbursement(purchase, actionDate); }} />
+      <ConfirmDialog open={showReimbursement} title="Bokfør tilbakebetaling" message={`${parsedReimbursementAmount === null ? "Beløpet" : formatCurrency(parsedReimbursementAmount)} utbetales fra valgt bankkonto. Kjøpsbilaget beholdes uendret.`} confirmLabel="Bokfør tilbakebetaling" onCancel={() => setShowReimbursement(false)} onConfirm={() => { setShowReimbursement(false); if (parsedReimbursementAmount !== null) void onReimbursePurchase(purchase, actionDate, bankAccountId, parsedReimbursementAmount); }} />
+      <ConfirmDialog open={Boolean(reimbursementToReverse)} title="Korriger tilbakebetaling" message="Tilbakebetalingsbilaget beholdes, og et nytt motbilag opprettes på valgt dato." confirmLabel="Opprett motbilag" onCancel={() => setReimbursementToReverse(null)} onConfirm={() => { const reimbursement = reimbursementToReverse; setReimbursementToReverse(null); if (reimbursement) void onReversePurchaseReimbursement(purchase, reimbursement, actionDate); }} />
       <ConfirmDialog open={showCancellation} title="Annuller kort-/bankkjøp" message="Kjøpsbilaget beholdes, og et nytt motbilag opprettes på valgt dato." confirmLabel="Annuller med motbilag" tone="danger" onCancel={() => setShowCancellation(false)} onConfirm={() => { setShowCancellation(false); void onCancelPurchase(purchase, actionDate); }} />
     </div>
   );
@@ -281,8 +316,12 @@ function PurchasePaymentDetails({ purchase, accounts, entries, busy, actionMessa
 
 function purchaseStatus(purchase: PurchasePaymentWithDetails): { label: string; tone: "success" | "warning" | "danger" | "info" } {
   if (purchase.status === "cancelled") return { label: "Annullert", tone: "danger" };
-  if (purchase.status === "reimbursed") return { label: "Refundert", tone: "success" };
-  if (purchase.payment_source === "private") return { label: "Privat utlegg", tone: "warning" };
+  if (purchase.payment_source === "private") {
+    const totals = purchaseReimbursementTotals(purchase);
+    if (totals.remaining === 0) return { label: "Tilbakebetalt", tone: "success" };
+    if (totals.reimbursed > 0) return { label: "Delvis tilbakebetalt", tone: "info" };
+    return { label: "Privat utlegg", tone: "warning" };
+  }
   return { label: "Betalt", tone: "success" };
 }
 
@@ -302,5 +341,18 @@ function InvoiceLineAmount({ nok, original, currency }: { nok: number; original:
 
 function parseMoney(value: string) {
   const parsed = parseLocalizedMoney(value);
-  return parsed !== null && parsed > 0 ? parsed : null;
+  return parsed !== null && parsed > 0 ? roundMoney(parsed) : null;
+}
+
+function journalVoucher(entries: JournalEntry[], journalEntryId: string) {
+  const entry = entries.find((item) => item.id === journalEntryId);
+  return entry ? ` · Bilag #${entry.voucher_number}` : "";
+}
+
+function formatMoneyInput(value: number) {
+  return value.toLocaleString("nb-NO", {
+    useGrouping: false,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }

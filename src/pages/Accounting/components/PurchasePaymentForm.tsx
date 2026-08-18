@@ -55,6 +55,7 @@ export function PurchasePaymentForm({
   const [lines, setLines] = useState<SupplierInvoiceDraftLine[]>([
     createDraftLine(fallbackExpenseAccount?.id ?? ""),
   ]);
+  const [grossAmountInputs, setGrossAmountInputs] = useState<Record<string, string>>({});
   const [attachments, setAttachments] = useState<File[]>([]);
   const [importState, setImportState] = useState<ImportState | null>(null);
   const [error, setError] = useState("");
@@ -71,6 +72,27 @@ export function PurchasePaymentForm({
   function updateLine(localId: string, patch: Partial<SupplierInvoiceDraftLine>) {
     setLines((current) => current.map((line) => line.localId === localId ? { ...line, ...patch } : line));
     setError("");
+  }
+
+  function updateGrossAmount(localId: string, value: string) {
+    setGrossAmountInputs((current) => ({ ...current, [localId]: value }));
+    updateLine(localId, { grossAmount: parseLocalizedMoney(value) ?? 0 });
+  }
+
+  function normalizeGrossAmount(localId: string, amount: number) {
+    setGrossAmountInputs((current) => ({
+      ...current,
+      [localId]: amount > 0 ? formatMoneyInput(amount) : "",
+    }));
+  }
+
+  function removeLine(localId: string) {
+    setLines((current) => current.filter((line) => line.localId !== localId));
+    setGrossAmountInputs((current) => {
+      const next = { ...current };
+      delete next[localId];
+      return next;
+    });
   }
 
   async function addFiles(fileList: FileList | null) {
@@ -92,6 +114,7 @@ export function PurchasePaymentForm({
     }
 
     setImportState({ tone: "info", message: `Leser ${pdf.name} ...` });
+    const targetLineId = lines[0]?.localId;
     try {
       const result = await readSupplierInvoicePdf(pdf);
       if (!result.textFound) {
@@ -108,8 +131,12 @@ export function PurchasePaymentForm({
           ? { ...line, description: fields.description!.value }
           : line));
       }
-      if (fields.grossAmount?.value) {
-        setLines((current) => current.map((line, index) => index === 0
+      if (fields.grossAmount?.value && targetLineId) {
+        setGrossAmountInputs((current) => ({
+          ...current,
+          [targetLineId]: formatMoneyInput(fields.grossAmount!.value),
+        }));
+        setLines((current) => current.map((line) => line.localId === targetLineId
           ? { ...line, grossAmount: fields.grossAmount!.value }
           : line));
       }
@@ -269,14 +296,20 @@ export function PurchasePaymentForm({
                   <Select ariaLabel={`Kostnadskonto for linje ${index + 1}`} value={line.expenseAccountId} options={expenseAccounts.map((account) => ({ value: account.id, label: `${account.account_number} ${account.name}` }))} onChange={(value) => updateLine(line.localId, { expenseAccountId: value })} />
                 </FormField>
                 <FormField label="Beløp inkl. MVA">
-                  <Input inputMode="decimal" value={line.grossAmount || ""} onChange={(event) => updateLine(line.localId, { grossAmount: parseLocalizedMoney(event.target.value) ?? 0 })} required />
+                  <Input
+                    inputMode="decimal"
+                    value={grossAmountInputs[line.localId] ?? (line.grossAmount > 0 ? formatMoneyInput(line.grossAmount) : "")}
+                    onChange={(event) => updateGrossAmount(line.localId, event.target.value)}
+                    onBlur={() => normalizeGrossAmount(line.localId, line.grossAmount)}
+                    required
+                  />
                 </FormField>
                 <FormField label="MVA-sats">
                   <Select ariaLabel={`MVA-sats for linje ${index + 1}`} value={line.vatRate} options={[25, 15, 12, 0].map((rate) => ({ value: rate, label: `${rate} %` }))} onChange={(value) => updateLine(line.localId, { vatRate: Number(value) })} />
                 </FormField>
                 <div className="flex items-center justify-between gap-3 lg:block">
                   <div className="text-xs text-slate-600 lg:mb-2 lg:text-right"><span className="block">Netto {formatCurrency(calculated.netAmount)}</span><span className="block">MVA {formatCurrency(calculated.vatAmount)}</span></div>
-                  <AnimatedIconButton icon={Trash2} variant="danger" size="xs" className="h-9 w-9 !p-0" disabled={lines.length === 1} onClick={() => setLines((current) => current.filter((item) => item.localId !== line.localId))} title="Fjern linje"><span className="sr-only">Fjern linje</span></AnimatedIconButton>
+                  <AnimatedIconButton icon={Trash2} variant="danger" size="xs" className="h-9 w-9 !p-0" disabled={lines.length === 1} onClick={() => removeLine(line.localId)} title="Fjern linje"><span className="sr-only">Fjern linje</span></AnimatedIconButton>
                 </div>
               </div>
             );
@@ -308,6 +341,14 @@ export function PurchasePaymentForm({
 
 function createDraftLine(expenseAccountId: string): SupplierInvoiceDraftLine {
   return { localId: crypto.randomUUID(), description: "", expenseAccountId, grossAmount: 0, vatRate: 25 };
+}
+
+function formatMoneyInput(value: number) {
+  return value.toLocaleString("nb-NO", {
+    useGrouping: false,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
 }
 
 function isPdfFile(file: File) {
