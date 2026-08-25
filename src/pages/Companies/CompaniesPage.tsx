@@ -31,7 +31,7 @@ export default function CompaniesPage({
     <>
       <SectionHeader
         title="Selskaper"
-        description="Åpne et selskap for å se informasjon, produkter og fakturaer."
+        description="Registrer et selskap for å se informasjon, produkter og fakturaer. Dette gjør det enklere fakturere gjentagende kunder og holde oversikt over selskapets fakturaer."
         action={
           <AnimatedIconButton className="w-full sm:w-auto" icon={Plus} onClick={() => setShowNewCompany(true)}>
             Nytt selskap

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Button } from "../Button";
-import { useModalDismiss } from "./useModalDismiss";
+import { ModalOverlay } from "./ModalOverlay";
 
 type ModalProps = {
   open: boolean;
@@ -21,18 +21,8 @@ export function Modal({
   labelledBy,
   maxWidth = "lg",
 }: ModalProps) {
-  useModalDismiss(open, onClose);
-
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/40 p-4"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
+    <ModalOverlay open={open} onClose={onClose}>
       <section
         className={`my-4 w-full rounded-xl border border-blue-100 bg-white shadow-xl ${
           maxWidth === "2xl" ? "max-w-2xl" : "max-w-lg"
@@ -60,6 +50,6 @@ export function Modal({
         </header>
         <div className="px-6 py-5">{children}</div>
       </section>
-    </div>
+    </ModalOverlay>
   );
 }
