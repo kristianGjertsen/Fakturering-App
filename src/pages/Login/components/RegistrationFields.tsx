@@ -24,6 +24,7 @@ export type RegistrationFormState = {
   hasSentInvoicesBefore: boolean;
   invoiceNumberPrefix: string;
   lastInvoiceNumber: string;
+  isSwitchingAccountingSystem: boolean | null;
   saftImportFile: File | null;
   bankAccounts: BankAccountFormRow[];
 };
@@ -50,6 +51,7 @@ export function createRegistrationFormState(): RegistrationFormState {
     hasSentInvoicesBefore: false,
     invoiceNumberPrefix: "",
     lastInvoiceNumber: "",
+    isSwitchingAccountingSystem: null,
     saftImportFile: null,
     bankAccounts: [createBankAccountFormRow()],
   };
@@ -80,10 +82,10 @@ export function RegistrationFields({
   const parsedLastInvoiceNumber = parseInvoiceNumberInput(value.lastInvoiceNumber);
   const nextInvoiceNumber = parsedLastInvoiceNumber
     ? formatInvoiceNumber(
-        value.invoiceNumberPrefix,
-        parsedLastInvoiceNumber.number + 1,
-        parsedLastInvoiceNumber.paddingWidth,
-      )
+      value.invoiceNumberPrefix,
+      parsedLastInvoiceNumber.number + 1,
+      parsedLastInvoiceNumber.paddingWidth,
+    )
     : "…";
 
   async function handleSaftFileSelection(fileList: FileList | null) {
@@ -124,31 +126,78 @@ export function RegistrationFields({
 
       {currentStep === 1 && (
         <div className="space-y-4">
-          <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50 p-4">
-            <div className="flex items-start gap-3">
-              <Upload size={22} className="mt-0.5 shrink-0 text-blue-700" />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-950">Start med SAF-T hvis du har fil</p>
-                <p className="mt-1 text-sm text-slate-600">
-                  Appen prøver å fylle inn firma, kontoplan, kunder, leverandører, MVA-koder og historiske bilag fra XML-filen.
-                </p>
-              </div>
+          <div className="rounded-lg border border-blue-100 bg-white p-4 shadow-sm">
+            <p className="text-lg font-semibold text-slate-950">
+              Bytter du regnskapsprogram?
+            </p>
+            <p className="mt-2 text-sm text-slate-600">
+              Hvis virksomheten allerede har regnskap fra et annet system, kan en SAF-T-fil brukes til å hente inn historikken.
+            </p>
+            <p className="mt-2 text-sm text-slate-600">
+              Dersom du starter ved et årsskifte og ikke trenger historikk fra tidligere år, er dette ikke nødvendig.
+            </p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <Button
+                type="button"
+                variant={value.isSwitchingAccountingSystem === true ? "primary" : "secondary"}
+                onClick={() => updateField("isSwitchingAccountingSystem", true)}
+              >
+                Ja
+              </Button>
+              <Button
+                type="button"
+                variant={value.isSwitchingAccountingSystem === false ? "primary" : "secondary"}
+                onClick={() => onChange({
+                  ...value,
+                  isSwitchingAccountingSystem: false,
+                  saftImportFile: null,
+                })}
+              >
+                Nei
+              </Button>
             </div>
-            <Input
-              className={inputClassName}
-              type="file"
-              accept={SAFT_IMPORT_ACCEPT}
-              disabled={readingSaft}
-              onChange={(event) => void handleSaftFileSelection(event.currentTarget.files)}
-            />
-            {value.saftImportFile && (
-              <div className="mt-3 flex min-w-0 items-center gap-2 rounded-md border border-blue-100 bg-white px-3 py-2 text-sm text-slate-700">
-                <FileText size={16} className="shrink-0 text-blue-700" />
-                <span className="min-w-0 truncate">{value.saftImportFile.name}</span>
+          </div>
+
+          {value.isSwitchingAccountingSystem === true && (
+            <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50 p-4">
+              <div className="flex items-start gap-3">
+                <Upload size={22} className="mt-0.5 shrink-0 text-blue-700" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-950">Last opp SAF-T-fil</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Appen prøver å fylle inn firma, kontoplan, kunder, leverandører, MVA-koder og historiske bilag fra XML-filen.
+                  </p>
+                </div>
               </div>
-            )}
-            {readingSaft && <p className="mt-2 text-sm text-slate-500">Leser SAF-T-filen...</p>}
-            {saftSummary && <p className="mt-2 text-sm text-slate-600">{saftSummary}</p>}
+              <Input
+                className={inputClassName}
+                type="file"
+                accept={SAFT_IMPORT_ACCEPT}
+                disabled={readingSaft}
+                onChange={(event) => void handleSaftFileSelection(event.currentTarget.files)}
+              />
+              {value.saftImportFile && (
+                <div className="mt-3 flex min-w-0 items-center gap-2 rounded-md border border-blue-100 bg-white px-3 py-2 text-sm text-slate-700">
+                  <FileText size={16} className="shrink-0 text-blue-700" />
+                  <span className="min-w-0 truncate">{value.saftImportFile.name}</span>
+                </div>
+              )}
+              {readingSaft && <p className="mt-2 text-sm text-slate-500">Leser SAF-T-filen...</p>}
+              {saftSummary && <p className="mt-2 text-sm text-slate-600">{saftSummary}</p>}
+            </div>
+          )}
+
+          {value.isSwitchingAccountingSystem === false && (
+            <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+              Da starter du uten historisk SAF-T-import. Du kan fortsatt legge inn firmaopplysninger og begynne med ny fakturanummerserie.
+            </p>
+          )}
+
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-semibold text-slate-950">Hva er SAF-T?</p>
+            <p className="mt-1 text-sm text-slate-600">
+              SAF-T er en standard regnskapsfil som kan eksporteres fra mange regnskapssystemer. Den kan inneholde firmaopplysninger, kontoplan, kunder, leverandører, MVA-koder, saldoer og bokførte bilag.
+            </p>
           </div>
         </div>
       )}
@@ -285,18 +334,20 @@ export function RegistrationFields({
 
 export function RegistrationStepActions({
   currentStep,
+  form,
   loading,
   onBack,
   onNext,
 }: {
   currentStep: RegistrationStep;
+  form: RegistrationFormState;
   loading: boolean;
   onBack: () => void;
   onNext: () => void;
 }) {
   if (currentStep === 1) {
     return (
-      <Button className="w-full" type="button" disabled={loading} onClick={onNext}>
+      <Button className="w-full" type="button" disabled={loading || !canContinueRegistrationStep(currentStep, form)} onClick={onNext}>
         Neste
       </Button>
     );
@@ -308,7 +359,7 @@ export function RegistrationStepActions({
         <Button className="flex-1" type="button" variant="secondary" disabled={loading} onClick={onBack}>
           Tilbake
         </Button>
-        <Button className="flex-1" type="button" disabled={loading} onClick={onNext}>
+        <Button className="flex-1" type="button" disabled={loading || !canContinueRegistrationStep(currentStep, form)} onClick={onNext}>
           Neste
         </Button>
       </div>
@@ -316,6 +367,20 @@ export function RegistrationStepActions({
   }
 
   return null;
+}
+
+export function canContinueRegistrationStep(step: RegistrationStep, form: RegistrationFormState) {
+  if (step === 1) return form.isSwitchingAccountingSystem !== null;
+  if (step === 2) {
+    return Boolean(
+      form.fullName.trim()
+      && form.companyName.trim()
+      && form.address.trim()
+      && form.postalAddress.trim()
+      && form.orgNumber.trim(),
+    );
+  }
+  return true;
 }
 
 function RegistrationStepIndicator({ currentStep }: { currentStep: RegistrationStep }) {
@@ -330,11 +395,10 @@ function RegistrationStepIndicator({ currentStep }: { currentStep: RegistrationS
             <div key={step.number} className="flex min-w-0 flex-1 items-center last:flex-none">
               <div className="flex min-w-0 items-center gap-2">
                 <span
-                  className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold ${
-                    active || completed
+                  className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold ${active || completed
                       ? "bg-blue-700 text-white"
                       : "border border-blue-200 bg-white text-slate-500"
-                  }`}
+                    }`}
                 >
                   {completed ? "✓" : step.number}
                 </span>
