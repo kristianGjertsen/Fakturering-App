@@ -120,6 +120,7 @@ export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
             onDeleteInvoice={handleDeleteInvoice}
             onRefreshInvoices={refreshData}
             onUpdateProfile={updateProfileInData}
+            onRefreshProfileData={refreshData}
             onSignOut={handleSignOut}
           />
         </PageLayout>
