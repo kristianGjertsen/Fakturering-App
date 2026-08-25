@@ -186,6 +186,7 @@ export default function LoginPage() {
           {isRegistering && registrationStep < 3 ? (
             <RegistrationStepActions
               currentStep={registrationStep}
+              form={registrationForm}
               loading={loading}
               onBack={() => {
                 setMessage("");
@@ -245,7 +246,9 @@ export default function LoginPage() {
 
 function validateRegistrationStep(step: RegistrationStep, form: ReturnType<typeof createRegistrationFormState>) {
   if (step === 1) {
-    return "";
+    return form.isSwitchingAccountingSystem === null
+      ? "Velg om du bytter regnskapsprogram."
+      : "";
   }
 
   if (step === 2) {
