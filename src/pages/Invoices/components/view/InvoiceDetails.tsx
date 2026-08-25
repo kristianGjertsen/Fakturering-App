@@ -187,6 +187,7 @@ function InvoiceOverview({
               variant={invoice.paid ? "secondary" : "success"}
               onClick={onTogglePaid}
               disabled={updatingPaid}
+              help={invoice.paid ? "Oppretter en korreksjon for registrert betaling, slik at fakturaen ikke lenger står som betalt." : "Markerer fakturaen som betalt og bokfører betalingen mot valgt dato og konto."}
             >
               {updatingPaid
                 ? "Oppdaterer..."
@@ -204,12 +205,12 @@ function InvoiceOverview({
          
           {!scheduled && invoice.status === "sent" && invoice.paid != true && (
             //Show "Purre" button only if the invoice is sent and not paid yet
-            <Button variant="danger" onClick={() => onSend("remind")} disabled={sending}>
+            <Button variant="danger" onClick={() => onSend("remind")} disabled={sending} help="Sender en betalingspåminnelse til mottakerens e-postadresse for denne fakturaen.">
               {sending ? "Sender..." : "Purre"}
             </Button>
           )}
           {!scheduled && invoice.status === "draft" && (
-            <Button variant="danger" onClick={onDelete} disabled={deleting}>
+            <Button variant="danger" onClick={onDelete} disabled={deleting} help="Sletter utkastet permanent. Sendte fakturaer kan ikke slettes her.">
               {deleting ? "Sletter..." : "Slett faktura"}
             </Button>
           )}

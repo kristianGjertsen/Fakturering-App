@@ -95,9 +95,9 @@ export function SupplierInvoicesView({
         <div className="flex flex-col gap-3 border-b border-blue-100 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div><h3 className="font-semibold text-slate-950">Innbetalinger {year}</h3><p className="text-xs text-slate-500">{viewMode === "invoices" ? `${filteredInvoices.length} fakturaer · ${formatCurrency(filteredInvoices.reduce((sum, invoice) => sum + Number(invoice.total), 0))}` : `${filteredPurchases.length} kjøp · ${formatCurrency(filteredPurchases.reduce((sum, purchase) => sum + Number(purchase.total), 0))}`}</p></div>
           <div className="flex flex-wrap gap-2">
-            <AnimatedIconButton icon={FileText} variant="secondary" size="sm" onClick={() => { changeView("invoices"); onNewInvoice(); }}>Registrer faktura</AnimatedIconButton>
-            <AnimatedIconButton icon={Plus} size="sm" onClick={() => { changeView("purchases"); onNewPurchase(); }}>Registrer betaling</AnimatedIconButton>
-            <AnimatedIconButton icon={Banknote} variant="secondary" size="sm" onClick={() => { changeView("purchases"); onNewReimbursement(); }}>Tilbakebetal utlegg</AnimatedIconButton>
+            <AnimatedIconButton icon={FileText} variant="secondary" size="sm" onClick={() => { changeView("invoices"); onNewInvoice(); }} help="Registrerer en leverandørfaktura som skal bokføres og eventuelt betales senere.">Registrer faktura</AnimatedIconButton>
+            <AnimatedIconButton icon={Plus} size="sm" onClick={() => { changeView("purchases"); onNewPurchase(); }} help="Brukes for kjøp som allerede er betalt med selskapets konto/kort eller som privat utlegg.">Registrer betaling</AnimatedIconButton>
+            <AnimatedIconButton icon={Banknote} variant="secondary" size="sm" onClick={() => { changeView("purchases"); onNewReimbursement(); }} help="Registrerer at virksomheten betaler tilbake et privat utlegg fra valgt bankkonto.">Tilbakebetal utlegg</AnimatedIconButton>
           </div>
         </div>
         <div className="flex gap-1 border-b border-blue-100 p-2" role="tablist" aria-label="Type inngående betaling">
@@ -198,7 +198,7 @@ function SupplierInvoiceDetails({ invoice, accounts, entries, busy, actionMessag
                 {invoice.status !== "paid" && <FormField label="Bankkonto"><Select ariaLabel="Bankkonto for betaling" value={bankAccountId} options={bankAccounts.map((account) => ({ value: account.id, label: `${account.account_number} ${account.name}` }))} onChange={setBankAccountId} /></FormField>}
                 {invoice.status !== "paid" && invoice.currency !== "NOK" && <FormField label="Faktisk belastet bank (NOK)" helper="Differansen fra bokført fakturaverdi føres som valutagevinst eller valutatap."><Input inputMode="decimal" value={paidAmountNok} onChange={(event) => setPaidAmountNok(event.target.value)} required /></FormField>}
               </div>
-              <Button className="mt-4 w-full" variant={invoice.status === "paid" ? "secondary" : "success"} disabled={busy || (invoice.status !== "paid" && invoice.currency !== "NOK" && actualPaidAmountNok === null)} onClick={() => invoice.status === "paid" ? setShowCorrection(true) : void onSetPaid(invoice, true, paymentDate, bankAccountId || null, invoice.currency === "NOK" ? Number(invoice.total) : actualPaidAmountNok)}>{busy ? "Bokfører..." : invoice.status === "paid" ? "Korriger betaling" : "Registrer som betalt"}</Button>
+              <Button className="mt-4 w-full" variant={invoice.status === "paid" ? "secondary" : "success"} disabled={busy || (invoice.status !== "paid" && invoice.currency !== "NOK" && actualPaidAmountNok === null)} onClick={() => invoice.status === "paid" ? setShowCorrection(true) : void onSetPaid(invoice, true, paymentDate, bankAccountId || null, invoice.currency === "NOK" ? Number(invoice.total) : actualPaidAmountNok)} help={invoice.status === "paid" ? "Oppretter et motbilag for den registrerte betalingen. Det opprinnelige betalingsbilaget beholdes." : "Bokfører betalingen mot valgt bankkonto og markerer fakturaen som betalt."}>{busy ? "Bokfører..." : invoice.status === "paid" ? "Korriger betaling" : "Registrer som betalt"}</Button>
             </>
           )}
         </Panel>
@@ -206,7 +206,7 @@ function SupplierInvoiceDetails({ invoice, accounts, entries, busy, actionMessag
           <h3 className="font-semibold text-slate-950">Originaldokumenter</h3>
           {(invoice.supplier_invoice_attachments ?? []).length === 0 ? <p className="mt-2 text-sm text-slate-500">Ingen filer lastet opp.</p> : <ul className="mt-3 divide-y divide-blue-100">{(invoice.supplier_invoice_attachments ?? []).map((attachment) => <li key={attachment.id} className="flex items-center justify-between gap-3 py-2"><span className="min-w-0"><span className="block truncate text-sm">{attachment.original_name}</span><span className="text-xs text-slate-500">{formatFileSize(attachment.size_bytes)}</span></span><AnimatedIconButton icon={Download} variant="secondary" size="xs" onClick={() => void onDownloadAttachment(attachment.storage_path, attachment.original_name)}><span className="sr-only">Last ned</span></AnimatedIconButton></li>)}</ul>}
         </Panel>
-        {invoice.status === "posted" && <Button className="w-full" variant="danger" disabled={busy} onClick={() => setShowCancellation(true)}>Annuller faktura</Button>}
+        {invoice.status === "posted" && <Button className="w-full" variant="danger" disabled={busy} onClick={() => setShowCancellation(true)} help="Annullering sletter ikke fakturaen. Det opprettes et motbilag på valgt dato.">Annuller faktura</Button>}
       </div>
 
       <ConfirmDialog open={showCorrection} title="Korriger registrert betaling" message="Det opprinnelige betalingsbilaget beholdes, og et nytt motbilag opprettes på valgt dato." confirmLabel="Opprett motbilag" onCancel={() => setShowCorrection(false)} onConfirm={() => { setShowCorrection(false); void onSetPaid(invoice, false, paymentDate, null); }} />
@@ -278,7 +278,7 @@ function PurchasePaymentDetails({ purchase, accounts, entries, busy, actionMessa
                     <Input inputMode="decimal" value={reimbursementAmount} onChange={(event) => setReimbursementAmount(event.target.value)} onBlur={() => { if (parsedReimbursementAmount !== null) setReimbursementAmount(formatMoneyInput(parsedReimbursementAmount)); }} />
                   </FormField>
                 </div>
-                <Button className="mt-4 w-full" variant="success" disabled={busy || !bankAccountId || parsedReimbursementAmount === null || parsedReimbursementAmount > totals.remaining} onClick={() => setShowReimbursement(true)}>{busy ? "Bokfører..." : "Bokfør tilbakebetaling"}</Button>
+                <Button className="mt-4 w-full" variant="success" disabled={busy || !bankAccountId || parsedReimbursementAmount === null || parsedReimbursementAmount > totals.remaining} onClick={() => setShowReimbursement(true)} help="Bokfører at virksomheten tilbakebetaler privatpersonen fra valgt bankkonto. Kjøpsbilaget endres ikke.">{busy ? "Bokfører..." : "Bokfør tilbakebetaling"}</Button>
               </>
             ) : <p className="mt-3 text-sm text-slate-600">Utlegget er fullstendig tilbakebetalt.</p>}
           </Panel>
@@ -294,7 +294,7 @@ function PurchasePaymentDetails({ purchase, accounts, entries, busy, actionMessa
                     <span className="block text-xs text-slate-500">{formatDate(reimbursement.reimbursement_date)} · {reimbursement.bank_account ? `${reimbursement.bank_account.account_number} ${reimbursement.bank_account.name}` : "Bankkonto"}{journalVoucher(entries, reimbursement.journal_entry_id)}</span>
                     {reimbursement.status === "reversed" && <span className="block text-xs text-red-700">Korrigert {formatDate(reimbursement.reversed_at)}</span>}
                   </span>
-                  {reimbursement.status === "active" && <Button size="xs" variant="secondary" disabled={busy} onClick={() => setReimbursementToReverse(reimbursement)}>Korriger</Button>}
+                  {reimbursement.status === "active" && <Button size="xs" variant="secondary" disabled={busy} onClick={() => setReimbursementToReverse(reimbursement)} help="Oppretter et motbilag for tilbakebetalingen. Den opprinnelige tilbakebetalingen beholdes i historikken.">Korriger</Button>}
                 </li>
               ))}
             </ul>
@@ -304,7 +304,7 @@ function PurchasePaymentDetails({ purchase, accounts, entries, busy, actionMessa
           <h3 className="font-semibold text-slate-950">Originaldokumenter</h3>
           <ul className="mt-3 divide-y divide-blue-100">{(purchase.purchase_payment_attachments ?? []).map((attachment) => <li key={attachment.id} className="flex items-center justify-between gap-3 py-2"><span className="min-w-0"><span className="block truncate text-sm">{attachment.original_name}</span><span className="text-xs text-slate-500">{formatFileSize(attachment.size_bytes)}</span></span><AnimatedIconButton icon={Download} variant="secondary" size="xs" onClick={() => void onDownloadAttachment(attachment.storage_path, attachment.original_name)}><span className="sr-only">Last ned</span></AnimatedIconButton></li>)}</ul>
         </Panel>
-        {purchase.status === "booked" && activeReimbursements.length === 0 && <Button className="w-full" variant="danger" disabled={busy} onClick={() => setShowCancellation(true)}>Annuller kjøp</Button>}
+        {purchase.status === "booked" && activeReimbursements.length === 0 && <Button className="w-full" variant="danger" disabled={busy} onClick={() => setShowCancellation(true)} help="Annullering sletter ikke kjøpet. Det opprettes et motbilag på valgt dato.">Annuller kjøp</Button>}
       </div>
 
       <ConfirmDialog open={showReimbursement} title="Bokfør tilbakebetaling" message={`${parsedReimbursementAmount === null ? "Beløpet" : formatCurrency(parsedReimbursementAmount)} utbetales fra valgt bankkonto. Kjøpsbilaget beholdes uendret.`} confirmLabel="Bokfør tilbakebetaling" onCancel={() => setShowReimbursement(false)} onConfirm={() => { setShowReimbursement(false); if (parsedReimbursementAmount !== null) void onReimbursePurchase(purchase, actionDate, bankAccountId, parsedReimbursementAmount); }} />

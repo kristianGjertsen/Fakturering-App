@@ -181,6 +181,7 @@ export function DetailedReports({
                   variant={closed ? "secondary" : "ghost"}
                   disabled={updatingPeriod === key}
                   onClick={() => onSetPeriodStatus(month, closed ? "open" : "closed")}
+                  help={closed ? "Åpner perioden igjen, slik at nye bilag og korrigeringer kan bokføres med dato i måneden." : "Låser perioden. Nye fakturaer, betalinger, bilag og korrigeringer med dato i måneden blir avvist."}
                 >
                   {updatingPeriod === key ? "Lagrer..." : closed ? "Åpne" : "Lås"}
                 </Button>

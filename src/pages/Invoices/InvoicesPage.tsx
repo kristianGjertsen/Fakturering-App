@@ -332,7 +332,7 @@ export default function InvoicesPage({
 
   const pageHeader = (
     <div>
-      
+
       <SectionHeader
         title="Fakturaer"
         description={"Finn fakturaer etter bedrift, sorter listen og åpne en faktura for detaljer og PDF-forhåndsvisning."}
@@ -342,10 +342,15 @@ export default function InvoicesPage({
               icon={Upload}
               variant="secondary"
               onClick={() => setShowHistoricalImport(true)}
+              help="Registrer tidligere sendte fakturaer for å få en mer komplett historikk og et fullstendig regnskap."
             >
-              Historisk faktura
+              Registrer tidligere faktura
             </AnimatedIconButton>
-            <AnimatedIconButton icon={Plus} onClick={() => setShowCreateForm((value) => !value)}>
+            <AnimatedIconButton
+              icon={Plus}
+              onClick={() => setShowCreateForm((value) => !value)}
+              help="Lag en ny faktura for en kunde. Send, eller lagre som utkast for senere redigering."
+            >
               Ny faktura
             </AnimatedIconButton>
           </div>
