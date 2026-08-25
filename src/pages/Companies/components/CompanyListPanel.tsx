@@ -28,12 +28,12 @@ export function CompanyListPanel({
   return (
     <section>
       <Panel as="div">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-base font-semibold text-slate-950">Registrerte selskaper</h3>
 
           </div>
-          <span className="text-sm text-slate-500">{activeCompanies.length} aktive</span>
+          <span className="shrink-0 text-sm text-slate-500">{activeCompanies.length} aktive</span>
         </div>
 
         {activeCompanies.length === 0 ? (
@@ -86,7 +86,7 @@ function CompanyList({
         <button
           key={company.id}
           type="button"
-          className={`flex w-full items-center gap-3 px-4 py-4 text-left transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 ${inactive ? "opacity-80" : ""
+          className={`flex w-full items-center gap-3 px-3 py-4 text-left transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 sm:px-4 ${inactive ? "opacity-80" : ""
             }`}
           onClick={() => onOpenCompany(company.id)}
         >
@@ -120,7 +120,7 @@ function CompanyList({
               ].filter(Boolean).join(" · ") || "Ingen detaljer registrert"}
             </p>
           </div>
-          <span className="shrink-0 rounded-md border border-blue-200 bg-white px-3 py-1.5 text-sm font-semibold text-blue-800 shadow-sm">
+          <span className="hidden shrink-0 rounded-md border border-blue-200 bg-white px-3 py-1.5 text-sm font-semibold text-blue-800 shadow-sm sm:inline-flex">
             Åpne
           </span>
         </button>

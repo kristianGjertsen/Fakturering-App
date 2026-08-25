@@ -337,9 +337,10 @@ export default function InvoicesPage({
         title="Fakturaer"
         description={"Finn fakturaer etter bedrift, sorter listen og åpne en faktura for detaljer og PDF-forhåndsvisning."}
         action={!showCreateForm ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
             <AnimatedIconButton
               icon={Upload}
+              className="w-full sm:w-auto"
               variant="secondary"
               onClick={() => setShowHistoricalImport(true)}
               help="Registrer tidligere sendte fakturaer for å få en mer komplett historikk og et fullstendig regnskap."
@@ -348,6 +349,7 @@ export default function InvoicesPage({
             </AnimatedIconButton>
             <AnimatedIconButton
               icon={Plus}
+              className="w-full sm:w-auto"
               onClick={() => setShowCreateForm((value) => !value)}
               help="Lag en ny faktura for en kunde. Send, eller lagre som utkast for senere redigering."
             >
@@ -498,9 +500,9 @@ export default function InvoicesPage({
               />
             </FormField>
           )}
-          <div className="flex justify-end gap-2 border-t border-blue-100 pt-4">
-            <Button variant="secondary" disabled={Boolean(updatingPaidInvoiceId)} onClick={() => setPaymentInvoiceId("")}>Avbryt</Button>
-            <Button disabled={Boolean(updatingPaidInvoiceId) || !paymentDate} onClick={() => void handleSavePayment()}>
+          <div className="grid gap-2 border-t border-blue-100 pt-4 sm:flex sm:justify-end">
+            <Button className="w-full sm:w-auto" variant="secondary" disabled={Boolean(updatingPaidInvoiceId)} onClick={() => setPaymentInvoiceId("")}>Avbryt</Button>
+            <Button className="w-full sm:w-auto" disabled={Boolean(updatingPaidInvoiceId) || !paymentDate} onClick={() => void handleSavePayment()}>
               {updatingPaidInvoiceId ? "Bokfører..." : invoices.find((invoice) => invoice.id === paymentInvoiceId)?.paid ? "Opprett motbilag" : "Bokfør betaling"}
             </Button>
           </div>

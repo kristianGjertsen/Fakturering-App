@@ -104,8 +104,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center px-4">
-      <section className="w-full max-w-md rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+    <main className="grid min-h-screen place-items-center px-3 py-4 sm:px-4">
+      <section className="w-full max-w-lg rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:rounded-2xl sm:p-8">
         <h1 className="text-2xl font-semibold text-slate-900">
           {isRegistering ? "Opprett bruker" : "Logg inn"}
         </h1>
@@ -113,7 +113,7 @@ export default function LoginPage() {
           Logg inn for å administrere kunder og fakturaer.
         </p>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4 sm:mt-6">
           {isRegistering && (
             <RegistrationFields value={registrationForm} onChange={setRegistrationForm} />
           )}

@@ -33,7 +33,7 @@ export default function CompaniesPage({
         title="Selskaper"
         description="Åpne et selskap for å se informasjon, produkter og fakturaer."
         action={
-          <AnimatedIconButton icon={Plus} onClick={() => setShowNewCompany(true)}>
+          <AnimatedIconButton className="w-full sm:w-auto" icon={Plus} onClick={() => setShowNewCompany(true)}>
             Nytt selskap
           </AnimatedIconButton>
         }
