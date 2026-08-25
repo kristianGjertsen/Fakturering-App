@@ -42,7 +42,7 @@ export function CompanyListPanel({
               title={inactiveCompanies.length > 0 ? "Ingen aktive selskaper" : "Ingen selskaper"}
               description={inactiveCompanies.length > 0
                 ? "Inaktive firmaer ligger nederst på siden."
-                : "Trykk på «Nytt selskap» for å registrere det første selskapet."}
+                : "Trykk på \"Registrer nytt selskap\" for å registrere det første selskapet."}
             />
           </div>
         ) : (

@@ -34,7 +34,7 @@ export default function CompaniesPage({
         description="Registrer et selskap for å se informasjon, produkter og fakturaer. Dette gjør det enklere fakturere gjentagende kunder og holde oversikt over selskapets fakturaer."
         action={
           <AnimatedIconButton className="w-full sm:w-auto" icon={Plus} onClick={() => setShowNewCompany(true)}>
-            Nytt selskap
+            Registrer nytt selskap
           </AnimatedIconButton>
         }
       />
