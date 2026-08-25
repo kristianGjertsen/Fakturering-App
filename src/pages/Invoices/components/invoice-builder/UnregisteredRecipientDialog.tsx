@@ -1,5 +1,5 @@
 import { Button } from "../../../../components/Button";
-import { useModalDismiss } from "../../../../components/layout/useModalDismiss";
+import { ModalOverlay } from "../../../../components/layout/ModalOverlay";
 
 type UnregisteredRecipientDialogProps = {
   open: boolean;
@@ -14,18 +14,8 @@ export function UnregisteredRecipientDialog({
   onCreateCompany,
   onContinue,
 }: UnregisteredRecipientDialogProps) {
-  useModalDismiss(open, onCancel, { lockBodyScroll: true });
-
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 grid min-h-dvh place-items-center overflow-y-auto bg-slate-950/40 p-4"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onCancel();
-      }}
-    >
+    <ModalOverlay open={open} onClose={onCancel}>
       <section
         className="my-4 w-full max-w-md rounded-xl border border-blue-100 bg-white p-5 shadow-xl sm:p-6"
         role="dialog"
@@ -47,6 +37,6 @@ export function UnregisteredRecipientDialog({
           <Button className="w-full sm:w-auto" onClick={onCreateCompany}>Opprett selskap</Button>
         </div>
       </section>
-    </div>
+    </ModalOverlay>
   );
 }
