@@ -7,9 +7,11 @@ import {
   Calculator,
   Files,
   LayoutDashboard,
+  Menu,
   Repeat,
   Store,
   User,
+  X,
 } from "@animateicons/react/lucide";
 import { AnimatedIconButton } from "../AnimatedIconButton";
 
@@ -23,28 +25,53 @@ const navigationItems = [
 export function AppHeader() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname, location.search]);
+
+  function openRoute(to: string) {
+    setMobileMenuOpen(false);
+    navigate(to);
+  }
 
   return (
     <header className="shrink-0 border-b border-blue-100 bg-white">
       <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex text-2xl font-semibold">
             <span className="text-slate-950">Auto</span>
             <span className="text-blue-700">Faktura</span>
           </div>
 
+          <div className="hidden lg:block">
+            <AnimatedIconButton
+              icon={User}
+              variant={location.pathname === "/profile" ? "primary" : "secondary"}
+              size="sm"
+              onClick={() => navigate("/profile")}
+            >
+              Profil
+            </AnimatedIconButton>
+          </div>
+
           <AnimatedIconButton
-            icon={User}
-            variant={location.pathname === "/profile" ? "primary" : "secondary"}
+            icon={mobileMenuOpen ? X : Menu}
+            className="h-10 w-10 !p-0 lg:hidden"
+            variant="secondary"
             size="sm"
-            onClick={() => navigate("/profile")}
+            aria-label={mobileMenuOpen ? "Lukk meny" : "Åpne meny"}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-navigation"
+            onClick={() => setMobileMenuOpen((open) => !open)}
           >
-            Profil
+            <span className="sr-only">{mobileMenuOpen ? "Lukk meny" : "Åpne meny"}</span>
           </AnimatedIconButton>
         </div>
 
         <nav
-          className="flex w-full gap-2 overflow-x-auto pb-1 sm:justify-center"
+          className="hidden w-full gap-2 overflow-x-auto pb-1 lg:flex lg:justify-center"
           aria-label="Hovednavigasjon"
         >
           {navigationItems.slice(0, 2).map((item) => (
@@ -55,6 +82,44 @@ export function AppHeader() {
               <NavigationButton key={item.to} item={item} pathname={location.pathname} onNavigate={navigate} />
           ))}
         </nav>
+
+        {mobileMenuOpen && (
+          <nav
+            id="mobile-navigation"
+            className="grid gap-2 border-t border-blue-100 pt-4 lg:hidden"
+            aria-label="Mobilnavigasjon"
+          >
+            {navigationItems.slice(0, 2).map((item) => (
+              <MobileNavigationButton key={item.to} item={item} pathname={location.pathname} onNavigate={openRoute} />
+            ))}
+            <div className="grid gap-2 rounded-md border border-blue-100 bg-slate-50 p-2">
+              <MobileMenuButton
+                icon={ArrowUpRight}
+                active={location.pathname === "/invoices"}
+                onClick={() => openRoute("/invoices")}
+              >
+                Utbetalinger
+              </MobileMenuButton>
+              <MobileMenuButton
+                icon={ArrowDownLeft}
+                active={location.pathname.startsWith("/payments")}
+                onClick={() => openRoute("/payments/incoming")}
+              >
+                Innbetalinger
+              </MobileMenuButton>
+            </div>
+            {navigationItems.slice(2).map((item) => (
+              <MobileNavigationButton key={item.to} item={item} pathname={location.pathname} onNavigate={openRoute} />
+            ))}
+            <MobileMenuButton
+              icon={User}
+              active={location.pathname === "/profile"}
+              onClick={() => openRoute("/profile")}
+            >
+              Profil
+            </MobileMenuButton>
+          </nav>
+        )}
       </div>
     </header>
   );
@@ -81,6 +146,53 @@ function NavigationButton({
     >
       {item.label}
     </AnimatedIconButton>
+  );
+}
+
+function MobileNavigationButton({
+  item,
+  pathname,
+  onNavigate,
+}: {
+  item: NavigationItem;
+  pathname: string;
+  onNavigate: (to: string) => void;
+}) {
+  return (
+    <MobileMenuButton
+      icon={item.icon}
+      active={isCurrentRoute(pathname, item.to)}
+      onClick={() => onNavigate(item.to)}
+    >
+      {item.label}
+    </MobileMenuButton>
+  );
+}
+
+function MobileMenuButton({
+  children,
+  icon: Icon,
+  active,
+  onClick,
+}: {
+  children: string;
+  icon: NavigationItem["icon"];
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`flex w-full items-center gap-3 rounded-md border px-3 py-3 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 ${
+        active
+          ? "border-blue-700 bg-blue-700 text-white shadow-sm"
+          : "border-blue-100 bg-white text-slate-800 hover:border-blue-200 hover:bg-blue-50"
+      }`}
+      onClick={onClick}
+    >
+      <Icon size={20} />
+      <span>{children}</span>
+    </button>
   );
 }
 
