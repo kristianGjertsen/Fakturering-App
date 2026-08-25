@@ -71,7 +71,7 @@ export function AppHeader() {
         </div>
 
         <nav
-          className="hidden w-full gap-2 overflow-x-auto pb-1 lg:flex lg:justify-center"
+          className="hidden w-full gap-2 overflow-x-auto pb-1 pt-2 lg:flex lg:justify-center"
           aria-label="Hovednavigasjon"
         >
           {navigationItems.slice(0, 2).map((item) => (
