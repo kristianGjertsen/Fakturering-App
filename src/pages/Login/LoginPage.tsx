@@ -2,9 +2,12 @@ import { useState, type FormEvent } from "react";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { supabase } from "../../supabaseClient";
+import { uploadAndImportSaftFile, validateSaftImportFile } from "../../lib/saftImportData";
 import {
   createRegistrationFormState,
   RegistrationFields,
+  RegistrationStepActions,
+  type RegistrationStep,
 } from "./components/RegistrationFields";
 
 const authInputClassName =
@@ -12,6 +15,7 @@ const authInputClassName =
 
 export default function LoginPage() {
   const [registrationForm, setRegistrationForm] = useState(createRegistrationFormState);
+  const [registrationStep, setRegistrationStep] = useState<RegistrationStep>(1);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
@@ -28,6 +32,16 @@ export default function LoginPage() {
     setMessage("");
 
     try {
+      if (isRegistering && registrationStep < 3) {
+        const stepError = validateRegistrationStep(registrationStep, registrationForm);
+        if (stepError) {
+          setMessage(stepError);
+          return;
+        }
+        setRegistrationStep((step) => Math.min(3, step + 1) as RegistrationStep);
+        return;
+      }
+
       const normalizedBankAccounts = registrationForm.bankAccounts
         .map((account) => ({
           account_name: account.account_name.trim(),
@@ -52,6 +66,14 @@ export default function LoginPage() {
       ) {
         setMessage("Oppgi siste brukte fakturanummer som tall, for eksempel 10000 eller 000001.");
         return;
+      }
+
+      if (isRegistering && registrationForm.saftImportFile) {
+        const validationError = validateSaftImportFile(registrationForm.saftImportFile);
+        if (validationError) {
+          setMessage(validationError);
+          return;
+        }
       }
 
       const response = isRegistering
@@ -94,7 +116,25 @@ export default function LoginPage() {
             : response.error.message,
         );
       } else if (isRegistering) {
-        setMessage("Bekreft e-post for å fullføre registrering. Sjekk innboksen din og eventuelt søppelposten.");
+        if (registrationForm.saftImportFile && response.data.session?.user) {
+          try {
+            const { message } = await uploadAndImportSaftFile(
+              response.data.session.user.id,
+              registrationForm.saftImportFile,
+            );
+            setMessage(`Brukeren er opprettet. ${message}`);
+          } catch (error) {
+            setMessage(
+              error instanceof Error
+                ? `Brukeren er opprettet, men SAF-T-opplasting feilet: ${error.message}`
+                : "Brukeren er opprettet, men SAF-T-opplasting feilet.",
+            );
+          }
+        } else if (registrationForm.saftImportFile) {
+          setMessage("Bekreft e-post for å fullføre registrering. Last opp SAF-T-filen fra Profil etter innlogging.");
+        } else {
+          setMessage("Bekreft e-post for å fullføre registrering. Sjekk innboksen din og eventuelt søppelposten.");
+        }
       } else {
         window.location.href = "/";
       }
@@ -115,28 +155,75 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4 sm:mt-6">
           {isRegistering && (
-            <RegistrationFields value={registrationForm} onChange={setRegistrationForm} />
+            <RegistrationFields
+              value={registrationForm}
+              currentStep={registrationStep}
+              onChange={setRegistrationForm}
+              onMessage={setMessage}
+            />
           )}
 
-          <AuthField
-            label="E-post"
-            type="email"
-            value={email}
-            onChange={setEmail}
-          />
-          <AuthField
-            label="Passord"
-            type="password"
-            value={password}
-            onChange={setPassword}
-            minLength={6}
-          />
+          {(!isRegistering || registrationStep === 3) && (
+            <>
+              <AuthField
+                label="E-post"
+                type="email"
+                value={email}
+                onChange={setEmail}
+              />
+              <AuthField
+                label="Passord"
+                type="password"
+                value={password}
+                onChange={setPassword}
+                minLength={6}
+              />
+            </>
+          )}
 
           {message && <p className="text-sm text-slate-600">{message}</p>}
 
-          <Button className="w-full" type="submit" disabled={loading}>
-            {loading ? "Vent..." : isRegistering ? "Opprett bruker" : "Logg inn"}
-          </Button>
+          {isRegistering && registrationStep < 3 ? (
+            <RegistrationStepActions
+              currentStep={registrationStep}
+              loading={loading}
+              onBack={() => {
+                setMessage("");
+                setRegistrationStep((step) => Math.max(1, step - 1) as RegistrationStep);
+              }}
+              onNext={() => {
+                const stepError = validateRegistrationStep(registrationStep, registrationForm);
+                if (stepError) {
+                  setMessage(stepError);
+                  return;
+                }
+                setMessage("");
+                setRegistrationStep((step) => Math.min(3, step + 1) as RegistrationStep);
+              }}
+            />
+          ) : isRegistering ? (
+            <div className="flex gap-2">
+              <Button
+                className="flex-1"
+                type="button"
+                variant="secondary"
+                disabled={loading}
+                onClick={() => {
+                  setMessage("");
+                  setRegistrationStep(2);
+                }}
+              >
+                Tilbake
+              </Button>
+              <Button className="flex-1" type="submit" disabled={loading}>
+                {loading ? "Vent..." : "Opprett bruker"}
+              </Button>
+            </div>
+          ) : (
+            <Button className="w-full" type="submit" disabled={loading}>
+              {loading ? "Vent..." : "Logg inn"}
+            </Button>
+          )}
         </form>
 
         <Button
@@ -146,6 +233,7 @@ export default function LoginPage() {
           onClick={() => {
             setIsRegistering((value) => !value);
             setMessage("");
+            setRegistrationStep(1);
           }}
         >
           {isRegistering ? "Har du bruker? Logg inn" : "Ingen bruker? Opprett en"}
@@ -153,6 +241,22 @@ export default function LoginPage() {
       </section>
     </main>
   );
+}
+
+function validateRegistrationStep(step: RegistrationStep, form: ReturnType<typeof createRegistrationFormState>) {
+  if (step === 1) {
+    return "";
+  }
+
+  if (step === 2) {
+    if (!form.fullName.trim()) return "Skriv inn navn.";
+    if (!form.companyName.trim()) return "Skriv inn firmanavn.";
+    if (!form.address.trim()) return "Skriv inn adresse.";
+    if (!form.postalAddress.trim()) return "Skriv inn postadresse.";
+    if (!form.orgNumber.trim()) return "Skriv inn organisasjonsnummer.";
+  }
+
+  return "";
 }
 
 type AuthFieldProps = {

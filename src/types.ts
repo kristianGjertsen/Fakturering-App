@@ -10,6 +10,12 @@ export type Company = {
   private_notes: string | null;
   contact_person: string | null;
   phone: string | null;
+  saft_customer_id: string | null;
+  saft_street_name: string | null;
+  saft_street_number: string | null;
+  saft_postal_code: string | null;
+  saft_city: string | null;
+  saft_region: string | null;
   payment_terms_days: number;
   invoice_notes: string | null;
   website: string | null;
@@ -40,6 +46,14 @@ export type Profile = {
   postal_address: string | null;
   country: string;
   org_number: string | null;
+  saft_street_name: string | null;
+  saft_street_number: string | null;
+  saft_postal_code: string | null;
+  saft_city: string | null;
+  saft_region: string | null;
+  saft_contact_person: string | null;
+  saft_contact_phone: string | null;
+  saft_default_currency_code: string;
   is_vat_registered: boolean;
   has_sent_invoices_before: boolean;
   last_invoice_number: number;
@@ -233,8 +247,50 @@ export type AccountingAccount = {
   name: string;
   category: AccountingAccountCategory;
   system_key: string | null;
+  saft_grouping_category: string | null;
+  saft_grouping_code: string | null;
+  saft_opening_balance_account: boolean;
   is_system: boolean;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AccountingTaxCode = {
+  id: string;
+  owner_user_id: string;
+  code: string;
+  description: string;
+  direction: "input" | "output" | "none";
+  rate: number;
+  saft_standard_tax_code: string | null;
+  saft_tax_type: string | null;
+  is_system: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SaftImportFile = {
+  id: string;
+  owner_user_id: string;
+  storage_path: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  status: "uploaded" | "validating" | "validated" | "imported" | "failed";
+  detected_saft_version: string | null;
+  validation_errors: unknown[];
+  import_summary: {
+    accounts?: number;
+    customers?: number;
+    suppliers?: number;
+    taxCodes?: number;
+    journalEntries?: number;
+    journalLines?: number;
+    openingBalanceLines?: number;
+  };
+  imported_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -247,6 +303,17 @@ export type Supplier = {
   email: string | null;
   bank_account: string | null;
   notes: string | null;
+  saft_supplier_id: string | null;
+  address: string | null;
+  postal_address: string | null;
+  country: string | null;
+  contact_person: string | null;
+  phone: string | null;
+  saft_street_name: string | null;
+  saft_street_number: string | null;
+  saft_postal_code: string | null;
+  saft_city: string | null;
+  saft_region: string | null;
   default_expense_account_id: string | null;
   created_at: string;
   updated_at: string;
@@ -361,6 +428,7 @@ export type PurchasePaymentReimbursement = {
 export type PurchasePayment = {
   id: string;
   owner_user_id: string;
+  supplier_id: string | null;
   supplier_name: string;
   supplier_org_number: string | null;
   purchase_date: string;
@@ -384,6 +452,7 @@ export type PurchasePayment = {
 };
 
 export type PurchasePaymentWithDetails = PurchasePayment & {
+  supplier?: Supplier | null;
   settlement_account?: Pick<AccountingAccount, "id" | "account_number" | "name" | "system_key"> | null;
   purchase_payment_lines?: PurchasePaymentLine[];
   purchase_payment_attachments?: PurchasePaymentAttachment[];
@@ -404,13 +473,27 @@ export type JournalLine = {
   id: string;
   journal_entry_id: string;
   account_id: string;
+  customer_id: string | null;
+  customer_name: string | null;
+  customer_org_number: string | null;
+  supplier_id: string | null;
+  supplier_name: string | null;
+  supplier_org_number: string | null;
+  tax_code_id: string | null;
   description: string | null;
   debit: number;
   credit: number;
   vat_rate: number | null;
+  tax_base_amount: number | null;
+  tax_amount: number | null;
+  source_line_type: string | null;
+  source_line_id: string | null;
   sort_order: number;
   created_at: string;
-  account?: Pick<AccountingAccount, "id" | "account_number" | "name" | "category" | "system_key"> | null;
+  account?: Pick<AccountingAccount, "id" | "account_number" | "name" | "category" | "system_key" | "saft_grouping_category" | "saft_grouping_code"> | null;
+  customer?: Pick<Company, "id" | "name" | "org_number"> | null;
+  supplier?: Pick<Supplier, "id" | "name" | "org_number"> | null;
+  tax_code?: Pick<AccountingTaxCode, "id" | "code" | "direction" | "rate" | "saft_standard_tax_code" | "saft_tax_type"> | null;
 };
 
 export type JournalEntry = {
@@ -422,6 +505,8 @@ export type JournalEntry = {
   source_type: JournalSourceType;
   source_id: string | null;
   reversal_of_id: string | null;
+  saft_journal_id: "SALES" | "PURCHASE" | "BANK" | "GENERAL";
+  saft_transaction_id: string | null;
   created_at: string;
   posted_at: string;
   journal_lines?: JournalLine[];

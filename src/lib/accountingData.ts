@@ -3,6 +3,7 @@ import type {
   AccountingAccount,
   AccountingPayment,
   AccountingPeriod,
+  AccountingTaxCode,
   JournalEntry,
   PurchasePaymentSource,
   PurchasePaymentWithDetails,
@@ -18,6 +19,7 @@ export const ACCOUNTING_DOCUMENT_BUCKET = "accounting-documents";
 
 export type AccountingData = {
   accounts: AccountingAccount[];
+  taxCodes: AccountingTaxCode[];
   suppliers: Supplier[];
   supplierInvoices: SupplierInvoiceWithDetails[];
   purchasePayments: PurchasePaymentWithDetails[];
@@ -77,9 +79,10 @@ export type ManualJournalLineInput = {
 };
 
 export async function fetchAccountingData(): Promise<AccountingData> {
-  const [accountsResult, suppliersResult, invoicesResult, purchasesResult, entriesResult, paymentsResult, periodsResult] =
+  const [accountsResult, taxCodesResult, suppliersResult, invoicesResult, purchasesResult, entriesResult, paymentsResult, periodsResult] =
     await Promise.all([
       supabase.from("accounting_accounts").select("*").order("account_number"),
+      supabase.from("accounting_tax_codes").select("*").order("direction").order("rate", { ascending: false }),
       supabase.from("suppliers").select("*").order("name"),
       supabase
         .from("supplier_invoices")
@@ -87,17 +90,18 @@ export async function fetchAccountingData(): Promise<AccountingData> {
         .order("invoice_date", { ascending: false }),
       supabase
         .from("purchase_payments")
-        .select("*, settlement_account:accounting_accounts!purchase_payments_settlement_account_id_fkey(id,account_number,name,system_key), purchase_payment_lines(*, account:accounting_accounts(id,account_number,name)), purchase_payment_attachments(*), purchase_payment_reimbursements(*, bank_account:accounting_accounts!purchase_payment_reimbursements_bank_account_id_fkey(id,account_number,name))")
+        .select("*, supplier:suppliers(*), settlement_account:accounting_accounts!purchase_payments_settlement_account_id_fkey(id,account_number,name,system_key), purchase_payment_lines(*, account:accounting_accounts(id,account_number,name)), purchase_payment_attachments(*), purchase_payment_reimbursements(*, bank_account:accounting_accounts!purchase_payment_reimbursements_bank_account_id_fkey(id,account_number,name))")
         .order("purchase_date", { ascending: false }),
       supabase
         .from("journal_entries")
-        .select("*, journal_lines(*, account:accounting_accounts(id,account_number,name,category,system_key))")
+        .select("*, journal_lines(*, account:accounting_accounts(id,account_number,name,category,system_key,saft_grouping_category,saft_grouping_code), customer:companies(id,name,org_number), supplier:suppliers(id,name,org_number), tax_code:accounting_tax_codes(id,code,direction,rate,saft_standard_tax_code,saft_tax_type))")
         .order("voucher_number", { ascending: false }),
       supabase.from("accounting_payments").select("*").order("payment_date", { ascending: false }),
       supabase.from("accounting_periods").select("*").order("year", { ascending: false }).order("month", { ascending: false }),
     ]);
 
   const error = accountsResult.error
+    ?? taxCodesResult.error
     ?? suppliersResult.error
     ?? invoicesResult.error
     ?? purchasesResult.error
@@ -108,6 +112,7 @@ export async function fetchAccountingData(): Promise<AccountingData> {
 
   return {
     accounts: (accountsResult.data ?? []) as AccountingAccount[],
+    taxCodes: (taxCodesResult.data ?? []) as AccountingTaxCode[],
     suppliers: (suppliersResult.data ?? []) as Supplier[],
     supplierInvoices: ((invoicesResult.data ?? []) as SupplierInvoiceWithDetails[]).map((invoice) => ({
       ...invoice,
