@@ -144,6 +144,18 @@ export function AuthenticatedRoutes({
           />
         }
       />
+      <Route
+        path="/payments/incoming"
+        element={
+          <AccountingPage
+            ownerUserId={session.user.id}
+            accounting={data.accounting}
+            salesInvoices={data.invoices}
+            onRefresh={onRefreshInvoices}
+            incomingPaymentsOnly
+          />
+        }
+      />
       <Route path="*" element={<Navigate replace to="/" />} />
     </Routes>
   );

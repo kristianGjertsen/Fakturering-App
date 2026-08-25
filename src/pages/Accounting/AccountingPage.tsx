@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../../components/Button";
 import { SectionHeader } from "../../components/SectionHeader";
 import { Select } from "../../components/Select";
@@ -42,22 +42,28 @@ type AccountingPageProps = {
   accounting: AccountingData;
   salesInvoices: InvoiceWithDetails[];
   onRefresh: () => Promise<void>;
+  incomingPaymentsOnly?: boolean;
 };
 
-type AccountingTab = "overview" | "incoming" | "journal" | "reports" | "accounts";
+type AccountingTab = "overview" | "journal" | "reports" | "accounts";
+type AccountingView = AccountingTab | "incoming";
 
 const tabs: Array<{ id: AccountingTab; label: string }> = [
   { id: "overview", label: "Oversikt" },
-  { id: "incoming", label: "Inngående betalinger" },
   { id: "journal", label: "Bilag" },
   { id: "reports", label: "Rapporter" },
   { id: "accounts", label: "Kontoplan" },
 ];
 
-export default function AccountingPage({ ownerUserId, accounting, salesInvoices, onRefresh }: AccountingPageProps) {
+export default function AccountingPage({ ownerUserId, accounting, salesInvoices, onRefresh, incomingPaymentsOnly = false }: AccountingPageProps) {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const requestedTab = searchParams.get("tab") as AccountingTab | null;
-  const activeTab = tabs.some((tab) => tab.id === requestedTab) ? requestedTab! : "overview";
+  const requestedTab = searchParams.get("tab") as AccountingView | null;
+  const activeTab: AccountingView = incomingPaymentsOnly
+    ? "incoming"
+    : tabs.some((tab) => tab.id === requestedTab)
+      ? requestedTab!
+      : "overview";
   const years = useMemo(() => availableAccountingYears([
     ...accounting.journalEntries.map((entry) => entry.entry_date),
     ...accounting.supplierInvoices.map((invoice) => invoice.invoice_date),
@@ -81,7 +87,15 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
   const [updatingAccountId, setUpdatingAccountId] = useState("");
   const [feedback, setFeedback] = useState<{ message: string; tone: "info" | "danger" }>({ message: "", tone: "info" });
 
-  function updateQuery(patch: { tab?: AccountingTab; year?: number }) {
+  useEffect(() => {
+    if (incomingPaymentsOnly || requestedTab !== "incoming") return;
+
+    const next = new URLSearchParams(searchParams);
+    next.delete("tab");
+    navigate(`/payments/incoming${next.size ? `?${next}` : ""}`, { replace: true });
+  }, [incomingPaymentsOnly, navigate, requestedTab, searchParams]);
+
+  function updateQuery(patch: { tab?: AccountingView; year?: number }) {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       if (patch.tab) next.set("tab", patch.tab);
@@ -101,7 +115,6 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
       await createSupplierInvoice(input);
       await onRefresh();
       setShowSupplierInvoiceForm(false);
-      updateQuery({ tab: "incoming" });
       setFeedback({ message: "Den inngående fakturaen er bokført.", tone: "info" });
     } finally {
       setSaving(false);
@@ -115,7 +128,6 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
       await createPurchasePayment(input);
       await onRefresh();
       setShowPurchasePaymentForm(false);
-      updateQuery({ tab: "incoming" });
       setFeedback({ message: "Kort-/bankkjøpet er bokført.", tone: "info" });
     } finally {
       setSaving(false);
@@ -252,25 +264,27 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
   return (
     <>
       <SectionHeader
-        title="Regnskap"
-        description="Bilag, betalinger, hovedbok, MVA og rapporter."
+        title={incomingPaymentsOnly ? "Innbetalinger" : "Regnskap"}
+        description={incomingPaymentsOnly ? "Inngående fakturaer, kort-/bankkjøp og private utlegg." : "Bilag, hovedbok, MVA og rapporter."}
         action={<div className="w-36"><Select ariaLabel="Velg regnskapsår" value={year} options={years.map((item) => ({ value: item, label: String(item) }))} onChange={(value) => updateQuery({ year: Number(value) })} /></div>}
       />
 
       {feedback.message && <Notice tone={feedback.tone}>{feedback.message}</Notice>}
 
-      <nav className="flex gap-1 overflow-x-auto border-b border-blue-200" aria-label="Regnskapsvisninger">
-        {tabs.map((tab) => (
-          <Button
-            key={tab.id}
-            variant="ghost"
-            className={`shrink-0 rounded-b-none border-b-2 px-4 py-2.5 ${activeTab === tab.id ? "border-blue-700 bg-blue-50 text-blue-900" : "border-transparent"}`}
-            onClick={() => updateQuery({ tab: tab.id })}
-          >
-            {tab.label}
-          </Button>
-        ))}
-      </nav>
+      {!incomingPaymentsOnly && (
+        <nav className="flex gap-1 overflow-x-auto border-b border-blue-200" aria-label="Regnskapsvisninger">
+          {tabs.map((tab) => (
+            <Button
+              key={tab.id}
+              variant="ghost"
+              className={`shrink-0 rounded-b-none border-b-2 px-4 py-2.5 ${activeTab === tab.id ? "border-blue-700 bg-blue-50 text-blue-900" : "border-transparent"}`}
+              onClick={() => updateQuery({ tab: tab.id })}
+            >
+              {tab.label}
+            </Button>
+          ))}
+        </nav>
+      )}
 
       {activeTab === "overview" && <AccountingOverview year={year} report={report} entries={accounting.journalEntries} salesInvoices={salesInvoices} supplierInvoices={accounting.supplierInvoices} />}
       {activeTab === "incoming" && <SupplierInvoicesView year={year} invoices={accounting.supplierInvoices} purchases={accounting.purchasePayments} accounts={accounting.accounts} entries={accounting.journalEntries} actionInvoiceId={actionInvoiceId} actionPurchaseId={actionPurchaseId} actionMessage={feedback.message} actionMessageTone={feedback.tone} onNewInvoice={() => setShowSupplierInvoiceForm(true)} onNewPurchase={() => setShowPurchasePaymentForm(true)} onNewReimbursement={() => setShowPurchaseReimbursementForm(true)} onSetPaid={handleSetSupplierPaid} onCancelInvoice={handleCancelSupplierInvoice} onReimbursePurchase={handleReimbursePurchase} onReversePurchaseReimbursement={handleReversePurchaseReimbursement} onCancelPurchase={handleCancelPurchase} onDownloadAttachment={handleDownload} />}

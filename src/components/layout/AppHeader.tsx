@@ -168,7 +168,7 @@ function PaymentNavigationMenu() {
       <AnimatedIconButton
         icon={Files}
         className="w-40"
-        variant={location.pathname === "/invoices" || (location.pathname === "/accounting" && new URLSearchParams(location.search).get("tab") === "incoming") ? "primary" : "ghost"}
+        variant={location.pathname === "/invoices" || location.pathname.startsWith("/payments") ? "primary" : "ghost"}
         size="sm"
         aria-haspopup="menu"
         aria-expanded={open}
@@ -198,16 +198,16 @@ function PaymentNavigationMenu() {
             onClick={() => openRoute("/invoices")}
           >
             <ArrowUpRight size={19} />
-            Utgående betalinger
+            Utbetalinger
           </button>
           <button
             type="button"
             role="menuitem"
             className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-sm font-medium text-slate-800 transition hover:bg-blue-50 focus-visible:bg-blue-50 focus-visible:outline-none"
-            onClick={() => openRoute("/accounting?tab=incoming")}
+            onClick={() => openRoute("/payments/incoming")}
           >
             <ArrowDownLeft size={19} />
-            Inngående betalinger
+            Innbetalinger
           </button>
         </div>,
         document.body,
