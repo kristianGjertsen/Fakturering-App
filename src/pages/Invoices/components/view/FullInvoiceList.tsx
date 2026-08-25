@@ -154,6 +154,66 @@ export function FullInvoiceList({
     );
   }
 
+  function renderMobileInvoiceCard(item: DocumentBrowserItem) {
+    const selected = item.id === selectedId;
+
+    return (
+      <div
+        key={item.id}
+        className={`rounded-md border bg-white shadow-sm transition ${
+          selected
+            ? "border-blue-600 bg-blue-50"
+            : "border-blue-100"
+        }`}
+      >
+        <button
+          type="button"
+          className="w-full p-3 text-left transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400"
+          aria-selected={selected}
+          onClick={() => onSelect(item.id)}
+        >
+          <span className="flex min-w-0 items-start justify-between gap-3">
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-slate-950">
+                {item.title}
+              </span>
+              <span className="mt-0.5 block truncate text-xs text-slate-600">
+                {item.companyName}
+              </span>
+            </span>
+            <span className="shrink-0 text-right text-sm font-semibold text-slate-950">
+              {formatCurrency(item.amount)}
+            </span>
+          </span>
+          <span className="mt-3 flex flex-wrap items-center gap-2">
+            <Tag tone={item.statusTone}>
+              {item.statusLabel}
+            </Tag>
+            <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+              {item.invoiceNumber ?? item.subtitle ?? "Uten nummer"}
+            </span>
+            <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+              {formatDate(item.date)}
+            </span>
+          </span>
+        </button>
+        {item.canMarkPaid && onMarkPaid && (
+          <div className="border-t border-blue-50 px-3 py-2">
+            <Button
+              variant="success"
+              size="xs"
+              disabled={markingPaidId === item.id}
+              onClick={() => onMarkPaid(item.id)}
+              help="Markerer fakturaen som betalt og åpner registrering av innbetalingen."
+            >
+              {markingPaidId === item.id ? "Oppdaterer..." : "Marker betalt"}
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <Panel as="section" padding="none" aria-label="Fakturaliste">
       <div className="border-b border-[#f4f7fb] bg-slate-50/70 p-4">
@@ -266,7 +326,38 @@ export function FullInvoiceList({
               />
             </div>
           ) : (
-          <div className="min-h-[520px] overflow-x-auto">
+          <>
+          <div className="grid gap-2 p-3 md:hidden">
+            {viewMode === "all"
+              ? pageItems.map(renderMobileInvoiceCard)
+              : groups.map((group) => {
+                const open = openCompanyIds.includes(group.companyId);
+                const groupTotal = group.items.reduce((sum, item) => sum + item.amount, 0);
+
+                return (
+                  <div key={group.companyId} className="overflow-hidden rounded-md border border-blue-100 bg-white">
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between gap-3 bg-blue-50/70 px-3 py-3 text-left"
+                      aria-expanded={open}
+                      onClick={() => toggleCompany(group.companyId)}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold text-slate-950">{group.companyName}</span>
+                        <span className="mt-0.5 block text-xs text-slate-500">
+                          {group.items.length} {itemLabel} · {formatCurrency(groupTotal)}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-xs font-bold text-blue-700" aria-hidden="true">
+                        {open ? "Lukk" : "Åpne"}
+                      </span>
+                    </button>
+                    {open && <div className="grid gap-2 border-t border-blue-100 p-2">{group.items.map(renderMobileInvoiceCard)}</div>}
+                  </div>
+                );
+              })}
+          </div>
+          <div className="hidden min-h-[520px] overflow-x-auto md:block">
             <table className="w-full min-w-[1080px] table-fixed border-separate border-spacing-0 text-left text-sm">
               <colgroup>
                 <col className="w-[15%]" />
@@ -331,6 +422,7 @@ export function FullInvoiceList({
               </tbody>
             </table>
           </div>
+          </>
           )}
 
           {viewMode === "all" && (

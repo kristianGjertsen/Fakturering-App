@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { Button } from "../Button";
+import { ModalOverlay } from "./ModalOverlay";
 
 type ConfirmDialogTone = "danger" | "info";
 
@@ -31,45 +31,13 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Escape") {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-
-      if (!loading) {
-        onCancel();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown, true);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [loading, onCancel, open]);
-
-  if (!open) {
-    return null;
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/45 p-4"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !loading) {
-          onCancel();
-        }
-      }}
+    <ModalOverlay
+      open={open}
+      onClose={onCancel}
+      className="bg-slate-950/45"
+      closeOnInteractOutside={!loading}
+      zIndexClassName="z-[70]"
     >
       <section
         className="w-full max-w-md rounded-xl border border-blue-100 bg-white p-6 shadow-2xl"
@@ -104,6 +72,6 @@ export function ConfirmDialog({
           </Button>
         </div>
       </section>
-    </div>
+    </ModalOverlay>
   );
 }

@@ -1,13 +1,14 @@
 import { useEffect } from "react";
 
 type ModalDismissOptions = {
+  enabled?: boolean;
   lockBodyScroll?: boolean;
 };
 
 export function useModalDismiss(
   open: boolean,
   onClose: () => void,
-  { lockBodyScroll = false }: ModalDismissOptions = {},
+  { enabled = true, lockBodyScroll = false }: ModalDismissOptions = {},
 ) {
   useEffect(() => {
     if (!open) {
@@ -26,14 +27,18 @@ export function useModalDismiss(
       document.body.style.overflow = "hidden";
     }
 
-    document.addEventListener("keydown", closeOnEscape);
+    if (enabled) {
+      document.addEventListener("keydown", closeOnEscape);
+    }
 
     return () => {
       if (lockBodyScroll) {
         document.body.style.overflow = previousOverflow;
       }
 
-      document.removeEventListener("keydown", closeOnEscape);
+      if (enabled) {
+        document.removeEventListener("keydown", closeOnEscape);
+      }
     };
-  }, [lockBodyScroll, onClose, open]);
+  }, [enabled, lockBodyScroll, onClose, open]);
 }

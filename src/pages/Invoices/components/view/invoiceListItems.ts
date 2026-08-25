@@ -54,7 +54,7 @@ function invoiceToListItem(invoice: InvoiceWithDetails): DocumentBrowserItem {
     companyId: invoice.company_id ?? `guest-${invoice.id}`,
     companyName: invoice.company_id
       ? invoice.company?.name ?? invoice.recipient_name
-      : "Privatkunde",
+      : invoice.recipient_name,
     invoiceNumber: invoice.invoice_number ?? "Ikke tildelt",
     title: invoice.title || invoice.invoice_number || "Utkast",
     subtitle: invoice.invoice_number ?? "Fakturanummer tildeles ved utsendelse",

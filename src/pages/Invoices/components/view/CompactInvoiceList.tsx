@@ -13,7 +13,43 @@ export function CompactInvoiceList({ items, onSelect }: CompactInvoiceListProps)
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-blue-100">
+    <>
+    <div className="grid gap-2 sm:hidden">
+      {items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          className="w-full rounded-md border border-blue-100 bg-white p-3 text-left shadow-sm transition hover:border-blue-200 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+          onClick={() => onSelect(item.id)}
+        >
+          <span className="flex min-w-0 items-start justify-between gap-3">
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-slate-950" title={item.title}>
+                {item.title}
+              </span>
+              <span className="mt-0.5 block truncate text-xs text-slate-600" title={item.companyName}>
+                {item.companyName}
+              </span>
+            </span>
+            <span className="shrink-0 text-right text-sm font-semibold text-slate-950">
+              {formatCurrency(item.amount)}
+            </span>
+          </span>
+          <span className="mt-3 flex flex-wrap items-center gap-2">
+            <Tag tone={item.statusTone}>
+              {item.statusLabel}
+            </Tag>
+            <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+              {item.invoiceNumber ?? item.subtitle ?? "Uten nummer"}
+            </span>
+            <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+              {formatDate(item.date)}
+            </span>
+          </span>
+        </button>
+      ))}
+    </div>
+    <div className="hidden overflow-x-auto rounded-lg border border-blue-100 sm:block">
       <table className="w-full min-w-[720px] text-left text-sm">
         <thead className="border-b border-blue-100 bg-slate-50/70 text-xs uppercase tracking-wide text-slate-500">
           <tr>
@@ -68,5 +104,6 @@ export function CompactInvoiceList({ items, onSelect }: CompactInvoiceListProps)
         </tbody>
       </table>
     </div>
+    </>
   );
 }

@@ -1,0 +1,33 @@
+{
+  "id": "autofaktura",
+  "year": 2026,
+  "sortDate": "2026-01-01",
+  "img": "image.png",
+  "aksForUseWebsite": true,
+  "languages": [
+    "React",
+    "TypeScript",
+    "Supabase",
+    "Tailwind"
+  ],
+  "imgAlt": "Skjermbildeillustrasjon for AutoFaktura",
+  "content": {
+    "no": {
+      "title": "AutoFaktura [Beta]",
+      "shortText": "Fakturerings- og regnskapsapp for små virksomheter.",
+      "longText": "AutoFaktura er en webapp for kunder, produkter, fakturaer, gjentakende fakturering, leverandørfakturaer, betalinger og enkelt dobbelt bokholderi. Appen er bygget med React, TypeScript, Tailwind og Supabase, og er under utvidelse med SAF-T-import og -eksport."
+    },
+    "en": {
+      "title": "AutoFaktura [Beta]",
+      "shortText": "Invoicing and accounting app for small businesses.",
+      "longText": "AutoFaktura is a web app for customers, products, invoices, recurring billing, supplier invoices, payments and a simple double-entry ledger. It is built with React, TypeScript, Tailwind and Supabase, and is being extended with SAF-T import and export."
+    }
+  },
+  "buttons": [
+    {
+      "href": "https://github.com/kristianGjertsen/Fakturering-App",
+      "label": { "no": "Se GitHub-repo", "en": "View GitHub repo" },
+      "ariaLabel": { "no": "Åpne GitHub-repo for AutoFaktura", "en": "Open the AutoFaktura GitHub repository" }
+    }
+  ]
+}

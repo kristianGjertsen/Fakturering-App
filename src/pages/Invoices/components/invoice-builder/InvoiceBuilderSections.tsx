@@ -113,11 +113,11 @@ export function InvoiceCreationTiming({
             ? "Fakturaen opprettes og sendes automatisk på neste dato."
             : "Fakturaen lagres som utkast og kan sendes manuelt senere."}
         </p>
-        <div className="flex gap-2">
-          <Button variant={!scheduled ? "primary" : "secondary"} onClick={() => onChange(false)}>
+        <div className="grid gap-2 sm:flex">
+          <Button className="w-full sm:w-auto" variant={!scheduled ? "primary" : "secondary"} onClick={() => onChange(false)}>
             Lagre som utkast
           </Button>
-          <Button variant={scheduled ? "primary" : "secondary"} onClick={() => onChange(true)}>
+          <Button className="w-full sm:w-auto" variant={scheduled ? "primary" : "secondary"} onClick={() => onChange(true)}>
             Planlegg utsendelse
           </Button>
         </div>

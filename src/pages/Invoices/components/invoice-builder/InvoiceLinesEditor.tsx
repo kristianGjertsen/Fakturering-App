@@ -73,8 +73,8 @@ export function InvoiceLinesEditor({
           <h3 className="text-base font-semibold text-slate-950">Fakturalinjer</h3>
           <p className="text-sm text-slate-600">Velg lagrede produkter eller skriv inn manuelle linjer.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <AnimatedIconButton icon={Plus} variant="secondary" onClick={onAddLine}>
+        <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+          <AnimatedIconButton icon={Plus} className="w-full sm:w-auto" variant="secondary" onClick={onAddLine}>
             Legg til linje
           </AnimatedIconButton>
           <input
@@ -90,6 +90,7 @@ export function InvoiceLinesEditor({
           />
           <AnimatedIconButton
             icon={Plus}
+            className="w-full sm:w-auto"
             variant="secondary"
             onClick={() => document.getElementById("new-line-attachments")?.click()}
           >
@@ -159,7 +160,7 @@ function InvoiceLineCard({
       <div className={`flex items-center ${open ? "bg-blue-50" : "bg-white"}`}>
         <button
           type="button"
-          className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]"
+          className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)] items-start gap-2 px-3 py-3 text-left transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 min-[420px]:grid-cols-[minmax(0,1fr)_auto] min-[420px]:items-center sm:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] sm:gap-3 sm:px-4"
           aria-expanded={open}
           aria-controls={editorId}
           onClick={() => onOpenChange(!open)}
@@ -186,7 +187,7 @@ function InvoiceLineCard({
           <span className="hidden whitespace-nowrap text-sm text-slate-600 sm:block">
             MVA {line.vatRate}%
           </span>
-          <span className="flex items-center gap-3">
+          <span className="flex items-center justify-between gap-3 min-[420px]:justify-start">
             <span className="whitespace-nowrap text-sm font-semibold text-slate-950">
               {formatCurrency(calculatedLine.line_total)}
             </span>
@@ -207,7 +208,7 @@ function InvoiceLineCard({
           iconSize={18}
           variant="danger"
           size="xs"
-          className="mr-3 h-9 w-9 shrink-0 !p-0 shadow-sm"
+          className="mr-2 h-9 w-9 shrink-0 !p-0 shadow-sm sm:mr-3"
           onClick={() => onRemoveLine(line.localId)}
           aria-label={`Fjern linje ${lineIndex + 1}`}
           title="Fjern linje"
@@ -217,7 +218,7 @@ function InvoiceLineCard({
       </div>
 
       {open && (
-        <div id={editorId} className="min-w-0 space-y-3 border-t border-blue-100 bg-blue-50 p-4">
+        <div id={editorId} className="min-w-0 space-y-3 border-t border-blue-100 bg-blue-50 p-3 sm:p-4">
           <FormField label="Produkt">
             <Select
               ariaLabel={`Produkt for fakturalinje ${lineIndex + 1}`}
@@ -288,7 +289,7 @@ function InvoiceLineCard({
         />
 
           <div className="flex justify-end">
-            <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
+            <Button className="w-full sm:w-auto" variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
               Ferdig
             </Button>
           </div>
@@ -308,7 +309,7 @@ function LineAttachments({
 
   return (
     <div className="border-t border-blue-100 pt-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-medium text-slate-700">
             Vedlegg{line.attachments.length > 0 ? ` x${line.attachments.length}` : ""}
@@ -328,6 +329,7 @@ function LineAttachments({
         />
         <AnimatedIconButton
           icon={Plus}
+          className="w-full sm:w-auto"
           variant="secondary"
           size="sm"
           onClick={() => document.getElementById(inputId)?.click()}

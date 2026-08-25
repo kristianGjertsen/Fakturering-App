@@ -13,11 +13,14 @@ import {
   ProfileForm,
   type ProfileFeedbackTone,
 } from "./components/ProfileForm";
+import { SaftImportPanel } from "./components/SaftImportPanel";
 
 type ProfilePageProps = {
   session: Session;
   profile: Profile;
   invoices: InvoiceWithDetails[];
+  onUpdateProfile: (profilePatch: Partial<Profile>) => void;
+  onRefresh: () => Promise<void>;
   onSignOut: () => Promise<void>;
 };
 
@@ -26,7 +29,7 @@ type Feedback = {
   tone: ProfileFeedbackTone;
 };
 
-export default function ProfilePage({ session, profile, invoices, onSignOut }: ProfilePageProps) {
+export default function ProfilePage({ session, profile, invoices, onUpdateProfile, onRefresh, onSignOut }: ProfilePageProps) {
   const [feedback, setFeedback] = useState<Feedback>({ message: "", tone: "info" });
   const [deleting, setDeleting] = useState(false);
   const [exportingAccounting, setExportingAccounting] = useState(false);
@@ -84,8 +87,12 @@ export default function ProfilePage({ session, profile, invoices, onSignOut }: P
       <ProfileForm
         userId={session.user.id}
         email={session.user.email ?? ""}
+        invoices={invoices}
+        onSaved={onUpdateProfile}
         onFeedback={showFeedback}
       />
+
+      <SaftImportPanel userId={session.user.id} onFeedback={showFeedback} onImported={onRefresh} />
 
       <Panel>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

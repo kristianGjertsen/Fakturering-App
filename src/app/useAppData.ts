@@ -15,6 +15,15 @@ const EMPTY_APP_DATA: AppData = {
     postal_address: null,
     country: "NO",
     org_number: null,
+    saft_street_name: null,
+    saft_street_number: null,
+    saft_postal_code: null,
+    saft_city: null,
+    saft_region: null,
+    saft_contact_person: null,
+    saft_contact_phone: null,
+    saft_default_currency_code: "NOK",
+    is_vat_registered: false,
     has_sent_invoices_before: false,
     last_invoice_number: 9999,
     invoice_number_prefix: "",
@@ -23,6 +32,16 @@ const EMPTY_APP_DATA: AppData = {
     updated_at: "",
   },
   bankAccounts: [],
+  accounting: {
+    accounts: [],
+    taxCodes: [],
+    suppliers: [],
+    supplierInvoices: [],
+    purchasePayments: [],
+    journalEntries: [],
+    payments: [],
+    periods: [],
+  },
 };
 
 export function useAppData(userId: string) {
@@ -65,5 +84,12 @@ export function useAppData(userId: string) {
     }));
   }, []);
 
-  return { data, isLoading, error, refreshData, updateCompanyInData };
+  const updateProfileInData = useCallback((profilePatch: Partial<AppData["profile"]>) => {
+    setData((currentData) => ({
+      ...currentData,
+      profile: { ...currentData.profile, ...profilePatch },
+    }));
+  }, []);
+
+  return { data, isLoading, error, refreshData, updateCompanyInData, updateProfileInData };
 }

@@ -13,6 +13,7 @@ import DashboardPage from "../pages/Dashboard/DashboardPage";
 import InvoicesPage from "../pages/Invoices/InvoicesPage";
 import ProfilePage from "../pages/Profile/ProfilePage";
 import RecurringPage from "../pages/Recurring/RecurringPage";
+import AccountingPage from "../pages/Accounting/AccountingPage";
 
 type AuthenticatedRoutesProps = {
   session: Session;
@@ -29,6 +30,8 @@ type AuthenticatedRoutesProps = {
   onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<string>;
   onDeleteInvoice: (invoiceId: string) => Promise<void>;
   onRefreshInvoices: () => Promise<void>;
+  onUpdateProfile: (profilePatch: Partial<AppData["profile"]>) => void;
+  onRefreshProfileData: () => Promise<void>;
   onSignOut: () => Promise<void>;
 };
 
@@ -44,6 +47,8 @@ export function AuthenticatedRoutes({
   onCreateInvoice,
   onDeleteInvoice,
   onRefreshInvoices,
+  onUpdateProfile,
+  onRefreshProfileData,
   onSignOut,
 }: AuthenticatedRoutesProps) {
   const navigate = useNavigate();
@@ -101,6 +106,7 @@ export function AuthenticatedRoutes({
           <InvoicesPage
             companies={activeCompanies}
             bankAccounts={data.bankAccounts}
+            accountingAccounts={data.accounting.accounts}
             sellerProfile={data.profile}
             products={activeProducts}
             invoices={data.invoices}
@@ -124,7 +130,32 @@ export function AuthenticatedRoutes({
             session={session}
             profile={data.profile}
             invoices={data.invoices}
+            onUpdateProfile={onUpdateProfile}
+            onRefresh={onRefreshProfileData}
             onSignOut={onSignOut}
+          />
+        }
+      />
+      <Route
+        path="/accounting"
+        element={
+          <AccountingPage
+            ownerUserId={session.user.id}
+            accounting={data.accounting}
+            salesInvoices={data.invoices}
+            onRefresh={onRefreshInvoices}
+          />
+        }
+      />
+      <Route
+        path="/payments/incoming"
+        element={
+          <AccountingPage
+            ownerUserId={session.user.id}
+            accounting={data.accounting}
+            salesInvoices={data.invoices}
+            onRefresh={onRefreshInvoices}
+            incomingPaymentsOnly
           />
         }
       />

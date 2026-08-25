@@ -10,6 +10,12 @@ export type Company = {
   private_notes: string | null;
   contact_person: string | null;
   phone: string | null;
+  saft_customer_id: string | null;
+  saft_street_name: string | null;
+  saft_street_number: string | null;
+  saft_postal_code: string | null;
+  saft_city: string | null;
+  saft_region: string | null;
   payment_terms_days: number;
   invoice_notes: string | null;
   website: string | null;
@@ -40,6 +46,15 @@ export type Profile = {
   postal_address: string | null;
   country: string;
   org_number: string | null;
+  saft_street_name: string | null;
+  saft_street_number: string | null;
+  saft_postal_code: string | null;
+  saft_city: string | null;
+  saft_region: string | null;
+  saft_contact_person: string | null;
+  saft_contact_phone: string | null;
+  saft_default_currency_code: string;
+  is_vat_registered: boolean;
   has_sent_invoices_before: boolean;
   last_invoice_number: number;
   invoice_number_prefix: string;
@@ -110,11 +125,14 @@ export type Invoice = {
   pdf_storage_path: string | null;
   pdf_locked_at: string | null;
   paid: boolean;
+  paid_at: string | null;
   pdf_template: PdfTemplate;
   notes: string | null;
   subtotal: number;
   vat_total: number;
   total: number;
+  is_historical: boolean;
+  historical_pdf_name: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -213,4 +231,318 @@ export type RepeatDraft = {
 
 export type SingleScheduleDraft = {
   enabled: boolean;
+};
+
+export type AccountingAccountCategory =
+  | "asset"
+  | "liability"
+  | "equity"
+  | "revenue"
+  | "expense";
+
+export type AccountingAccount = {
+  id: string;
+  owner_user_id: string;
+  account_number: string;
+  name: string;
+  category: AccountingAccountCategory;
+  system_key: string | null;
+  saft_grouping_category: string | null;
+  saft_grouping_code: string | null;
+  saft_opening_balance_account: boolean;
+  is_system: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AccountingTaxCode = {
+  id: string;
+  owner_user_id: string;
+  code: string;
+  description: string;
+  direction: "input" | "output" | "none";
+  rate: number;
+  saft_standard_tax_code: string | null;
+  saft_tax_type: string | null;
+  is_system: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SaftImportFile = {
+  id: string;
+  owner_user_id: string;
+  storage_path: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  status: "uploaded" | "validating" | "validated" | "imported" | "failed";
+  detected_saft_version: string | null;
+  validation_errors: unknown[];
+  import_summary: {
+    accounts?: number;
+    customers?: number;
+    suppliers?: number;
+    taxCodes?: number;
+    journalEntries?: number;
+    journalLines?: number;
+    openingBalanceLines?: number;
+  };
+  imported_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Supplier = {
+  id: string;
+  owner_user_id: string;
+  name: string;
+  org_number: string | null;
+  email: string | null;
+  bank_account: string | null;
+  notes: string | null;
+  saft_supplier_id: string | null;
+  address: string | null;
+  postal_address: string | null;
+  country: string | null;
+  contact_person: string | null;
+  phone: string | null;
+  saft_street_name: string | null;
+  saft_street_number: string | null;
+  saft_postal_code: string | null;
+  saft_city: string | null;
+  saft_region: string | null;
+  default_expense_account_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupplierInvoiceStatus = "posted" | "paid" | "cancelled";
+
+export type SupplierInvoiceLine = {
+  id: string;
+  supplier_invoice_id: string;
+  expense_account_id: string;
+  description: string;
+  net_amount: number;
+  vat_rate: number;
+  vat_amount: number;
+  gross_amount: number;
+  original_net_amount: number;
+  original_vat_amount: number;
+  original_gross_amount: number;
+  sort_order: number;
+  created_at: string;
+  account?: Pick<AccountingAccount, "id" | "account_number" | "name"> | null;
+};
+
+export type SupplierInvoiceAttachment = {
+  id: string;
+  supplier_invoice_id: string;
+  storage_path: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
+};
+
+export type SupplierInvoice = {
+  id: string;
+  owner_user_id: string;
+  supplier_id: string;
+  invoice_number: string;
+  invoice_date: string;
+  due_date: string | null;
+  kid: string | null;
+  description: string | null;
+  currency: string;
+  exchange_rate: number;
+  exchange_rate_date: string | null;
+  exchange_rate_source: string | null;
+  original_subtotal: number;
+  original_vat_total: number;
+  original_total: number;
+  status: SupplierInvoiceStatus;
+  subtotal: number;
+  vat_total: number;
+  total: number;
+  journal_entry_id: string;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupplierInvoiceWithDetails = SupplierInvoice & {
+  supplier?: Supplier | null;
+  supplier_invoice_lines?: SupplierInvoiceLine[];
+  supplier_invoice_attachments?: SupplierInvoiceAttachment[];
+};
+
+export type PurchasePaymentStatus = "booked" | "reimbursed" | "cancelled";
+export type PurchasePaymentSource = "company" | "private";
+
+export type PurchasePaymentLine = {
+  id: string;
+  purchase_payment_id: string;
+  expense_account_id: string;
+  description: string;
+  net_amount: number;
+  vat_rate: number;
+  vat_amount: number;
+  gross_amount: number;
+  sort_order: number;
+  created_at: string;
+  account?: Pick<AccountingAccount, "id" | "account_number" | "name"> | null;
+};
+
+export type PurchasePaymentAttachment = {
+  id: string;
+  purchase_payment_id: string;
+  storage_path: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
+};
+
+export type PurchasePaymentReimbursementStatus = "active" | "reversed";
+
+export type PurchasePaymentReimbursement = {
+  id: string;
+  owner_user_id: string;
+  purchase_payment_id: string;
+  bank_account_id: string;
+  reimbursement_date: string;
+  amount: number;
+  journal_entry_id: string;
+  status: PurchasePaymentReimbursementStatus;
+  reversed_at: string | null;
+  reversal_journal_entry_id: string | null;
+  created_at: string;
+  updated_at: string;
+  bank_account?: Pick<AccountingAccount, "id" | "account_number" | "name"> | null;
+};
+
+export type PurchasePayment = {
+  id: string;
+  owner_user_id: string;
+  supplier_id: string | null;
+  supplier_name: string;
+  supplier_org_number: string | null;
+  purchase_date: string;
+  description: string;
+  payment_source: PurchasePaymentSource;
+  settlement_account_id: string;
+  paid_by: string | null;
+  attested_at: string | null;
+  attested_by: string | null;
+  status: PurchasePaymentStatus;
+  subtotal: number;
+  vat_total: number;
+  total: number;
+  journal_entry_id: string;
+  reimbursed_at: string | null;
+  reimbursement_journal_entry_id: string | null;
+  cancelled_at: string | null;
+  cancellation_journal_entry_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PurchasePaymentWithDetails = PurchasePayment & {
+  supplier?: Supplier | null;
+  settlement_account?: Pick<AccountingAccount, "id" | "account_number" | "name" | "system_key"> | null;
+  purchase_payment_lines?: PurchasePaymentLine[];
+  purchase_payment_attachments?: PurchasePaymentAttachment[];
+  purchase_payment_reimbursements?: PurchasePaymentReimbursement[];
+};
+
+export type JournalSourceType =
+  | "sales_invoice"
+  | "sales_payment"
+  | "supplier_invoice"
+  | "supplier_payment"
+  | "purchase_payment"
+  | "purchase_reimbursement"
+  | "manual"
+  | "correction";
+
+export type JournalLine = {
+  id: string;
+  journal_entry_id: string;
+  account_id: string;
+  customer_id: string | null;
+  customer_name: string | null;
+  customer_org_number: string | null;
+  supplier_id: string | null;
+  supplier_name: string | null;
+  supplier_org_number: string | null;
+  tax_code_id: string | null;
+  description: string | null;
+  debit: number;
+  credit: number;
+  vat_rate: number | null;
+  tax_base_amount: number | null;
+  tax_amount: number | null;
+  source_line_type: string | null;
+  source_line_id: string | null;
+  sort_order: number;
+  created_at: string;
+  account?: Pick<AccountingAccount, "id" | "account_number" | "name" | "category" | "system_key" | "saft_grouping_category" | "saft_grouping_code"> | null;
+  customer?: Pick<Company, "id" | "name" | "org_number"> | null;
+  supplier?: Pick<Supplier, "id" | "name" | "org_number"> | null;
+  tax_code?: Pick<AccountingTaxCode, "id" | "code" | "direction" | "rate" | "saft_standard_tax_code" | "saft_tax_type"> | null;
+};
+
+export type JournalEntry = {
+  id: string;
+  owner_user_id: string;
+  voucher_number: number;
+  entry_date: string;
+  description: string;
+  source_type: JournalSourceType;
+  source_id: string | null;
+  reversal_of_id: string | null;
+  saft_journal_id: "SALES" | "PURCHASE" | "BANK" | "GENERAL";
+  saft_transaction_id: string | null;
+  created_at: string;
+  posted_at: string;
+  journal_lines?: JournalLine[];
+};
+
+export type AccountingPayment = {
+  id: string;
+  owner_user_id: string;
+  direction: "incoming" | "outgoing";
+  sales_invoice_id: string | null;
+  supplier_invoice_id: string | null;
+  bank_account_id: string;
+  amount: number;
+  payment_date: string;
+  journal_entry_id: string;
+  status: "active" | "reversed";
+  reversed_at: string | null;
+  reversal_journal_entry_id: string | null;
+  created_at: string;
+};
+
+export type AccountingPeriod = {
+  id: string;
+  owner_user_id: string;
+  year: number;
+  month: number;
+  status: "open" | "closed";
+  closed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupplierInvoiceDraftLine = {
+  localId: string;
+  description: string;
+  expenseAccountId: string;
+  grossAmount: number;
+  vatRate: number;
 };

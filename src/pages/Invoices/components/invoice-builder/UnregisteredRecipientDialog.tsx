@@ -1,4 +1,5 @@
 import { Button } from "../../../../components/Button";
+import { ModalOverlay } from "../../../../components/layout/ModalOverlay";
 
 type UnregisteredRecipientDialogProps = {
   open: boolean;
@@ -9,15 +10,14 @@ type UnregisteredRecipientDialogProps = {
 
 export function UnregisteredRecipientDialog({
   open,
+  onCancel,
   onCreateCompany,
   onContinue,
 }: UnregisteredRecipientDialogProps) {
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4" role="presentation">
+    <ModalOverlay open={open} onClose={onCancel}>
       <section
-        className="w-full max-w-md rounded-xl border border-blue-100 bg-white p-6 shadow-xl"
+        className="my-4 w-full max-w-md rounded-xl border border-blue-100 bg-white p-5 shadow-xl sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="unregistered-recipient-title"
@@ -32,11 +32,11 @@ export function UnregisteredRecipientDialog({
           Du kan fortsatt lage en enkeltfaktura uten å lagre mottakeren. Da må du oppgi e-postadressen manuelt.
         </p>
 
-        <div className="mt-6 flex  gap-2 sm:flex-row sm:justify-end">
-          <Button variant="secondary" onClick={onContinue}>Fortsett uten selskap</Button>
-          <Button onClick={onCreateCompany}>Opprett selskap</Button>
+        <div className="mt-6 grid gap-2 sm:flex sm:justify-end">
+          <Button className="w-full sm:w-auto" variant="secondary" onClick={onContinue}>Fortsett uten selskap</Button>
+          <Button className="w-full sm:w-auto" onClick={onCreateCompany}>Opprett selskap</Button>
         </div>
       </section>
-    </div>
+    </ModalOverlay>
   );
 }

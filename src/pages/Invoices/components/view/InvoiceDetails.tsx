@@ -92,11 +92,21 @@ export function InvoiceDetails({
         <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
           <InfoItem label="Fakturadato" value={formatDate(invoice.issue_date)} />
           <InfoItem label="Forfall" value={formatDate(invoice.due_date)} />
+          <InfoItem label="Betalt" value={formatDate(invoice.paid_at)} />
           <InfoItem
             label="Type"
-            value={schedule ? "Planlagt engangsutsending" : invoice.schedule_id ? "Gjentakende faktura" : "Enkeltfaktura"}
+            value={invoice.is_historical
+              ? "Historisk faktura med engangsmottaker"
+              : schedule
+                ? "Planlagt engangsutsending"
+                : invoice.schedule_id
+                  ? "Gjentakende faktura"
+                  : "Enkeltfaktura"}
           />
           {schedule && <InfoItem label="Planlagt utsending" value={formatDate(schedule.next_run_at)} />}
+          {invoice.is_historical && invoice.historical_pdf_name && (
+            <InfoItem label="Originaldokument" value={invoice.historical_pdf_name} />
+          )}
         </dl>
 
         <InvoiceItemsTable
@@ -164,29 +174,31 @@ function InvoiceOverview({
         </p>
       </div>
 
-      <div className="flex flex-col items-start gap-3 sm:items-end">
+      <div className="flex w-full flex-col items-start gap-3 sm:w-auto sm:items-end">
         <p className="text-2xl font-semibold text-slate-950">
           {formatCurrency(invoice.total)}
         </p>
         <Tag tone={status.tone} className="px-3 py-1.5 text-xs">
           {status.label}
         </Tag>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
           {!scheduled && canTogglePaid && (
             <Button
+              className="w-full sm:w-auto"
               variant={invoice.paid ? "secondary" : "success"}
               onClick={onTogglePaid}
               disabled={updatingPaid}
+              help={invoice.paid ? "Oppretter en korreksjon for registrert betaling, slik at fakturaen ikke lenger står som betalt." : "Markerer fakturaen som betalt og bokfører betalingen mot valgt dato og konto."}
             >
               {updatingPaid
                 ? "Oppdaterer..."
                 : invoice.paid
-                  ? "Marker som ubetalt"
+                  ? "Korriger betaling"
                   : "Marker som betalt"}
             </Button>
           )}
           {!scheduled && (invoice.status === "draft" || invoice.status === "ready") && (
-            <Button onClick={() => onSend("send")} disabled={sending}>
+            <Button className="w-full sm:w-auto" onClick={() => onSend("send")} disabled={sending}>
               {sending ? "Sender..." : "Send faktura"}
             </Button>
           )}
@@ -194,12 +206,12 @@ function InvoiceOverview({
          
           {!scheduled && invoice.status === "sent" && invoice.paid != true && (
             //Show "Purre" button only if the invoice is sent and not paid yet
-            <Button variant="danger" onClick={() => onSend("remind")} disabled={sending}>
+            <Button className="w-full sm:w-auto" variant="danger" onClick={() => onSend("remind")} disabled={sending} help="Sender en betalingspåminnelse til mottakerens e-postadresse for denne fakturaen.">
               {sending ? "Sender..." : "Purre"}
             </Button>
           )}
           {!scheduled && invoice.status === "draft" && (
-            <Button variant="danger" onClick={onDelete} disabled={deleting}>
+            <Button className="w-full sm:w-auto" variant="danger" onClick={onDelete} disabled={deleting} help="Sletter utkastet permanent. Sendte fakturaer kan ikke slettes her.">
               {deleting ? "Sletter..." : "Slett faktura"}
             </Button>
           )}
@@ -225,7 +237,38 @@ function InvoiceItemsTable({
   });
 
   return (
-    <div className="mt-5 overflow-x-auto">
+    <div className="mt-5">
+      <div className="grid gap-2 sm:hidden">
+        {[...items]
+          .sort((left, right) => left.sort_order - right.sort_order)
+          .map((item) => {
+            const references = attachmentReferencesByItemId.get(item.id) ?? [];
+
+            return (
+              <div key={item.id} className="rounded-md border border-blue-100 bg-white p-3">
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="break-words text-sm font-semibold text-slate-950">
+                      {item.description}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {item.quantity} {item.unit} · {formatCurrency(item.unit_price)} · MVA {item.vat_rate}%
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-right text-sm font-semibold text-slate-950">
+                    {formatCurrency(item.line_total)}
+                  </p>
+                </div>
+                {references.length > 0 && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Vedlegg: {references.join(", ")}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+      </div>
+      <div className="hidden overflow-x-auto sm:block">
       <table className="w-full min-w-[640px] text-left text-sm">
         <thead className="border-b border-blue-100 text-xs uppercase tracking-wide text-slate-500">
           <tr>
@@ -268,6 +311,7 @@ function InvoiceItemsTable({
             })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

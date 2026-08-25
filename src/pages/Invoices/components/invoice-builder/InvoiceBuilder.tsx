@@ -368,7 +368,7 @@ export function InvoiceBuilder({
           : "Opprett en faktura som lagres som utkast eller sendes på satt fakturadato."}
           
         action={
-          <Button variant="secondary" onClick={() => setShowInvoiceTypeDialog(true)}>
+          <Button className="w-full sm:w-auto" variant="secondary" onClick={() => setShowInvoiceTypeDialog(true)}>
             {invoiceKind === "recurring" ? "Endre til enkeltfaktura" : "Endre til gjentakende faktura"}
           </Button>
         }
@@ -493,9 +493,10 @@ export function InvoiceBuilder({
         </aside>
       </section>
 
-      <div className="sticky bottom-4 z-30 mx-auto max-w-xl rounded-2xl border border-blue-100 bg-white/95 px-4 py-3 shadow-[0_18px_45px_rgba(15,23,42,0.18)] backdrop-blur">
+      <div className="sticky bottom-3 z-30 mx-auto max-w-xl rounded-lg border border-blue-100 bg-white/95 px-3 py-3 shadow-[0_18px_45px_rgba(15,23,42,0.18)] backdrop-blur sm:bottom-4 sm:rounded-2xl sm:px-4">
         <div className="flex flex-col-reverse justify-center gap-2 sm:flex-row sm:items-center">
           <Button
+            className="w-full sm:w-auto"
             type="button"
             variant="secondary"
             onClick={onDiscardDraft}
@@ -503,7 +504,7 @@ export function InvoiceBuilder({
           >
             Forkast utkast
           </Button>
-          <Button type="submit" disabled={saving}>
+          <Button className="w-full sm:w-auto" type="submit" disabled={saving}>
             {saving
               ? "Lagrer..."
               : invoiceKind === "recurring"

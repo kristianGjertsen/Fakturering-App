@@ -114,7 +114,7 @@ Antall betalte fakturaer i eksporten: ${paidInvoices.length}
             invoiceNumber(invoice),
             invoice.company?.name ?? invoice.recipient_name,
             Number(invoice.total),
-            invoice.updated_at.slice(0, 10),
+            invoice.paid_at ?? invoice.updated_at.slice(0, 10),
             invoice.due_date ?? "",
             paymentDetails.paymentInfo,
             paymentDetails.kid,
