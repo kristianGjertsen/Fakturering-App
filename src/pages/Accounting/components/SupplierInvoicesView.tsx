@@ -93,7 +93,7 @@ export function SupplierInvoicesView({
     <>
       <Panel padding="none" className="overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-blue-100 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div><h3 className="font-semibold text-slate-950">Innbetalinger {year}</h3><p className="text-xs text-slate-500">{viewMode === "invoices" ? `${filteredInvoices.length} fakturaer · ${formatCurrency(filteredInvoices.reduce((sum, invoice) => sum + Number(invoice.total), 0))}` : `${filteredPurchases.length} kjøp · ${formatCurrency(filteredPurchases.reduce((sum, purchase) => sum + Number(purchase.total), 0))}`}</p></div>
+          <div><h3 className="font-semibold text-slate-950">Utbetalinger {year}</h3><p className="text-xs text-slate-500">{viewMode === "invoices" ? `${filteredInvoices.length} fakturaer · ${formatCurrency(filteredInvoices.reduce((sum, invoice) => sum + Number(invoice.total), 0))}` : `${filteredPurchases.length} kjøp · ${formatCurrency(filteredPurchases.reduce((sum, purchase) => sum + Number(purchase.total), 0))}`}</p></div>
           <div className="flex flex-wrap gap-2">
             <AnimatedIconButton icon={FileText} variant="secondary" size="sm" onClick={() => { changeView("invoices"); onNewInvoice(); }} help="Registrerer en leverandørfaktura som skal bokføres og eventuelt betales senere.">Registrer faktura</AnimatedIconButton>
             <AnimatedIconButton icon={Plus} size="sm" onClick={() => { changeView("purchases"); onNewPurchase(); }} help="Brukes for kjøp som allerede er betalt med selskapets konto/kort eller som privat utlegg.">Registrer betaling</AnimatedIconButton>
@@ -106,7 +106,7 @@ export function SupplierInvoicesView({
         </div>
         <div className="grid gap-2 border-b border-blue-100 p-4 sm:grid-cols-[1fr_180px]">
           <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={viewMode === "invoices" ? "Søk etter leverandør eller fakturanummer" : "Søk etter leverandør eller formål"} />
-          <Select ariaLabel="Filtrer innbetalinger" value={statusFilter} options={viewMode === "invoices" ? [{ value: "all", label: "Alle statuser" }, { value: "posted", label: "Ubetalt" }, { value: "paid", label: "Betalt" }, { value: "cancelled", label: "Annullert" }] : [{ value: "all", label: "Alle statuser" }, { value: "company", label: "Betalt av selskapet" }, { value: "private", label: "Privat utlegg" }, { value: "reimbursed", label: "Tilbakebetalt" }, { value: "cancelled", label: "Annullert" }]} onChange={setStatusFilter} />
+          <Select ariaLabel="Filtrer utbetalinger" value={statusFilter} options={viewMode === "invoices" ? [{ value: "all", label: "Alle statuser" }, { value: "posted", label: "Ubetalt" }, { value: "paid", label: "Betalt" }, { value: "cancelled", label: "Annullert" }] : [{ value: "all", label: "Alle statuser" }, { value: "company", label: "Betalt av selskapet" }, { value: "private", label: "Privat utlegg" }, { value: "reimbursed", label: "Tilbakebetalt" }, { value: "cancelled", label: "Annullert" }]} onChange={setStatusFilter} />
         </div>
         {viewMode === "invoices" && (filteredInvoices.length === 0 ? <p className="px-4 py-12 text-center text-sm text-slate-500">Ingen inngående fakturaer i valgt år.</p> : (
           <div className="overflow-x-auto">

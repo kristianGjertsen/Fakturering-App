@@ -264,7 +264,7 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
   return (
     <>
       <SectionHeader
-        title={incomingPaymentsOnly ? "Innbetalinger" : "Regnskap"}
+        title={incomingPaymentsOnly ? "Utbetalinger" : "Regnskap"}
         description={incomingPaymentsOnly ? "Inngående fakturaer, kort-/bankkjøp og private utlegg." : "Bilag, hovedbok, MVA og rapporter."}
         action={<div className="w-36"><Select ariaLabel="Velg regnskapsår" value={year} options={years.map((item) => ({ value: item, label: String(item) }))} onChange={(value) => updateQuery({ year: Number(value) })} /></div>}
       />

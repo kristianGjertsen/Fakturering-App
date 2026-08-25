@@ -94,18 +94,18 @@ export function AppHeader() {
             ))}
             <div className="grid gap-2 rounded-md border border-blue-100 bg-slate-50 p-2">
               <MobileMenuButton
-                icon={ArrowUpRight}
+                icon={ArrowDownLeft}
                 active={location.pathname === "/invoices"}
                 onClick={() => openRoute("/invoices")}
               >
-                Utbetalinger
+                Innbetalinger
               </MobileMenuButton>
               <MobileMenuButton
-                icon={ArrowDownLeft}
+                icon={ArrowUpRight}
                 active={location.pathname.startsWith("/payments")}
                 onClick={() => openRoute("/payments/incoming")}
               >
-                Innbetalinger
+                Utbetalinger
               </MobileMenuButton>
             </div>
             {navigationItems.slice(2).map((item) => (
@@ -309,8 +309,8 @@ function PaymentNavigationMenu() {
             className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-sm font-medium text-slate-800 transition hover:bg-blue-50 focus-visible:bg-blue-50 focus-visible:outline-none"
             onClick={() => openRoute("/invoices")}
           >
-            <ArrowUpRight size={19} />
-            Utbetalinger
+            <ArrowDownLeft size={19} />
+            Innbetalinger
           </button>
           <button
             type="button"
@@ -318,8 +318,8 @@ function PaymentNavigationMenu() {
             className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-sm font-medium text-slate-800 transition hover:bg-blue-50 focus-visible:bg-blue-50 focus-visible:outline-none"
             onClick={() => openRoute("/payments/incoming")}
           >
-            <ArrowDownLeft size={19} />
-            Innbetalinger
+            <ArrowUpRight size={19} />
+            Utbetalinger
           </button>
         </div>,
         document.body,
