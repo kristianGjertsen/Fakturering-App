@@ -1,7 +1,7 @@
 {
   "id": "autofaktura",
   "year": 2026,
-  "sortDate": "2026-01-01",
+  "sortDate": "2026-08-30",
   "img": "image.png",
   "aksForUseWebsite": true,
   "languages": [
@@ -25,9 +25,37 @@
   },
   "buttons": [
     {
+      "previewUrl": "https://fakturering-app.vercel.app/",
+      "label": {
+        "no": "Åpne live preview",
+        "en": "Open live preview"
+      },
+      "ariaLabel": {
+        "no": "Åpne AutoFaktura som live preview",
+        "en": "Open AutoFaktura as a live preview"
+      }
+    },
+    {
+      "href": "https://fakturering-app.vercel.app/",
+      "label": {
+        "no": "Besøk nettsiden",
+        "en": "Visit the website"
+      },
+      "ariaLabel": {
+        "no": "Besøk AutoFaktura i ny fane",
+        "en": "Visit AutoFaktura in a new tab"
+      }
+    },
+    {
       "href": "https://github.com/kristianGjertsen/Fakturering-App",
-      "label": { "no": "Se GitHub-repo", "en": "View GitHub repo" },
-      "ariaLabel": { "no": "Åpne GitHub-repo for AutoFaktura", "en": "Open the AutoFaktura GitHub repository" }
+      "label": {
+        "no": "Se GitHub-repo",
+        "en": "View GitHub repo"
+      },
+      "ariaLabel": {
+        "no": "Åpne GitHub-repo for AutoFaktura",
+        "en": "Open the AutoFaktura GitHub repository"
+      }
     }
   ]
 }
