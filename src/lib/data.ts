@@ -22,6 +22,7 @@ export {
 export type { CompanyInput, CompanyLogoPreferenceInput } from "./companyData";
 export {
   deleteInvoice,
+  deleteInvoiceSchedule,
   fetchInvoices,
   fetchSchedules,
   finalizeInvoice,

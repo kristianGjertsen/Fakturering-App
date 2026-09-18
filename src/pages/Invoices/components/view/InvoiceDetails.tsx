@@ -210,9 +210,9 @@ function InvoiceOverview({
               {sending ? "Sender..." : "Purre"}
             </Button>
           )}
-          {!scheduled && invoice.status === "draft" && (
-            <Button className="w-full sm:w-auto" variant="danger" onClick={onDelete} disabled={deleting} help="Sletter utkastet permanent. Sendte fakturaer kan ikke slettes her.">
-              {deleting ? "Sletter..." : "Slett faktura"}
+          {(scheduled || invoice.status === "draft") && (
+            <Button className="w-full sm:w-auto" variant="danger" onClick={onDelete} disabled={deleting} help={scheduled ? "Sletter planen og stopper fremtidige utsendinger. Allerede opprettede fakturaer beholdes." : "Sletter utkastet permanent. Sendte fakturaer kan ikke slettes her."}>
+              {deleting ? "Sletter..." : scheduled ? "Slett plan" : "Slett faktura"}
             </Button>
           )}
         </div>

@@ -21,6 +21,7 @@ import { Button } from "../../components/Button";
 import { AnimatedIconButton } from "../../components/AnimatedIconButton";
 import { SectionHeader } from "../../components/SectionHeader";
 import { Notice } from "../../components/layout/Notice";
+import { useDetailSelection } from "../../components/layout/useDetailSelection";
 import { DetailModal } from "../../components/layout/DetailModal";
 import { ConfirmDialog } from "../../components/layout/ConfirmDialog";
 import { Modal } from "../../components/layout/Modal";
@@ -58,6 +59,7 @@ type InvoicesPageProps = {
   onOpenCompanies: () => void;
   onRefreshInvoices: () => Promise<void>;
   onDeleteInvoice: (invoiceId: string) => Promise<void>;
+  onDeleteSchedule: (scheduleId: string) => Promise<void>;
 };
 
 export default function InvoicesPage({
@@ -73,17 +75,16 @@ export default function InvoicesPage({
   onOpenCompanies,
   onRefreshInvoices,
   onDeleteInvoice,
+  onDeleteSchedule,
 }: InvoicesPageProps) {
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const companyFilterId = searchParams.get("companyId") ?? "";
-  const requestedInvoiceId = searchParams.get("invoiceId") ?? "";
   const routeState = location.state as InvoicesLocationState | null;
   const requestedCreateForm = routeState?.openCreateForm;
   const requestedInvoiceKind = routeState?.invoiceKind === "recurring"
     ? "recurring"
     : "single";
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState(searchParams.get("invoiceId") ?? "");
   const [deletingInvoiceId, setDeletingInvoiceId] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(
     requestedCreateForm ?? searchParams.get("create") === "true",
@@ -131,65 +132,38 @@ export default function InvoicesPage({
     }
   }, [location.key, requestedCreateForm]);
 
-  useEffect(() => {
-    if (!requestedInvoiceId) {
-      if (selectedInvoiceId) {
-        setSelectedInvoiceId("");
-      }
-      return;
-    }
-
-    if (
-      requestedInvoiceId !== selectedInvoiceId &&
-      availableInvoices.some((invoice) => invoice.id === requestedInvoiceId)
-    ) {
-      setSelectedInvoiceId(requestedInvoiceId);
-      return;
-    }
-
-    if (
-      selectedInvoiceId &&
-      !availableInvoices.some((invoice) => invoice.id === selectedInvoiceId)
-    ) {
-      setSelectedInvoiceId("");
-    }
-  }, [availableInvoices, requestedInvoiceId, selectedInvoiceId]);
-
-  const selectedInvoice = availableInvoices.find((invoice) => invoice.id === selectedInvoiceId) ?? null;
+  const {
+    selectedItem: selectedInvoice,
+    selectedId: selectedInvoiceId,
+    updateSelection: updateInvoiceSelection,
+    toggleSelection: selectInvoice,
+  } = useDetailSelection("invoiceId", availableInvoices);
   const selectedInvoiceSchedule = selectedInvoice
     ? filteredSchedules.find((schedule) => `schedule-preview-${schedule.id}` === selectedInvoice.id) ?? null
     : null;
 
-  function selectInvoice(invoiceId: string) {
-    const nextInvoiceId = selectedInvoiceId === invoiceId ? "" : invoiceId;
-    updateInvoiceSelection(nextInvoiceId);
-  }
-
   function closeInvoiceDetails() {
+    if (deletingInvoiceId) return;
+    setShowDeleteInvoiceDialog(false);
     updateInvoiceSelection("");
   }
 
-  function updateInvoiceSelection(invoiceId: string) {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-
-      if (invoiceId) {
-        next.set("invoiceId", invoiceId);
-      } else {
-        next.delete("invoiceId");
-      }
-      return next;
-    }, { replace: true });
-  }
-
   async function handleDeleteSelectedInvoice() {
-    if (!selectedInvoice || selectedInvoiceSchedule) return;
+    if (!selectedInvoice || deletingInvoiceId) return;
 
+    setActionMessage("");
     setDeletingInvoiceId(selectedInvoice.id);
     try {
-      await onDeleteInvoice(selectedInvoice.id);
+      if (selectedInvoiceSchedule) {
+        await onDeleteSchedule(selectedInvoiceSchedule.id);
+      } else {
+        await onDeleteInvoice(selectedInvoice.id);
+      }
       setShowDeleteInvoiceDialog(false);
-      closeInvoiceDetails();
+      updateInvoiceSelection("");
+    } catch (error) {
+      setShowDeleteInvoiceDialog(false);
+      setActionMessage(error instanceof Error ? error.message : "Kunne ikke slette. Prøv igjen.");
     } finally {
       setDeletingInvoiceId("");
     }
@@ -436,7 +410,7 @@ export default function InvoicesPage({
       <DetailModal
         open={Boolean(selectedInvoice)}
         onClose={closeInvoiceDetails}
-        title={selectedInvoiceSchedule ? "Gjentagende fakturaplan" : "Faktura"}
+        title={selectedInvoiceSchedule ? (selectedInvoiceSchedule.schedule_type === "once" ? "Planlagt faktura" : "Gjentakende fakturaplan") : "Faktura"}
         ariaLabel={selectedInvoice
           ? `Fakturadetaljer for ${selectedInvoice.title || selectedInvoice.invoice_number}`
           : "Fakturadetaljer"}
@@ -459,12 +433,14 @@ export default function InvoicesPage({
 
       <ConfirmDialog
         open={Boolean(selectedInvoice && showDeleteInvoiceDialog)}
-        title="Slett faktura"
-        message={`Slette ${selectedInvoice?.invoice_number ? `faktura ${selectedInvoice.invoice_number}` : "utkastet"}?`}
+        title={selectedInvoiceSchedule ? "Slett fakturaplan" : "Slett faktura"}
+        message={selectedInvoiceSchedule
+          ? "Slette fakturaplanen? Fremtidige utsendinger fra planen stoppes. Fakturaer som allerede er opprettet, beholdes."
+          : `Slette ${selectedInvoice?.invoice_number ? `faktura ${selectedInvoice.invoice_number}` : "utkastet"}?`}
         confirmLabel={deletingInvoiceId ? "Sletter..." : "Slett"}
         tone="danger"
         loading={Boolean(deletingInvoiceId)}
-        onCancel={() => setShowDeleteInvoiceDialog(false)}
+        onCancel={() => !deletingInvoiceId && setShowDeleteInvoiceDialog(false)}
         onConfirm={() => void handleDeleteSelectedInvoice()}
       />
 
