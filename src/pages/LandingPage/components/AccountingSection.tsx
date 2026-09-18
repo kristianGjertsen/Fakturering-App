@@ -6,7 +6,7 @@ export function AccountingSection() {
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
         <div className="grid items-center gap-5 lg:grid-cols-2 lg:gap-16">
           <h2 id="accounting-title" className="text-3xl font-semibold leading-tight tracking-tight text-slate-950 sm:text-4xl">
-            Detljert regnskap</h2>
+            Detaljert regnskap</h2>
           <p className="text-base leading-relaxed text-slate-600">
             Se inntekter, kostnader og resultat per måned. Regnskapsoversikten samler nøkkeltallene og viser hvordan resultat og merverdiavgift er beregnet.</p>
            <p> Disse kan lastes ned i .csv fil.</p>
