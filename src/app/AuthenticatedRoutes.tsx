@@ -29,6 +29,7 @@ type AuthenticatedRoutesProps = {
   ) => Promise<void>;
   onCreateInvoice: (input: Omit<InvoiceInput, "ownerUserId">) => Promise<string>;
   onDeleteInvoice: (invoiceId: string) => Promise<void>;
+  onDeleteSchedule: (scheduleId: string) => Promise<void>;
   onRefreshInvoices: () => Promise<void>;
   onUpdateProfile: (profilePatch: Partial<AppData["profile"]>) => void;
   onRefreshProfileData: () => Promise<void>;
@@ -46,6 +47,7 @@ export function AuthenticatedRoutes({
   onUpdateCompanyLogoPreference,
   onCreateInvoice,
   onDeleteInvoice,
+  onDeleteSchedule,
   onRefreshInvoices,
   onUpdateProfile,
   onRefreshProfileData,
@@ -116,12 +118,13 @@ export function AuthenticatedRoutes({
             onOpenCompanies={() => navigate("/companies")}
             onRefreshInvoices={onRefreshInvoices}
             onDeleteInvoice={onDeleteInvoice}
+            onDeleteSchedule={onDeleteSchedule}
           />
         }
       />
       <Route
         path="/recurring"
-        element={<RecurringPage schedules={recurringSchedules} sellerProfile={data.profile} />}
+        element={<RecurringPage schedules={recurringSchedules} sellerProfile={data.profile} onDeleteSchedule={onDeleteSchedule} />}
       />
       <Route
         path="/profile"

@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { Route, Routes } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 import { ensureProfile } from "./lib/data";
 import LoginPage from "./pages/Login/LoginPage";
+import LandingPage from "./pages/LandingPage/LandingPage";
 import AuthenticatedApp from "./app/AuthenticatedApp";
 
 export default function App() {
@@ -53,5 +55,11 @@ export default function App() {
     );
   }
 
-  return session ? <AuthenticatedApp session={session} /> : <LoginPage />;
+  return session ? <AuthenticatedApp session={session} /> : (
+    <Routes>
+      <Route path="/login" element={<LoginPage key="login" />} />
+      <Route path="/register" element={<LoginPage key="register" initialRegistering />} />
+      <Route path="*" element={<LandingPage />} />
+    </Routes>
+  );
 }

@@ -8,6 +8,7 @@ import {
   createProduct,
   deleteCompany,
   deleteInvoice,
+  deleteInvoiceSchedule,
   deleteProduct,
   type CompanyInput,
   type CompanyLogoPreferenceInput,
@@ -96,6 +97,11 @@ export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
     await refreshData();
   }
 
+  async function handleDeleteSchedule(scheduleId: string) {
+    await deleteInvoiceSchedule(scheduleId);
+    await refreshData();
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut();
   }
@@ -118,6 +124,7 @@ export default function AuthenticatedApp({ session }: AuthenticatedAppProps) {
             onUpdateCompanyLogoPreference={handleUpdateCompanyLogoPreference}
             onCreateInvoice={handleCreateInvoice}
             onDeleteInvoice={handleDeleteInvoice}
+            onDeleteSchedule={handleDeleteSchedule}
             onRefreshInvoices={refreshData}
             onUpdateProfile={updateProfileInData}
             onRefreshProfileData={refreshData}

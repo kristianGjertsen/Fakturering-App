@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { supabase } from "../../supabaseClient";
@@ -13,12 +14,12 @@ import {
 const authInputClassName =
   "mt-1 rounded-lg border-slate-300 bg-white text-base focus:border-slate-900 focus:ring-0";
 
-export default function LoginPage() {
+export default function LoginPage({ initialRegistering = false }: { initialRegistering?: boolean }) {
   const [registrationForm, setRegistrationForm] = useState(createRegistrationFormState);
   const [registrationStep, setRegistrationStep] = useState<RegistrationStep>(1);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(initialRegistering);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -146,6 +147,9 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-screen place-items-center px-3 py-4 sm:px-4">
       <section className="w-full max-w-lg rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:rounded-2xl sm:p-8">
+        <Link to="/" className="mb-6 inline-block rounded text-sm text-slate-500 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">
+          ← Til forsiden
+        </Link>
         <h1 className="text-2xl font-semibold text-slate-900">
           {isRegistering ? "Opprett bruker" : "Logg inn"}
         </h1>
