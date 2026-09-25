@@ -351,6 +351,20 @@ async function createDraftInvoice(input: InvoiceInput) {
   return invoiceId;
 }
 
+export async function deleteInvoiceSchedule(scheduleId: string) {
+  // Existing invoices can share the schedule's attachment paths. Keep their files.
+  // Foreign keys remove schedule lines/attachments and preserve generated invoices.
+  const { data, error } = await supabase
+    .from("invoice_schedules")
+    .delete()
+    .eq("id", scheduleId)
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  if (!data) throw new Error("Kunne ikke slette fakturaplanen.");
+}
+
 export async function deleteInvoice(invoiceId: string) {
   const { data: attachments } = await supabase
     .from("invoice_attachments")

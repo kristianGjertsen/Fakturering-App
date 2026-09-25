@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Plus } from "@animateicons/react/lucide";
 import { AnimatedIconButton } from "../../components/AnimatedIconButton";
 import { EmptyState } from "../../components/EmptyState";
 import { SectionHeader } from "../../components/SectionHeader";
+import { ConfirmDialog } from "../../components/layout/ConfirmDialog";
+import { Notice } from "../../components/layout/Notice";
+import { useDetailSelection } from "../../components/layout/useDetailSelection";
 import { DetailModal } from "../../components/layout/DetailModal";
 import { scheduleToPreviewInvoice } from "../../lib/schedulePreview";
 import type { InvoiceScheduleWithDetails, Profile } from "../../types";
@@ -14,52 +17,44 @@ import { getScheduleDisplayTitle } from "./schedulePresentation";
 type RecurringPageProps = {
   schedules: InvoiceScheduleWithDetails[];
   sellerProfile: Profile;
+  onDeleteSchedule: (scheduleId: string) => Promise<void>;
 };
 
-export default function RecurringPage({ schedules, sellerProfile }: RecurringPageProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const requestedScheduleId = searchParams.get("scheduleId") ?? "";
-  const [selectedScheduleId, setSelectedScheduleId] = useState(requestedScheduleId);
-
-  useEffect(() => {
-    if (
-      requestedScheduleId &&
-      requestedScheduleId !== selectedScheduleId &&
-      schedules.some((schedule) => schedule.id === requestedScheduleId)
-    ) {
-      setSelectedScheduleId(requestedScheduleId);
-      return;
-    }
-
-    if (
-      selectedScheduleId &&
-      !schedules.some((schedule) => schedule.id === selectedScheduleId)
-    ) {
-      setSelectedScheduleId("");
-    }
-  }, [requestedScheduleId, schedules, selectedScheduleId]);
-
-  const selectedSchedule =
-    schedules.find((schedule) => schedule.id === selectedScheduleId) ?? null;
+export default function RecurringPage({ schedules, sellerProfile, onDeleteSchedule }: RecurringPageProps) {
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [actionMessage, setActionMessage] = useState("");
+  const {
+    selectedItem: selectedSchedule,
+    selectedId: selectedScheduleId,
+    updateSelection: updateScheduleSelection,
+  } = useDetailSelection("scheduleId", schedules);
   const selectedListId = selectedScheduleId ? `schedule-preview-${selectedScheduleId}` : "";
   const selectedPreviewInvoice = useMemo(
     () => selectedSchedule ? scheduleToPreviewInvoice(selectedSchedule) : null,
     [selectedSchedule],
   );
 
+  async function handleDeleteSchedule() {
+    if (!selectedSchedule || deleting) return;
+    setDeleting(true);
+    setActionMessage("");
+    try {
+      await onDeleteSchedule(selectedSchedule.id);
+      setShowDeleteDialog(false);
+      updateSelection("");
+    } catch (error) {
+      setShowDeleteDialog(false);
+      setActionMessage(error instanceof Error ? error.message : "Kunne ikke slette fakturaplanen. Prøv igjen.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   function updateSelection(nextScheduleId: string) {
-    setSelectedScheduleId(nextScheduleId);
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-
-      if (nextScheduleId) {
-        next.set("scheduleId", nextScheduleId);
-      } else {
-        next.delete("scheduleId");
-      }
-
-      return next;
-    }, { replace: true });
+    setShowDeleteDialog(false);
+    setActionMessage("");
+    updateScheduleSelection(nextScheduleId);
   }
 
   function selectSchedule(listItemId: string) {
@@ -114,26 +109,37 @@ export default function RecurringPage({ schedules, sellerProfile }: RecurringPag
 
       <DetailModal
         open={Boolean(selectedSchedule)}
-        onClose={() => updateSelection("")}
+        onClose={() => !deleting && updateSelection("")}
         title="Gjentagende fakturaplan"
         ariaLabel={selectedSchedule
           ? `Detaljer for ${getScheduleDisplayTitle(selectedSchedule)}`
           : "Detaljer for gjentakende plan"}
       >
+        {actionMessage && <Notice className="mb-5">{actionMessage}</Notice>}
         {selectedSchedule && selectedPreviewInvoice && (
           <InvoiceDetails
             invoice={selectedPreviewInvoice}
             sellerProfile={sellerProfile}
             schedule={selectedSchedule}
-            deleting={false}
+            deleting={deleting}
             sending={false}
             updatingPaid={false}
-            onDelete={() => undefined}
+            onDelete={() => setShowDeleteDialog(true)}
             onSend={() => undefined}
             onTogglePaid={() => undefined}
           />
         )}
       </DetailModal>
+      <ConfirmDialog
+        open={Boolean(selectedSchedule && showDeleteDialog)}
+        title="Slett gjentakelse"
+        message="Slette gjentakelsen? Alle fremtidige utsendinger fra planen stoppes. Fakturaer som allerede er opprettet, beholdes."
+        confirmLabel={deleting ? "Sletter..." : "Slett gjentakelse"}
+        tone="danger"
+        loading={deleting}
+        onCancel={() => !deleting && setShowDeleteDialog(false)}
+        onConfirm={() => void handleDeleteSchedule()}
+      />
     </>
   );
 }
