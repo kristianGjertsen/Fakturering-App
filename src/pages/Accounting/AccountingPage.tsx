@@ -27,6 +27,7 @@ import {
 } from "../../lib/data";
 import { buildAccountingReport } from "../../lib/accounting";
 import type { AccountingAccountCategory, InvoiceWithDetails, PurchasePaymentReimbursement, PurchasePaymentWithDetails, SupplierInvoiceWithDetails } from "../../types";
+import { SaftExport } from "./components/SaftExport";
 import { AccountsView } from "./components/AccountsView";
 import { AccountingOverview, DetailedReports } from "./components/AccountingReports";
 import { JournalView } from "./components/JournalView";
@@ -289,6 +290,7 @@ export default function AccountingPage({ ownerUserId, accounting, salesInvoices,
       {activeTab === "overview" && <AccountingOverview year={year} report={report} entries={accounting.journalEntries} salesInvoices={salesInvoices} supplierInvoices={accounting.supplierInvoices} />}
       {activeTab === "incoming" && <SupplierInvoicesView year={year} invoices={accounting.supplierInvoices} purchases={accounting.purchasePayments} accounts={accounting.accounts} entries={accounting.journalEntries} actionInvoiceId={actionInvoiceId} actionPurchaseId={actionPurchaseId} actionMessage={feedback.message} actionMessageTone={feedback.tone} onNewInvoice={() => setShowSupplierInvoiceForm(true)} onNewPurchase={() => setShowPurchasePaymentForm(true)} onNewReimbursement={() => setShowPurchaseReimbursementForm(true)} onSetPaid={handleSetSupplierPaid} onCancelInvoice={handleCancelSupplierInvoice} onReimbursePurchase={handleReimbursePurchase} onReversePurchaseReimbursement={handleReversePurchaseReimbursement} onCancelPurchase={handleCancelPurchase} onDownloadAttachment={handleDownload} />}
       {activeTab === "journal" && <JournalView year={year} entries={accounting.journalEntries} onOpenManualVoucher={() => setShowManualVoucherForm(true)} />}
+      {activeTab === "reports" && <SaftExport key={year} year={year} accounting={accounting} onRefresh={onRefresh} />}
       {activeTab === "reports" && <DetailedReports year={year} report={report} periods={accounting.periods} salesInvoices={salesInvoices} supplierInvoices={accounting.supplierInvoices} updatingPeriod={updatingPeriod} onSetPeriodStatus={(month, status) => void handleSetPeriodStatus(month, status)} />}
       {activeTab === "accounts" && <AccountsView year={year} accounts={accounting.accounts} entries={accounting.journalEntries} updatingAccountId={updatingAccountId} onToggleActive={(account) => void handleToggleAccount(account.id, !account.is_active)} onCreateAccount={handleCreateAccount} />}
 

@@ -7,6 +7,8 @@ export default defineConfig(({ mode }) => {
   const environment = loadEnv(mode, process.cwd(), "");
 
   return {
+    build: { target: "es2022" },
+    worker: { format: "es" },
     plugins: [
       react(),
       tailwindcss(),
